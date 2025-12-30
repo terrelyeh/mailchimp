@@ -4,19 +4,26 @@ import json
 from datetime import datetime, timedelta
 
 class MailchimpClient:
-    def __init__(self):
-        self.api_key = os.getenv("MAILCHIMP_API_KEY")
-        self.server_prefix = os.getenv("MAILCHIMP_SERVER_PREFIX")
-        
-        if not self.api_key or not self.server_prefix:
+    def __init__(self, region='US'):
+        """
+        Initialize Mailchimp client for a specific region.
+        region: 'US', 'EU', 'APAC', or 'JP'
+        """
+        self.region = region
+
+        # Try to get region-specific credentials first, fall back to default
+        api_key = os.getenv(f"MAILCHIMP_API_KEY_{region}") or os.getenv("MAILCHIMP_API_KEY")
+        server_prefix = os.getenv(f"MAILCHIMP_SERVER_PREFIX_{region}") or os.getenv("MAILCHIMP_SERVER_PREFIX")
+
+        if not api_key or not server_prefix:
             # Using placeholder for now if env vars are missing to avoid crash on startup
-            print("Warning: Mailchimp API credentials not found in env")
+            print(f"Warning: Mailchimp API credentials not found for region {region}")
             self.base_url = "https://us1.api.mailchimp.com/3.0"
             self.headers = {}
         else:
-            self.base_url = f"https://{self.server_prefix}.api.mailchimp.com/3.0"
+            self.base_url = f"https://{server_prefix}.api.mailchimp.com/3.0"
             self.headers = {
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             }
 
@@ -96,5 +103,40 @@ class MailchimpClient:
                 
         return results
 
-# Singleton instance
-mailchimp_service = MailchimpClient()
+class MultiRegionMailchimpService:
+    """Service to manage MailChimp clients across multiple regions"""
+
+    REGIONS = ['US', 'EU', 'APAC', 'JP']
+
+    def __init__(self):
+        self.clients = {
+            region: MailchimpClient(region=region)
+            for region in self.REGIONS
+        }
+
+    def get_client(self, region):
+        """Get MailChimp client for a specific region"""
+        return self.clients.get(region)
+
+    def get_dashboard_data(self, days=30, region=None):
+        """
+        Get dashboard data for one or all regions
+        region: specific region code or None for all regions
+        """
+        if region:
+            # Single region
+            client = self.get_client(region)
+            if client:
+                return client.get_dashboard_data(days=days)
+            return []
+        else:
+            # All regions
+            all_data = {}
+            for reg in self.REGIONS:
+                client = self.get_client(reg)
+                if client:
+                    all_data[reg] = client.get_dashboard_data(days=days)
+            return all_data
+
+# Singleton instance for multi-region service
+mailchimp_service = MultiRegionMailchimpService()

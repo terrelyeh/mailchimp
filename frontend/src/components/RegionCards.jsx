@@ -1,0 +1,97 @@
+import React from 'react';
+import { TrendingUp, Mail, MousePointer, ArrowRight } from 'lucide-react';
+
+const RegionCard = ({ region, data, onClick }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+        onClick={onClick}>
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{region.flag}</span>
+            <div>
+              <h3 className="font-bold text-gray-900">{region.name}</h3>
+              <p className="text-xs text-gray-500">{region.code}</p>
+            </div>
+          </div>
+        </div>
+        <p className="text-sm text-gray-400">No data available</p>
+      </div>
+    );
+  }
+
+  // Calculate metrics
+  const totalSent = data.reduce((acc, curr) => acc + (curr.emails_sent || 0), 0);
+  const avgOpenRate = data.length ? (
+    data.reduce((acc, curr) => acc + (curr.open_rate || 0), 0) / data.length
+  ) : 0;
+  const avgClickRate = data.length ? (
+    data.reduce((acc, curr) => acc + (curr.click_rate || 0), 0) / data.length
+  ) : 0;
+
+  return (
+    <div
+      className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+      onClick={onClick}
+    >
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">{region.flag}</span>
+          <div>
+            <h3 className="font-bold text-gray-900">{region.name}</h3>
+            <p className="text-xs text-gray-500">{region.code}</p>
+          </div>
+        </div>
+        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-[#FFE01B] transition-colors" />
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gray-600">
+            <Mail className="w-4 h-4" />
+            <span className="text-xs">Total Sent</span>
+          </div>
+          <span className="font-bold text-gray-900">{totalSent.toLocaleString()}</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gray-600">
+            <TrendingUp className="w-4 h-4" />
+            <span className="text-xs">Open Rate</span>
+          </div>
+          <span className="font-bold text-gray-900">{(avgOpenRate * 100).toFixed(1)}%</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gray-600">
+            <MousePointer className="w-4 h-4" />
+            <span className="text-xs">Click Rate</span>
+          </div>
+          <span className="font-bold text-gray-900">{(avgClickRate * 100).toFixed(1)}%</span>
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <p className="text-xs text-gray-500">{data.length} campaigns</p>
+      </div>
+    </div>
+  );
+};
+
+export default function RegionCards({ regionsData, regions, onRegionClick }) {
+  return (
+    <div className="mb-8">
+      <h2 className="text-lg font-bold text-gray-900 mb-4">Regional Performance</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {regions.map((region) => (
+          <RegionCard
+            key={region.code}
+            region={region}
+            data={regionsData[region.code] || []}
+            onClick={() => onRegionClick(region.code)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
