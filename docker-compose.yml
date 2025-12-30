@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Backend API 服務
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # 從 .env 檔案讀取環境變數
+      - MAILCHIMP_API_KEY=${MAILCHIMP_API_KEY}
+      - MAILCHIMP_SERVER_PREFIX=${MAILCHIMP_SERVER_PREFIX}
+      # 如果有多個區域，也可以加入：
+      # - MAILCHIMP_API_KEY_US=${MAILCHIMP_API_KEY_US}
+      # - MAILCHIMP_SERVER_PREFIX_US=${MAILCHIMP_SERVER_PREFIX_US}
+      # - MAILCHIMP_API_KEY_EU=${MAILCHIMP_API_KEY_EU}
+      # - MAILCHIMP_SERVER_PREFIX_EU=${MAILCHIMP_SERVER_PREFIX_EU}
+      # - MAILCHIMP_API_KEY_APAC=${MAILCHIMP_API_KEY_APAC}
+      # - MAILCHIMP_SERVER_PREFIX_APAC=${MAILCHIMP_SERVER_PREFIX_APAC}
+      # - MAILCHIMP_API_KEY_JP=${MAILCHIMP_API_KEY_JP}
+      # - MAILCHIMP_SERVER_PREFIX_JP=${MAILCHIMP_SERVER_PREFIX_JP}
+    volumes:
+      # 掛載資料庫檔案，這樣資料不會遺失
+      - ./backend/campaign_cache.db:/app/campaign_cache.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend 網頁服務
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# 如果需要持久化資料，可以使用 volumes
+volumes:
+  db_data:
