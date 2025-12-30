@@ -1,0 +1,15 @@
+# System
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+backend/.env
+backend/campaign_cache.db
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.env

@@ -1,0 +1,8 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+body {
+  background-color: #F6F6F4; /* Light gray background like Mailchimp */
+  color: #241C15;
+}
