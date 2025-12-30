@@ -20,19 +20,25 @@ const Card = ({ title, value, subValue, trend, icon: Icon }) => (
     </div>
 );
 
-export default function KPICards({ data }) {
+export default function KPICards({ data, isMultiRegion = false }) {
+    // Flatten data if it's multi-region (object with region keys)
+    let flatData = data;
+    if (isMultiRegion && typeof data === 'object' && !Array.isArray(data)) {
+        flatData = Object.values(data).flat();
+    }
+
     // Calculate metrics from local data
-    const totalSent = data.reduce((acc, curr) => acc + (curr.emails_sent || 0), 0);
+    const totalSent = flatData.reduce((acc, curr) => acc + (curr.emails_sent || 0), 0);
 
-    const avgOpenRate = data.length ? (
-        data.reduce((acc, curr) => acc + (curr.open_rate || 0), 0) / data.length
+    const avgOpenRate = flatData.length ? (
+        flatData.reduce((acc, curr) => acc + (curr.open_rate || 0), 0) / flatData.length
     ) : 0;
 
-    const avgClickRate = data.length ? (
-        data.reduce((acc, curr) => acc + (curr.click_rate || 0), 0) / data.length
+    const avgClickRate = flatData.length ? (
+        flatData.reduce((acc, curr) => acc + (curr.click_rate || 0), 0) / flatData.length
     ) : 0;
 
-    const totalUnsub = data.reduce((acc, curr) => acc + (curr.unsubscribed || 0), 0);
+    const totalUnsub = flatData.reduce((acc, curr) => acc + (curr.unsubscribed || 0), 0);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
