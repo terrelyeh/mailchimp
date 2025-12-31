@@ -24,11 +24,17 @@ function App() {
     setLoading(true);
     const result = await fetchDashboardData(selectedDays, selectedRegion, force);
 
+    console.log('loadData - selectedRegion:', selectedRegion);
+    console.log('loadData - API result:', result);
+
     if (result && result.data) {
       // Check if data is actually populated
       const hasData = selectedRegion
         ? Array.isArray(result.data) && result.data.length > 0
         : Object.values(result.data).some(arr => Array.isArray(arr) && arr.length > 0);
+
+      console.log('loadData - hasData:', hasData);
+      console.log('loadData - result.data:', result.data);
 
       if (hasData) {
         setData(result.data);
@@ -105,6 +111,11 @@ function App() {
     : (!selectedRegion && typeof data === 'object' && !Array.isArray(data))
       ? data
       : MOCK_REGIONS_DATA;
+
+  console.log('Render - selectedRegion:', selectedRegion);
+  console.log('Render - data type:', typeof data, 'isArray:', Array.isArray(data));
+  console.log('Render - data:', data);
+  console.log('Render - displayData:', displayData);
 
   return (
     <div className="min-h-screen bg-[#F6F6F4] p-8">
