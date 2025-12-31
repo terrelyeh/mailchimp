@@ -106,11 +106,16 @@ function App() {
     : null;
 
   // Get display data based on view
-  const displayData = selectedRegion && Array.isArray(data)
-    ? data
-    : (!selectedRegion && typeof data === 'object' && !Array.isArray(data))
-      ? data
-      : MOCK_REGIONS_DATA;
+  const displayData = selectedRegion
+    ? (Array.isArray(data)
+        ? data // Single region data (already an array)
+        : (typeof data === 'object' && data[selectedRegion])
+          ? data[selectedRegion] // Extract from multi-region object
+          : [] // Empty array if no data
+      )
+    : (typeof data === 'object' && !Array.isArray(data))
+      ? data // Multi-region object
+      : {}; // Empty object
 
   console.log('Render - selectedRegion:', selectedRegion);
   console.log('Render - data type:', typeof data, 'isArray:', Array.isArray(data));
