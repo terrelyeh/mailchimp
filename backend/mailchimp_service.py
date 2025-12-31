@@ -106,13 +106,38 @@ class MailchimpClient:
 class MultiRegionMailchimpService:
     """Service to manage MailChimp clients across multiple regions"""
 
-    REGIONS = ['US', 'EU', 'APAC', 'JP']
-
     def __init__(self):
+        # Dynamically detect available regions from environment variables
+        self.REGIONS = self._detect_available_regions()
         self.clients = {
             region: MailchimpClient(region=region)
             for region in self.REGIONS
         }
+
+    def _detect_available_regions(self):
+        """Detect which regions have API credentials configured"""
+        available_regions = []
+
+        # Check for common region names
+        possible_regions = ['US', 'EU', 'APAC', 'JP', 'INDIA', 'AU', 'CA', 'UK', 'SG']
+
+        for region in possible_regions:
+            api_key = os.getenv(f"MAILCHIMP_API_KEY_{region}")
+            server_prefix = os.getenv(f"MAILCHIMP_SERVER_PREFIX_{region}")
+
+            # If both credentials exist, add this region
+            if api_key and server_prefix:
+                available_regions.append(region)
+
+        # Fallback to default region if no specific regions configured
+        if not available_regions:
+            default_key = os.getenv("MAILCHIMP_API_KEY")
+            default_prefix = os.getenv("MAILCHIMP_SERVER_PREFIX")
+            if default_key and default_prefix:
+                available_regions.append("DEFAULT")
+
+        print(f"Detected MailChimp regions: {available_regions}")
+        return available_regions
 
     def get_client(self, region):
         """Get MailChimp client for a specific region"""

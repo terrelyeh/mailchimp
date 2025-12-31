@@ -28,7 +28,7 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
     Get dashboard stats for all regions or a specific region.
     Parameters:
     - days: 7, 30, or 90 (default: 30)
-    - region: 'US', 'EU', 'APAC', 'JP', or None for all regions
+    - region: region code (e.g., 'US', 'INDIA', 'APAC', 'JP'), or None for all regions
     - force_refresh: true to fetch from Mailchimp and update DB
     """
     if force_refresh:
@@ -56,7 +56,7 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
         else:
             # Get all regions from cache
             all_data = {}
-            for reg in ['US', 'EU', 'APAC', 'JP']:
+            for reg in mailchimp_service.REGIONS:
                 all_data[reg] = database.get_cached_campaigns(days=days, region=reg)
 
             # If any region is empty, consider refetching (or use mock data)
@@ -68,14 +68,9 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
 
 @app.get("/api/regions")
 def get_regions():
-    """Get list of available regions"""
+    """Get list of available regions dynamically detected from environment variables"""
     return {
-        "regions": [
-            {"code": "US", "name": "United States", "flag": "🇺🇸"},
-            {"code": "EU", "name": "Europe", "flag": "🇪🇺"},
-            {"code": "APAC", "name": "Asia-Pacific", "flag": "🌏"},
-            {"code": "JP", "name": "Japan", "flag": "🇯🇵"}
-        ]
+        "regions": mailchimp_service.REGIONS
     }
 
 @app.post("/api/sync")

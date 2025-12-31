@@ -5,10 +5,15 @@ const generateCampaigns = (region, count = 30, baseSubscribers = 5000) => {
     US: { subscribers: 1.5, openRate: 1.1, clickRate: 1.0 },
     EU: { subscribers: 1.2, openRate: 1.15, clickRate: 1.05 },
     APAC: { subscribers: 1.0, openRate: 0.95, clickRate: 0.9 },
-    JP: { subscribers: 0.8, openRate: 1.2, clickRate: 1.1 }
+    JP: { subscribers: 0.8, openRate: 1.2, clickRate: 1.1 },
+    INDIA: { subscribers: 1.3, openRate: 1.0, clickRate: 0.95 },
+    AU: { subscribers: 0.9, openRate: 1.05, clickRate: 1.0 },
+    UK: { subscribers: 1.1, openRate: 1.1, clickRate: 1.05 },
+    CA: { subscribers: 1.0, openRate: 1.05, clickRate: 1.0 },
+    SG: { subscribers: 0.7, openRate: 1.15, clickRate: 1.1 }
   };
 
-  const multiplier = regionMultipliers[region] || regionMultipliers.US;
+  const multiplier = regionMultipliers[region] || { subscribers: 1.0, openRate: 1.0, clickRate: 1.0 };
 
   return Array.from({ length: count }).map((_, i) => ({
     id: `${region.toLowerCase()}_camp_${i}`,
@@ -35,11 +40,30 @@ export const MOCK_REGIONS_DATA = {
   JP: generateCampaigns('JP', 30, 5000)
 };
 
+// Region metadata mapping
+export const REGION_METADATA = {
+  US: { code: 'US', name: 'United States', flag: '🇺🇸', color: '#3B82F6' },
+  EU: { code: 'EU', name: 'Europe', flag: '🇪🇺', color: '#10B981' },
+  APAC: { code: 'APAC', name: 'Asia-Pacific', flag: '🌏', color: '#F59E0B' },
+  JP: { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#EF4444' },
+  INDIA: { code: 'INDIA', name: 'India', flag: '🇮🇳', color: '#8B5CF6' },
+  AU: { code: 'AU', name: 'Australia', flag: '🇦🇺', color: '#14B8A6' },
+  UK: { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', color: '#EC4899' },
+  CA: { code: 'CA', name: 'Canada', flag: '🇨🇦', color: '#F97316' },
+  SG: { code: 'SG', name: 'Singapore', flag: '🇸🇬', color: '#06B6D4' }
+};
+
+// Helper function to get region info
+export const getRegionInfo = (code) => {
+  return REGION_METADATA[code] || { code, name: code, flag: '🌍', color: '#6B7280' };
+};
+
+// Legacy export for backward compatibility
 export const REGIONS = [
-  { code: 'US', name: 'United States', flag: '🇺🇸', color: '#3B82F6' },
-  { code: 'EU', name: 'Europe', flag: '🇪🇺', color: '#10B981' },
-  { code: 'APAC', name: 'Asia-Pacific', flag: '🌏', color: '#F59E0B' },
-  { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#EF4444' }
+  REGION_METADATA.US,
+  REGION_METADATA.EU,
+  REGION_METADATA.APAC,
+  REGION_METADATA.JP
 ];
 
 // Generate subscriber count trend over time
