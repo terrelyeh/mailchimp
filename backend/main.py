@@ -86,3 +86,43 @@ def trigger_sync(background_tasks: BackgroundTasks, days: int = 30):
     background_tasks.add_task(sync)
     return {"status": "Sync started for all regions"}
 
+@app.get("/api/test-credentials")
+def test_credentials():
+    """Test MailChimp API credentials for all configured regions"""
+    results = {}
+
+    for region in mailchimp_service.REGIONS:
+        client = mailchimp_service.get_client(region)
+
+        # Test by trying to fetch campaigns
+        try:
+            campaigns = client.get_campaigns(days=30, count=1)
+
+            if campaigns is None:
+                results[region] = {
+                    "status": "error",
+                    "message": "API call failed - check credentials and server prefix"
+                }
+            elif len(campaigns) == 0:
+                results[region] = {
+                    "status": "success",
+                    "message": "API credentials valid, but no campaigns found in the last 30 days"
+                }
+            else:
+                results[region] = {
+                    "status": "success",
+                    "message": f"API credentials valid! Found {len(campaigns)} campaign(s)",
+                    "sample_campaign": campaigns[0].get('title', 'N/A')
+                }
+        except Exception as e:
+            results[region] = {
+                "status": "error",
+                "message": str(e)
+            }
+
+    return {
+        "regions_tested": len(results),
+        "results": results
+    }
+
+
