@@ -3,8 +3,12 @@ import { Calendar } from 'lucide-react';
 
 const TIME_RANGES = [
   { value: 7, label: '7 Days' },
+  { value: 14, label: '14 Days' },
   { value: 30, label: '30 Days' },
-  { value: 90, label: '90 Days' }
+  { value: 60, label: '60 Days' },
+  { value: 90, label: '90 Days' },
+  { value: 180, label: '6 Months' },
+  { value: 365, label: '1 Year' }
 ];
 
 export default function TimeRangeSelector({ selectedDays, onDaysChange }) {
