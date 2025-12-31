@@ -6,9 +6,9 @@ import RegionSelector from './components/RegionSelector';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RegionCards from './components/RegionCards';
 import RegionComparisonCharts from './components/RegionComparisonCharts';
-import { fetchDashboardData, triggerSync } from './api';
+import { fetchDashboardData, triggerSync, fetchRegions } from './api';
 import { RefreshCw, ArrowLeft } from 'lucide-react';
-import { MOCK_REGIONS_DATA, REGIONS } from './mockData';
+import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
   const [data, setData] = useState({});
@@ -18,6 +18,7 @@ function App() {
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [selectedDays, setSelectedDays] = useState(30);
   const [view, setView] = useState('overview'); // 'overview' or 'region-detail'
+  const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
 
   const loadData = async (force = false) => {
     setLoading(true);
@@ -45,6 +46,21 @@ function App() {
     }
     setLoading(false);
   };
+
+  const loadRegions = async () => {
+    const regions = await fetchRegions();
+    if (regions && regions.length > 0) {
+      // Map region codes to full region info
+      const regionsWithMetadata = regions.map(code => getRegionInfo(code));
+      setAvailableRegions(regionsWithMetadata);
+      console.log("Loaded available regions:", regions);
+    }
+  };
+
+  useEffect(() => {
+    // Load available regions on mount
+    loadRegions();
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -80,7 +96,7 @@ function App() {
 
   // Get current region info
   const currentRegion = selectedRegion
-    ? REGIONS.find(r => r.code === selectedRegion)
+    ? availableRegions.find(r => r.code === selectedRegion)
     : null;
 
   // Get display data based on view
@@ -127,7 +143,7 @@ function App() {
             />
 
             <RegionSelector
-              regions={REGIONS}
+              regions={availableRegions}
               selectedRegion={selectedRegion}
               onRegionChange={handleRegionChange}
             />
@@ -155,10 +171,10 @@ function App() {
           <>
             {/* Overview Page - All Regions */}
             <KPICards data={displayData} isMultiRegion={true} />
-            <RegionComparisonCharts regionsData={displayData} regions={REGIONS} />
+            <RegionComparisonCharts regionsData={displayData} regions={availableRegions} />
             <RegionCards
               regionsData={displayData}
-              regions={REGIONS}
+              regions={availableRegions}
               onRegionClick={handleRegionClick}
             />
           </>
