@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Use relative URL for production (Nginx proxy) or localhost for dev
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:8000/api');
+// In production (Zeabur), use VITE_API_URL environment variable
+// In development, use localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export const fetchDashboardData = async (days = 30, region = null, forceRefresh = false) => {
     try {
