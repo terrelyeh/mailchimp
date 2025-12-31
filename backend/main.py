@@ -86,6 +86,32 @@ def trigger_sync(background_tasks: BackgroundTasks, days: int = 30):
     background_tasks.add_task(sync)
     return {"status": "Sync started for all regions"}
 
+@app.get("/api/audiences")
+def get_audiences(region: str = None):
+    """Get all audiences (lists) for a region or all regions"""
+    if region:
+        # Single region
+        client = mailchimp_service.get_client(region)
+        if not client:
+            raise HTTPException(status_code=404, detail=f"Region {region} not found")
+
+        lists = client.get_lists()
+        return {
+            "region": region,
+            "audiences": lists
+        }
+    else:
+        # All regions
+        all_audiences = {}
+        for reg in mailchimp_service.REGIONS:
+            client = mailchimp_service.get_client(reg)
+            if client:
+                all_audiences[reg] = client.get_lists()
+
+        return {
+            "audiences": all_audiences
+        }
+
 @app.get("/api/test-credentials")
 def test_credentials():
     """Test MailChimp API credentials for all configured regions"""

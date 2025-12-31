@@ -37,6 +37,24 @@ class MailchimpClient:
             print(f"Mailchimp API Error: {e}")
             return None
 
+    def get_lists(self):
+        """Fetch all audience lists for this account"""
+        data = self._get("/lists", params={"count": 100})
+        if not data:
+            return []
+
+        lists = []
+        for lst in data.get('lists', []):
+            lists.append({
+                "id": lst['id'],
+                "name": lst['name'],
+                "member_count": lst.get('stats', {}).get('member_count', 0),
+                "unsubscribe_count": lst.get('stats', {}).get('unsubscribe_count', 0),
+                "open_rate": lst.get('stats', {}).get('open_rate', 0),
+                "click_rate": lst.get('stats', {}).get('click_rate', 0),
+            })
+        return lists
+
     def get_campaigns(self, days=30, status="sent", count=100):
         """Fetch sent campaigns from the last N days"""
         since_send_time = (datetime.utcnow() - timedelta(days=days)).isoformat()
@@ -55,6 +73,11 @@ class MailchimpClient:
             
         campaigns = []
         for c in data.get('campaigns', []):
+            # Extract audience/list information
+            recipients = c.get('recipients', {})
+            list_id = recipients.get('list_id', '')
+            list_name = recipients.get('list_name', 'Unknown Audience')
+
             campaigns.append({
                 "id": c['id'],
                 "web_id": c['web_id'],
@@ -62,7 +85,9 @@ class MailchimpClient:
                 "subject_line": c['settings']['subject_line'],
                 "send_time": c['send_time'],
                 "emails_sent": c['emails_sent'],
-                "archive_url": c['archive_url']
+                "archive_url": c['archive_url'],
+                "audience_id": list_id,
+                "audience_name": list_name
             })
         return campaigns
 
