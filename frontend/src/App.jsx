@@ -149,18 +149,24 @@ function App() {
 
   // Calculate total subscribers for selected region
   const totalSubscribers = useMemo(() => {
-    if (!selectedRegion || !audiences || audiences.length === 0) {
+    if (!selectedRegion || !audiences) {
       return null;
     }
 
-    // Sum up member_count from all audiences for this region
-    const regionAudiences = audiences.filter(aud => {
-      // Audiences might be structured differently depending on API response
-      // Check if it's a flat array or grouped by region
-      return true; // For now, sum all audiences (adjust based on actual data structure)
-    });
+    // audiences 可能是物件（按區域分組）或陣列
+    let audienceList = [];
+    if (Array.isArray(audiences)) {
+      audienceList = audiences;
+    } else if (typeof audiences === 'object') {
+      // 如果是按區域分組的物件，取得所有區域的 audiences
+      audienceList = Object.values(audiences).flat().filter(Boolean);
+    }
 
-    const total = regionAudiences.reduce((sum, aud) => {
+    if (audienceList.length === 0) {
+      return null;
+    }
+
+    const total = audienceList.reduce((sum, aud) => {
       return sum + (aud.member_count || 0);
     }, 0);
 
