@@ -16,7 +16,7 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [useMock, setUseMock] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState(null);
-  const [selectedDays, setSelectedDays] = useState(30);
+  const [selectedDays, setSelectedDays] = useState(60);
   const [view, setView] = useState('overview'); // 'overview' or 'region-detail'
   const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
 

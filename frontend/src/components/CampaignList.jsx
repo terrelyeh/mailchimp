@@ -17,6 +17,7 @@ export default function CampaignList({ data }) {
                         <tr>
                             <th className="px-6 py-3">Status</th>
                             <th className="px-6 py-3">Campaign Name</th>
+                            <th className="px-6 py-3">Audience</th>
                             <th className="px-6 py-3">Sent Time</th>
                             <th className="px-6 py-3 text-right">Open Rate</th>
                             <th className="px-6 py-3 text-right">Click Rate</th>
@@ -38,6 +39,11 @@ export default function CampaignList({ data }) {
                                         </a>
                                     </div>
                                     <div className="text-xs text-gray-400 font-normal truncate max-w-[200px]">{campaign.subject_line}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                        {campaign.audience_name || 'N/A'}
+                                    </span>
                                 </td>
                                 <td className="px-6 py-4">
                                     {format(new Date(campaign.send_time), 'MMM dd, HH:mm')}
