@@ -1,7 +1,10 @@
 import sqlite3
 import json
+import logging
 from datetime import datetime
 import os
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = "campaign_cache.db"
 
@@ -97,10 +100,10 @@ def clear_cache(region=None):
 
     if region:
         c.execute("DELETE FROM campaigns WHERE region = ?", (region,))
-        print(f"Cleared cache for region: {region}")
+        logger.info(f"Cleared cache for region: {region}")
     else:
         c.execute("DELETE FROM campaigns")
-        print("Cleared all cached campaigns")
+        logger.info("Cleared all cached campaigns")
 
     conn.commit()
     deleted_count = c.rowcount
