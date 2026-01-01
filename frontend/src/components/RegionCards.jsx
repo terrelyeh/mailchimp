@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Mail, MousePointer, ArrowRight } from 'lucide-react';
+import { TrendingUp, Mail, MousePointer, ArrowRight, AlertTriangle, UserMinus } from 'lucide-react';
 
 const RegionCard = ({ region, data, onClick }) => {
   if (!data || data.length === 0) {
@@ -28,6 +28,13 @@ const RegionCard = ({ region, data, onClick }) => {
   const avgClickRate = data.length ? (
     data.reduce((acc, curr) => acc + (curr.click_rate || 0), 0) / data.length
   ) : 0;
+
+  // Calculate bounce rate (bounces / emails_sent)
+  const totalBounces = data.reduce((acc, curr) => acc + (curr.bounces || 0), 0);
+  const bounceRate = totalSent > 0 ? (totalBounces / totalSent) * 100 : 0;
+
+  // Calculate total unsubscribes
+  const totalUnsubscribes = data.reduce((acc, curr) => acc + (curr.unsubscribed || 0), 0);
 
   return (
     <div
@@ -68,6 +75,26 @@ const RegionCard = ({ region, data, onClick }) => {
             <span className="text-xs">Click Rate</span>
           </div>
           <span className="font-bold text-gray-900">{(avgClickRate * 100).toFixed(1)}%</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gray-600">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-xs">Bounce Rate</span>
+          </div>
+          <span className={`font-bold ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
+            {bounceRate.toFixed(1)}%
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gray-600">
+            <UserMinus className="w-4 h-4" />
+            <span className="text-xs">Unsubscribes</span>
+          </div>
+          <span className={`font-bold ${totalUnsubscribes > 0 ? 'text-orange-600' : 'text-gray-900'}`}>
+            {totalUnsubscribes.toLocaleString()}
+          </span>
         </div>
       </div>
 
