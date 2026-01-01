@@ -11,6 +11,13 @@ import {
 export default function TimeSeriesMetricsChart({ regionsData, regions }) {
   const [selectedMetrics, setSelectedMetrics] = useState(['campaigns', 'openRate']);
 
+  // 日期格式化函數（需要在 useMemo 之前定義）
+  const formatDate = (date) => {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
+  };
+
   // 處理資料：將 campaigns 按日期分組，計算每個時間點的指標
   const timeSeriesData = useMemo(() => {
     const dateMap = new Map();
@@ -100,13 +107,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
       });
 
     return result;
-  }, [regionsData, regions]);
-
-  const formatDate = (date) => {
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${month}/${day}`;
-  };
+  }, [regionsData, regions, formatDate]);
 
   const toggleMetric = (metric) => {
     setSelectedMetrics(prev => {
