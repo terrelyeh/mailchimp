@@ -6,7 +6,7 @@ import RegionSelector from './components/RegionSelector';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import AudienceSelector from './components/AudienceSelector';
 import RegionCards from './components/RegionCards';
-import RegionComparisonCharts from './components/RegionComparisonCharts';
+import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
 import { RefreshCw, ArrowLeft, Activity } from 'lucide-react';
@@ -238,7 +238,7 @@ function App() {
           <>
             {/* Overview Page - All Regions */}
             <KPICards data={displayData} isMultiRegion={true} />
-            <RegionComparisonCharts regionsData={displayData} regions={availableRegions} />
+            <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
             <RegionCards
               regionsData={displayData}
               regions={availableRegions}
