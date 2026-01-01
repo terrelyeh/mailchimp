@@ -1,7 +1,7 @@
 import sqlite3
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 logger = logging.getLogger(__name__)
@@ -61,33 +61,43 @@ def get_cached_campaigns(days=30, region=None):
     """
     Retrieve campaigns from local DB
     region: 'US', 'EU', 'APAC', 'JP', or None for all regions
+    days: filter campaigns from the last N days
     """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # Fetch campaigns with optional region filter
+    # Calculate cutoff date
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+    # Fetch campaigns with date and optional region filter
     if region:
-        c.execute("SELECT data_json FROM campaigns WHERE region = ? ORDER BY send_time DESC LIMIT 200", (region,))
+        c.execute("""
+            SELECT data_json FROM campaigns
+            WHERE region = ? AND send_time >= ?
+            ORDER BY send_time DESC
+            LIMIT 1000
+        """, (region, cutoff_date))
     else:
-        c.execute("SELECT data_json FROM campaigns ORDER BY send_time DESC LIMIT 200")
+        c.execute("""
+            SELECT data_json FROM campaigns
+            WHERE send_time >= ?
+            ORDER BY send_time DESC
+            LIMIT 1000
+        """, (cutoff_date,))
 
     rows = c.fetchall()
 
     results = []
-    cutoff_time = datetime.utcnow().timestamp() - (days * 86400)
-
     for row in rows:
-        camp = json.loads(row['data_json'])
-        # Basic filtering
         try:
-            # Parse send_time string to timestamp for comparison if needed
-            # For now, just returning what we have, let frontend filter exact dates
+            camp = json.loads(row['data_json'])
             results.append(camp)
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to parse campaign JSON: {e}")
 
     conn.close()
+    logger.info(f"Retrieved {len(results)} campaigns from cache (region={region}, days={days})")
     return results
 
 def clear_cache(region=None):
