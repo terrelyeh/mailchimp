@@ -1,29 +1,41 @@
 import React from 'react';
 import { Users } from 'lucide-react';
 
-export default function AudienceSelector({ audiences, selectedAudience, onAudienceChange }) {
-  // Flatten audiences from all regions into a single list
-  const allAudiences = [];
+export default function AudienceSelector({ audiences, selectedAudience, onAudienceChange, selectedRegion }) {
+  // Filter audiences based on selected region
+  let filteredAudiences = [];
 
   if (typeof audiences === 'object' && !Array.isArray(audiences)) {
     // audiences is an object with region keys
-    Object.entries(audiences).forEach(([region, regionAudiences]) => {
+    if (selectedRegion) {
+      // Only show audiences from the selected region
+      const regionAudiences = audiences[selectedRegion] || [];
       if (Array.isArray(regionAudiences)) {
-        regionAudiences.forEach(aud => {
-          allAudiences.push({
-            ...aud,
-            region: region
-          });
-        });
+        filteredAudiences = regionAudiences.map(aud => ({
+          ...aud,
+          region: selectedRegion
+        }));
       }
-    });
+    } else {
+      // Show all audiences from all regions
+      Object.entries(audiences).forEach(([region, regionAudiences]) => {
+        if (Array.isArray(regionAudiences)) {
+          regionAudiences.forEach(aud => {
+            filteredAudiences.push({
+              ...aud,
+              region: region
+            });
+          });
+        }
+      });
+    }
   } else if (Array.isArray(audiences)) {
     // audiences is already an array
-    allAudiences.push(...audiences);
+    filteredAudiences = audiences;
   }
 
   // Remove duplicates based on audience ID
-  const uniqueAudiences = allAudiences.reduce((acc, current) => {
+  const uniqueAudiences = filteredAudiences.reduce((acc, current) => {
     const existing = acc.find(item => item.id === current.id);
     if (!existing) {
       acc.push(current);
@@ -44,7 +56,7 @@ export default function AudienceSelector({ audiences, selectedAudience, onAudien
         <option value="">All Audiences</option>
         {uniqueAudiences.map((audience) => (
           <option key={audience.id} value={audience.id}>
-            {audience.name} {audience.region ? `(${audience.region})` : ''}
+            {audience.name}
           </option>
         ))}
       </select>
