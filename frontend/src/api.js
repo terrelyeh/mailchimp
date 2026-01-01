@@ -51,3 +51,39 @@ export const triggerSync = async (days = 30) => {
         return false;
     }
 };
+
+export const fetchDiagnostics = async (days = 60, region = null) => {
+    try {
+        const params = new URLSearchParams();
+        params.append('days', days);
+        if (region) {
+            params.append('region', region);
+        }
+        const response = await axios.get(`${API_BASE_URL}/diagnose?${params}`);
+        return response.data;
+    } catch (error) {
+        console.error("Diagnostics API Error:", error);
+        return null;
+    }
+};
+
+export const fetchCacheStats = async () => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/cache/stats`);
+        return response.data;
+    } catch (error) {
+        console.error("Cache Stats API Error:", error);
+        return null;
+    }
+};
+
+export const clearCache = async (region = null) => {
+    try {
+        const params = region ? `?region=${region}` : '';
+        const response = await axios.post(`${API_BASE_URL}/cache/clear${params}`);
+        return response.data;
+    } catch (error) {
+        console.error("Clear Cache Error:", error);
+        return null;
+    }
+};
