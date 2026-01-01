@@ -106,6 +106,11 @@ const RegionCard = ({ region, data, onClick }) => {
 };
 
 export default function RegionCards({ regionsData, regions, onRegionClick }) {
+  // 防護檢查
+  if (!regions || regions.length === 0) {
+    return null;
+  }
+
   return (
     <div className="mb-8">
       <h2 className="text-lg font-bold text-gray-900 mb-4">Regional Performance</h2>
