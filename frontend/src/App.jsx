@@ -176,14 +176,14 @@ function App() {
                 <h1 className="text-3xl font-bold text-[#241C15] tracking-tight">
                   {currentRegion.flag} {currentRegion.name}
                 </h1>
-                <p className="text-gray-500 mt-1">Regional campaign performance details</p>
+                <p className="text-gray-500 mt-1">EDM Campaign Analytics</p>
               </div>
             ) : (
               <div>
                 <h1 className="text-3xl font-bold text-[#241C15] tracking-tight">
-                  Multi-Region Dashboard
+                  EnGenius EDM 儀表板
                 </h1>
-                <p className="text-gray-500 mt-1">Monitor MailChimp performance across all regions</p>
+                <p className="text-gray-500 mt-1">Multi-Region Campaign Analytics</p>
               </div>
             )}
           </div>
