@@ -7,8 +7,9 @@ import TimeRangeSelector from './components/TimeRangeSelector';
 import AudienceSelector from './components/AudienceSelector';
 import RegionCards from './components/RegionCards';
 import RegionComparisonCharts from './components/RegionComparisonCharts';
+import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
-import { RefreshCw, ArrowLeft } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Activity } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
   const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
   const [audiences, setAudiences] = useState([]); // Available audiences
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
 
   const loadData = async (force = false) => {
     setLoading(true);
@@ -198,6 +200,15 @@ function App() {
               onRegionChange={handleRegionChange}
             />
 
+            <button
+              onClick={() => setDiagnosticsOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors shadow-sm"
+              title="Open API Diagnostics"
+            >
+              <Activity className="w-4 h-4" />
+              <span className="hidden sm:inline">Diagnostics</span>
+            </button>
+
             <AudienceSelector
               audiences={audiences}
               selectedAudience={selectedAudience}
@@ -244,6 +255,14 @@ function App() {
           </>
         )}
       </div>
+
+      {/* Diagnostics Drawer */}
+      <DiagnosticsDrawer
+        isOpen={diagnosticsOpen}
+        onClose={() => setDiagnosticsOpen(false)}
+        selectedDays={selectedDays}
+        onForceRefresh={() => loadData(true)}
+      />
     </div>
   );
 }
