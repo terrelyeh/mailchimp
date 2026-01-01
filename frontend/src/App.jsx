@@ -279,7 +279,7 @@ function App() {
                   <TopCampaignsTable data={displayData} topN={5} />
                 </div>
 
-                <CampaignList data={displayData.slice(0, 10)} />
+                <CampaignList data={Array.isArray(displayData) ? displayData.slice(0, 10) : []} />
               </>
             )}
           </div>

@@ -11,6 +11,18 @@ import {
 export default function TimeSeriesMetricsChart({ regionsData, regions }) {
   const [selectedMetrics, setSelectedMetrics] = useState(['campaigns', 'openRate']);
 
+  // 提前檢查資料有效性
+  if (!regionsData || !regions || regions.length === 0) {
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Campaign Metrics Over Time</h2>
+        <div className="h-[400px] flex items-center justify-center text-gray-400">
+          Loading data...
+        </div>
+      </div>
+    );
+  }
+
   // 日期格式化函數（需要在 useMemo 之前定義）
   const formatDate = (date) => {
     const month = date.getMonth() + 1;

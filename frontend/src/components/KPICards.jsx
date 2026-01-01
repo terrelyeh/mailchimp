@@ -21,10 +21,23 @@ const Card = ({ title, value, subValue, trend, icon: Icon }) => (
 );
 
 export default function KPICards({ data, isMultiRegion = false, totalSubscribers = null }) {
+    // 防護檢查：確保 data 存在
+    if (!data) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                <Card title="Total Campaigns" value="0" subValue="loading..." icon={FileText} />
+                <Card title="Total Emails Sent" value="0" icon={Mail} />
+                <Card title="Avg. Open Rate" value="0%" icon={TrendingUp} />
+                <Card title="Avg. Click Rate" value="0%" icon={MousePointer} />
+                <Card title="Unsubscribes" value="0" icon={UserX} />
+            </div>
+        );
+    }
+
     // Flatten data if it's multi-region (object with region keys)
-    let flatData = data;
+    let flatData = Array.isArray(data) ? data : [];
     if (isMultiRegion && typeof data === 'object' && !Array.isArray(data)) {
-        flatData = Object.values(data).flat();
+        flatData = Object.values(data).flat().filter(Boolean);
     }
 
     // Calculate metrics from local data
