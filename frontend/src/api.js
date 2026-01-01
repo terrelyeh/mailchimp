@@ -87,3 +87,23 @@ export const clearCache = async (region = null) => {
         return null;
     }
 };
+
+export const fetchCacheHealth = async () => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/cache/health`);
+        return response.data;
+    } catch (error) {
+        console.error("Cache Health Error:", error);
+        return null;
+    }
+};
+
+export const populateCache = async (days = 30) => {
+    try {
+        const response = await axios.post(`${API_BASE_URL}/cache/populate?days=${days}`);
+        return response.data;
+    } catch (error) {
+        console.error("Populate Cache Error:", error);
+        return null;
+    }
+};

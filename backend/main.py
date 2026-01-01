@@ -31,28 +31,55 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
     - region: region code (e.g., 'US', 'INDIA', 'APAC', 'JP'), or None for all regions
     - force_refresh: true to fetch from Mailchimp and update DB
     """
+    print(f"\n{'='*60}")
+    print(f"Dashboard API called: days={days}, region={region}, force_refresh={force_refresh}")
+    print(f"Available regions: {mailchimp_service.REGIONS}")
+
     if force_refresh:
+        print("🔄 Force refresh mode - fetching from MailChimp API...")
         try:
             if region:
                 # Single region
+                print(f"📡 Fetching data for region: {region}")
                 data = mailchimp_service.get_dashboard_data(days=days, region=region)
+                print(f"✅ Fetched {len(data) if data else 0} campaigns for {region}")
+
+                print(f"💾 Saving to database...")
                 database.upsert_campaigns(data, region=region)
+                print(f"✅ Saved {len(data) if data else 0} campaigns to database for {region}")
+
                 return {"source": "mailchimp", "region": region, "data": data}
             else:
                 # All regions
+                print(f"📡 Fetching data for all regions: {mailchimp_service.REGIONS}")
                 all_data = mailchimp_service.get_dashboard_data(days=days)
+                print(f"✅ Fetched data from MailChimp API")
+
                 for reg, campaigns in all_data.items():
+                    print(f"💾 Saving {len(campaigns)} campaigns for region {reg}...")
                     database.upsert_campaigns(campaigns, region=reg)
+                    print(f"✅ Saved {len(campaigns)} campaigns for {reg}")
+
+                # Verify what was saved
+                final_stats = database.get_cache_stats()
+                print(f"📊 Final cache stats: {final_stats}")
+
                 return {"source": "mailchimp", "data": all_data}
         except Exception as e:
+            print(f"❌ ERROR during force refresh: {e}")
+            import traceback
+            traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
     else:
         # Return cache
+        print("📂 Returning from cache...")
         if region:
             data = database.get_cached_campaigns(days=days, region=region)
+            print(f"📊 Cache returned {len(data) if data else 0} campaigns for {region}")
+
             # Auto-refresh if cache is empty
             if not data:
-                print(f"Cache empty for region {region}, forcing refresh...")
+                print(f"⚠️  Cache empty for region {region}, forcing refresh...")
                 return get_dashboard_data(days=days, region=region, force_refresh=True)
             return {"source": "database", "region": region, "data": data}
         else:
@@ -60,12 +87,15 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
             all_data = {}
             for reg in mailchimp_service.REGIONS:
                 all_data[reg] = database.get_cached_campaigns(days=days, region=reg)
+                print(f"📊 Cache for {reg}: {len(all_data[reg]) if all_data[reg] else 0} campaigns")
 
             # Check if cache is mostly empty - if so, force refresh
             total_campaigns = sum(len(campaigns) for campaigns in all_data.values() if campaigns)
+            print(f"📊 Total campaigns in cache: {total_campaigns} (regions: {len(mailchimp_service.REGIONS)})")
+
             if total_campaigns < len(mailchimp_service.REGIONS):
                 # Less than 1 campaign per region on average - likely cache issue
-                print(f"Cache has only {total_campaigns} campaigns across {len(mailchimp_service.REGIONS)} regions, forcing refresh...")
+                print(f"⚠️  Cache has only {total_campaigns} campaigns across {len(mailchimp_service.REGIONS)} regions, forcing refresh...")
                 return get_dashboard_data(days=days, region=region, force_refresh=True)
 
             return {"source": "database", "data": all_data}
@@ -172,6 +202,141 @@ def test_credentials():
         "regions_tested": len(results),
         "results": results
     }
+
+@app.get("/api/cache/health")
+def check_cache_health():
+    """
+    檢查快取健康狀況並提供診斷資訊
+    """
+    import time
+
+    # 1. 檢查快取統計
+    cache_stats = database.get_cache_stats()
+
+    # 2. 檢查已設定的區域
+    configured_regions = mailchimp_service.REGIONS
+
+    # 3. 檢查每個區域的快取狀況
+    region_details = {}
+    for region in configured_regions:
+        cached_campaigns = database.get_cached_campaigns(days=90, region=region)
+        region_details[region] = {
+            "cached_count": len(cached_campaigns) if cached_campaigns else 0,
+            "has_data": bool(cached_campaigns)
+        }
+
+    # 4. 檢查資料庫檔案
+    import os
+    db_exists = os.path.exists(database.DB_PATH)
+    db_size = os.path.getsize(database.DB_PATH) if db_exists else 0
+
+    # 5. 判斷健康狀況
+    total_campaigns = cache_stats.get('total', 0)
+    is_healthy = total_campaigns >= len(configured_regions)
+
+    issues = []
+    if not db_exists:
+        issues.append("Database file does not exist")
+    elif db_size == 0:
+        issues.append("Database file is empty")
+    elif total_campaigns == 0:
+        issues.append("No campaigns in cache")
+    elif total_campaigns < len(configured_regions):
+        issues.append(f"Cache has only {total_campaigns} campaigns for {len(configured_regions)} regions")
+
+    # 6. 建議
+    recommendations = []
+    if not is_healthy:
+        recommendations.append("Run force refresh to populate cache")
+        recommendations.append("Check MailChimp API credentials for all regions")
+
+    return {
+        "healthy": is_healthy,
+        "cache_stats": cache_stats,
+        "configured_regions": configured_regions,
+        "region_details": region_details,
+        "database": {
+            "path": database.DB_PATH,
+            "exists": db_exists,
+            "size_bytes": db_size
+        },
+        "issues": issues,
+        "recommendations": recommendations,
+        "timestamp": time.time()
+    }
+
+@app.post("/api/cache/populate")
+def populate_cache(days: int = 30):
+    """
+    手動填充快取
+    強制從 MailChimp API 抓取所有區域的資料並儲存到資料庫
+    """
+    print(f"\n{'='*60}")
+    print(f"Manual cache population triggered for {days} days")
+    print(f"{'='*60}\n")
+
+    try:
+        results = {}
+
+        for region in mailchimp_service.REGIONS:
+            print(f"\n📡 Processing region: {region}")
+            print(f"{'='*50}")
+
+            try:
+                # Fetch data
+                client = mailchimp_service.get_client(region)
+                if not client:
+                    print(f"❌ No client found for {region}")
+                    results[region] = {
+                        "status": "error",
+                        "message": "No client configured"
+                    }
+                    continue
+
+                data = client.get_dashboard_data(days=days)
+                print(f"✅ Fetched {len(data)} campaigns for {region}")
+
+                # Save to database
+                if data:
+                    database.upsert_campaigns(data, region=region)
+                    print(f"💾 Saved {len(data)} campaigns for {region}")
+
+                    results[region] = {
+                        "status": "success",
+                        "campaigns_fetched": len(data)
+                    }
+                else:
+                    print(f"⚠️  No campaigns found for {region}")
+                    results[region] = {
+                        "status": "success",
+                        "campaigns_fetched": 0,
+                        "message": "No campaigns in the specified period"
+                    }
+
+            except Exception as e:
+                print(f"❌ Error processing {region}: {e}")
+                import traceback
+                traceback.print_exc()
+                results[region] = {
+                    "status": "error",
+                    "message": str(e)
+                }
+
+        # Get final stats
+        final_stats = database.get_cache_stats()
+        print(f"\n📊 Final cache stats: {final_stats}")
+
+        return {
+            "status": "completed",
+            "results": results,
+            "final_cache_stats": final_stats
+        }
+
+    except Exception as e:
+        print(f"❌ Cache population failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/diagnose")
 def diagnose_api(days: int = 60, region: str = None):
