@@ -4,106 +4,115 @@ import axios from 'axios';
 // In development, use localhost
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+// Create axios instance with default config
+const api = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 60000, // 60 seconds timeout for API calls
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.code === 'ECONNABORTED') {
+            console.warn('API request timeout');
+        } else if (error.response) {
+            console.warn(`API Error ${error.response.status}:`, error.response.data);
+        } else if (error.request) {
+            console.warn('API Network Error: No response received');
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const fetchDashboardData = async (days = 30, region = null, forceRefresh = false) => {
     try {
-        const params = new URLSearchParams();
-        params.append('days', days);
-        if (region) {
-            params.append('region', region);
-        }
-        params.append('force_refresh', forceRefresh);
+        const params = { days, force_refresh: forceRefresh };
+        if (region) params.region = region;
 
-        const response = await axios.get(`${API_BASE_URL}/dashboard?${params}`);
+        const response = await api.get('/dashboard', { params });
         return response.data;
     } catch (error) {
-        console.error("API Error:", error);
         return null;
     }
 };
 
 export const fetchRegions = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/regions`);
+        const response = await api.get('/regions');
         return response.data.regions;
     } catch (error) {
-        console.error("Regions API Error:", error);
         return null;
     }
 };
 
 export const fetchAudiences = async (region = null) => {
     try {
-        const params = region ? `?region=${region}` : '';
-        const response = await axios.get(`${API_BASE_URL}/audiences${params}`);
+        const params = region ? { region } : {};
+        const response = await api.get('/audiences', { params });
         return response.data.audiences;
     } catch (error) {
-        console.error("Audiences API Error:", error);
         return null;
     }
 };
 
 export const triggerSync = async (days = 30) => {
     try {
-        await axios.post(`${API_BASE_URL}/sync?days=${days}`);
+        await api.post('/sync', null, { params: { days } });
         return true;
     } catch (error) {
-        console.error("Sync Error:", error);
         return false;
     }
 };
 
 export const fetchDiagnostics = async (days = 60, region = null) => {
     try {
-        const params = new URLSearchParams();
-        params.append('days', days);
-        if (region) {
-            params.append('region', region);
-        }
-        const response = await axios.get(`${API_BASE_URL}/diagnose?${params}`);
+        const params = { days };
+        if (region) params.region = region;
+
+        const response = await api.get('/diagnose', { params });
         return response.data;
     } catch (error) {
-        console.error("Diagnostics API Error:", error);
         return null;
     }
 };
 
 export const fetchCacheStats = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/cache/stats`);
+        const response = await api.get('/cache/stats');
         return response.data;
     } catch (error) {
-        console.error("Cache Stats API Error:", error);
         return null;
     }
 };
 
 export const clearCache = async (region = null) => {
     try {
-        const params = region ? `?region=${region}` : '';
-        const response = await axios.post(`${API_BASE_URL}/cache/clear${params}`);
+        const params = region ? { region } : {};
+        const response = await api.post('/cache/clear', null, { params });
         return response.data;
     } catch (error) {
-        console.error("Clear Cache Error:", error);
         return null;
     }
 };
 
 export const fetchCacheHealth = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/cache/health`);
+        const response = await api.get('/cache/health');
         return response.data;
     } catch (error) {
-        console.error("Cache Health Error:", error);
         return null;
     }
 };
 
 export const populateCache = async (days = 30) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/cache/populate?days=${days}`);
+        const response = await api.post('/cache/populate', null, { params: { days } });
         return response.data;
     } catch (error) {
-        console.error("Populate Cache Error:", error);
         return null;
     }
 };

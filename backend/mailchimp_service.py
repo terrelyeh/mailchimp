@@ -1,7 +1,30 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import os
 import json
+import logging
 from datetime import datetime, timedelta
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def create_session_with_retry():
+    """Create a requests session with retry logic"""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
 
 class MailchimpClient:
     def __init__(self, region='US'):
@@ -10,14 +33,14 @@ class MailchimpClient:
         region: 'US', 'EU', 'APAC', or 'JP'
         """
         self.region = region
+        self.session = create_session_with_retry()
 
         # Try to get region-specific credentials first, fall back to default
         api_key = os.getenv(f"MAILCHIMP_API_KEY_{region}") or os.getenv("MAILCHIMP_API_KEY")
         server_prefix = os.getenv(f"MAILCHIMP_SERVER_PREFIX_{region}") or os.getenv("MAILCHIMP_SERVER_PREFIX")
 
         if not api_key or not server_prefix:
-            # Using placeholder for now if env vars are missing to avoid crash on startup
-            print(f"Warning: Mailchimp API credentials not found for region {region}")
+            logger.warning(f"Mailchimp API credentials not found for region {region}")
             self.base_url = "https://us1.api.mailchimp.com/3.0"
             self.headers = {}
         else:
@@ -30,11 +53,19 @@ class MailchimpClient:
     def _get(self, endpoint, params=None):
         url = f"{self.base_url}{endpoint}"
         try:
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            response = self.session.get(
+                url,
+                headers=self.headers,
+                params=params,
+                timeout=30  # Increased timeout for reliability
+            )
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.Timeout:
+            logger.error(f"Mailchimp API Timeout for {self.region}: {endpoint}")
+            return None
         except requests.exceptions.RequestException as e:
-            print(f"Mailchimp API Error: {e}")
+            logger.error(f"Mailchimp API Error for {self.region}: {e}")
             return None
 
     def get_lists(self):
@@ -73,11 +104,11 @@ class MailchimpClient:
                 "sort_dir": "DESC"
             }
 
-            print(f"Fetching campaigns for region {self.region}: offset={offset}, count={params['count']}")
+            logger.info(f"Fetching campaigns for region {self.region}: offset={offset}, count={params['count']}")
             data = self._get("/campaigns", params=params)
 
             if not data or 'campaigns' not in data:
-                print(f"No more campaigns found for region {self.region}")
+                logger.debug(f"No more campaigns found for region {self.region}")
                 break
 
             campaigns_batch = data.get('campaigns', [])
@@ -102,7 +133,7 @@ class MailchimpClient:
                     "audience_name": list_name
                 })
 
-            print(f"Fetched {len(campaigns_batch)} campaigns for region {self.region} (total so far: {len(all_campaigns)})")
+            logger.info(f"Fetched {len(campaigns_batch)} campaigns for region {self.region} (total so far: {len(all_campaigns)})")
 
             # Check if we've reached the total or our limit
             total_items = data.get('total_items', 0)
@@ -111,7 +142,7 @@ class MailchimpClient:
 
             offset += batch_size
 
-        print(f"Total campaigns fetched for region {self.region}: {len(all_campaigns)}")
+        logger.info(f"Total campaigns fetched for region {self.region}: {len(all_campaigns)}")
         return all_campaigns
 
     def get_campaign_report(self, campaign_id):
@@ -184,7 +215,7 @@ class MultiRegionMailchimpService:
             if default_key and default_prefix:
                 available_regions.append("DEFAULT")
 
-        print(f"Detected MailChimp regions: {available_regions}")
+        logger.info(f"Detected MailChimp regions: {available_regions}")
         return available_regions
 
     def get_client(self, region):
