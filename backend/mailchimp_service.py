@@ -55,41 +55,64 @@ class MailchimpClient:
             })
         return lists
 
-    def get_campaigns(self, days=30, status="sent", count=100):
-        """Fetch sent campaigns from the last N days"""
+    def get_campaigns(self, days=30, status="sent", count=1000):
+        """Fetch sent campaigns from the last N days with pagination support"""
         since_send_time = (datetime.utcnow() - timedelta(days=days)).isoformat()
-        
-        params = {
-            "status": status,
-            "since_send_time": since_send_time,
-            "count": count,
-            "sort_field": "send_time",
-            "sort_dir": "DESC"
-        }
-        
-        data = self._get("/campaigns", params=params)
-        if not data:
-            return []
-            
-        campaigns = []
-        for c in data.get('campaigns', []):
-            # Extract audience/list information
-            recipients = c.get('recipients', {})
-            list_id = recipients.get('list_id', '')
-            list_name = recipients.get('list_name', 'Unknown Audience')
 
-            campaigns.append({
-                "id": c['id'],
-                "web_id": c['web_id'],
-                "title": c['settings']['title'],
-                "subject_line": c['settings']['subject_line'],
-                "send_time": c['send_time'],
-                "emails_sent": c['emails_sent'],
-                "archive_url": c['archive_url'],
-                "audience_id": list_id,
-                "audience_name": list_name
-            })
-        return campaigns
+        all_campaigns = []
+        offset = 0
+        batch_size = 100  # MailChimp API limit per request
+
+        while True:
+            params = {
+                "status": status,
+                "since_send_time": since_send_time,
+                "count": min(batch_size, count - len(all_campaigns)),
+                "offset": offset,
+                "sort_field": "send_time",
+                "sort_dir": "DESC"
+            }
+
+            print(f"Fetching campaigns for region {self.region}: offset={offset}, count={params['count']}")
+            data = self._get("/campaigns", params=params)
+
+            if not data or 'campaigns' not in data:
+                print(f"No more campaigns found for region {self.region}")
+                break
+
+            campaigns_batch = data.get('campaigns', [])
+            if not campaigns_batch:
+                break
+
+            for c in campaigns_batch:
+                # Extract audience/list information
+                recipients = c.get('recipients', {})
+                list_id = recipients.get('list_id', '')
+                list_name = recipients.get('list_name', 'Unknown Audience')
+
+                all_campaigns.append({
+                    "id": c['id'],
+                    "web_id": c['web_id'],
+                    "title": c['settings']['title'],
+                    "subject_line": c['settings']['subject_line'],
+                    "send_time": c['send_time'],
+                    "emails_sent": c['emails_sent'],
+                    "archive_url": c['archive_url'],
+                    "audience_id": list_id,
+                    "audience_name": list_name
+                })
+
+            print(f"Fetched {len(campaigns_batch)} campaigns for region {self.region} (total so far: {len(all_campaigns)})")
+
+            # Check if we've reached the total or our limit
+            total_items = data.get('total_items', 0)
+            if len(all_campaigns) >= total_items or len(all_campaigns) >= count:
+                break
+
+            offset += batch_size
+
+        print(f"Total campaigns fetched for region {self.region}: {len(all_campaigns)}")
+        return all_campaigns
 
     def get_campaign_report(self, campaign_id):
         """Fetch report stats for a specific campaign"""
