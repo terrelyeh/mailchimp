@@ -6,7 +6,13 @@ import os
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = "campaign_cache.db"
+# 使用環境變數設定資料庫路徑，預設為當前目錄
+DATA_DIR = os.getenv("DATA_DIR", ".")
+DB_PATH = os.path.join(DATA_DIR, "campaign_cache.db")
+
+# 確保資料目錄存在
+if DATA_DIR != ".":
+    os.makedirs(DATA_DIR, exist_ok=True)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
