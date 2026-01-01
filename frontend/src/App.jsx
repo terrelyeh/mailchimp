@@ -10,8 +10,18 @@ import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
 import TopCampaignsTable from './components/TopCampaignsTable';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import ExportButton from './components/ExportButton';
+// Level 1: Executive Dashboard Components
+import ExecutiveSummary from './components/ExecutiveSummary';
+import GoalProgress from './components/GoalProgress';
+import RegionRanking from './components/RegionRanking';
+// Level 2: Management Report Components
+import ConversionFunnel from './components/ConversionFunnel';
+import SendTimeHeatmap from './components/SendTimeHeatmap';
+import CampaignTypeAnalysis from './components/CampaignTypeAnalysis';
+import AudienceHealth from './components/AudienceHealth';
+import ActionableInsights from './components/ActionableInsights';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
-import { RefreshCw, ArrowLeft, Activity } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Activity, LayoutDashboard, BarChart3, List } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
@@ -26,6 +36,7 @@ function App() {
   const [audiences, setAudiences] = useState([]); // Available audiences
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
+  const [reportLevel, setReportLevel] = useState('L1'); // 'L1' = Executive, 'L2' = Management, 'L3' = Operational
 
   // Ref for export functionality
   const exportContentRef = useRef(null);
@@ -204,6 +215,48 @@ function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Report Level Selector */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setReportLevel('L1')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-all ${
+                  reportLevel === 'L1'
+                    ? 'bg-white shadow text-gray-900 font-medium'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                title="Executive Dashboard - 高階主管視角"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Executive</span>
+              </button>
+              <button
+                onClick={() => setReportLevel('L2')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-all ${
+                  reportLevel === 'L2'
+                    ? 'bg-white shadow text-gray-900 font-medium'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                title="Management Report - 部門主管視角"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Management</span>
+              </button>
+              <button
+                onClick={() => setReportLevel('L3')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-all ${
+                  reportLevel === 'L3'
+                    ? 'bg-white shadow text-gray-900 font-medium'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                title="Operational Detail - 執行人員視角"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Detail</span>
+              </button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
             <TimeRangeSelector
               selectedDays={selectedDays}
               onDaysChange={setSelectedDays}
@@ -262,33 +315,124 @@ function App() {
           <div className="h-64 flex items-center justify-center text-gray-400">Loading dashboard...</div>
         ) : (
           <div ref={exportContentRef} data-export-content>
-            {view === 'overview' ? (
+            {/* ===== Level 1: Executive Dashboard ===== */}
+            {reportLevel === 'L1' && (
               <>
-                {/* Overview Page - All Regions */}
-                <KPICards data={displayData} isMultiRegion={true} />
-                <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
-                <RegionCards
-                  regionsData={displayData}
-                  regions={availableRegions}
-                  onRegionClick={handleRegionClick}
+                {/* Executive Summary - 3 句話總結 */}
+                <ExecutiveSummary
+                  data={displayData}
+                  isMultiRegion={view === 'overview'}
                 />
-              </>
-            ) : (
-              <>
-                {/* Region Detail Page */}
+
+                {/* Goal Progress - 目標達成進度 */}
+                <GoalProgress
+                  data={displayData}
+                  isMultiRegion={view === 'overview'}
+                />
+
+                {/* Region Ranking - 區域績效排名 (只在 overview 顯示) */}
+                {view === 'overview' && (
+                  <RegionRanking
+                    regionsData={displayData}
+                    regions={availableRegions}
+                    onRegionClick={handleRegionClick}
+                  />
+                )}
+
+                {/* KPI Cards */}
                 <KPICards
                   data={displayData}
-                  isMultiRegion={false}
-                  totalSubscribers={totalSubscribers}
+                  isMultiRegion={view === 'overview'}
+                  totalSubscribers={view !== 'overview' ? totalSubscribers : null}
+                />
+              </>
+            )}
+
+            {/* ===== Level 2: Management Report ===== */}
+            {reportLevel === 'L2' && (
+              <>
+                {/* Executive Summary (簡化版) */}
+                <ExecutiveSummary
+                  data={displayData}
+                  isMultiRegion={view === 'overview'}
                 />
 
-                {/* Performance Charts & Top Campaigns Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                  <DashboardCharts data={displayData} />
-                  <TopCampaignsTable data={displayData} topN={5} />
+                {/* Analysis Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Conversion Funnel */}
+                  <ConversionFunnel
+                    data={displayData}
+                    isMultiRegion={view === 'overview'}
+                  />
+
+                  {/* Send Time Heatmap */}
+                  <SendTimeHeatmap
+                    data={displayData}
+                    isMultiRegion={view === 'overview'}
+                  />
                 </div>
 
-                <CampaignList data={Array.isArray(displayData) ? displayData.slice(0, 10) : []} />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Campaign Type Analysis */}
+                  <CampaignTypeAnalysis
+                    data={displayData}
+                    isMultiRegion={view === 'overview'}
+                  />
+
+                  {/* Audience Health (只在 overview 顯示) */}
+                  {view === 'overview' ? (
+                    <AudienceHealth
+                      regionsData={displayData}
+                      regions={availableRegions}
+                      audiences={audiences}
+                    />
+                  ) : (
+                    <TopCampaignsTable data={displayData} topN={5} />
+                  )}
+                </div>
+
+                {/* Actionable Insights */}
+                <ActionableInsights
+                  data={displayData}
+                  regionsData={view === 'overview' ? displayData : null}
+                  regions={view === 'overview' ? availableRegions : null}
+                  isMultiRegion={view === 'overview'}
+                />
+              </>
+            )}
+
+            {/* ===== Level 3: Operational Detail ===== */}
+            {reportLevel === 'L3' && (
+              <>
+                {view === 'overview' ? (
+                  <>
+                    {/* Overview Page - All Regions */}
+                    <KPICards data={displayData} isMultiRegion={true} />
+                    <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
+                    <RegionCards
+                      regionsData={displayData}
+                      regions={availableRegions}
+                      onRegionClick={handleRegionClick}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* Region Detail Page */}
+                    <KPICards
+                      data={displayData}
+                      isMultiRegion={false}
+                      totalSubscribers={totalSubscribers}
+                    />
+
+                    {/* Performance Charts & Top Campaigns Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                      <DashboardCharts data={displayData} />
+                      <TopCampaignsTable data={displayData} topN={5} />
+                    </div>
+
+                    <CampaignList data={Array.isArray(displayData) ? displayData : []} />
+                  </>
+                )}
               </>
             )}
           </div>
