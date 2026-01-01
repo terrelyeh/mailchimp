@@ -89,18 +89,15 @@ export default function ExportButton({
     <button
       onClick={exportToPNG}
       disabled={isExporting}
-      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+      className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
       title="Export Dashboard as PNG"
     >
       {isExporting ? (
-        <>
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="hidden sm:inline">Exporting...</span>
-        </>
+        <Loader2 className="w-4 h-4 animate-spin" />
       ) : (
         <>
           <Download className="w-4 h-4" />
-          <span className="hidden sm:inline">Export PNG</span>
+          <span>PNG</span>
         </>
       )}
     </button>
