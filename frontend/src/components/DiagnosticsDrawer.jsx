@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { X, Activity, Database, RefreshCw, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { fetchDiagnostics, fetchCacheStats, clearCache, fetchDashboardData } from '../api';
+import { X, Activity, Database, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, AlertTriangle, Download } from 'lucide-react';
+import { fetchDiagnostics, fetchCacheStats, fetchCacheHealth, populateCache, clearCache, fetchDashboardData } from '../api';
 
 export default function DiagnosticsDrawer({ isOpen, onClose, selectedDays, onForceRefresh }) {
     const [diagnostics, setDiagnostics] = useState(null);
     const [cacheStats, setCacheStats] = useState(null);
+    const [cacheHealth, setCacheHealth] = useState(null);
     const [loading, setLoading] = useState(false);
     const [clearingCache, setClearingCache] = useState(false);
+    const [populatingCache, setPopulatingCache] = useState(false);
 
     const loadDiagnostics = async () => {
         setLoading(true);
-        const [diagResult, cacheResult] = await Promise.all([
+        const [diagResult, cacheResult, healthResult] = await Promise.all([
             fetchDiagnostics(selectedDays),
-            fetchCacheStats()
+            fetchCacheStats(),
+            fetchCacheHealth()
         ]);
         setDiagnostics(diagResult);
         setCacheStats(cacheResult);
+        setCacheHealth(healthResult);
         setLoading(false);
     };
 
@@ -49,6 +53,27 @@ export default function DiagnosticsDrawer({ isOpen, onClose, selectedDays, onFor
         if (onForceRefresh) {
             onForceRefresh();
             onClose();
+        }
+    };
+
+    const handlePopulateCache = async () => {
+        if (!confirm('這將會從 MailChimp API 抓取所有區域的資料並儲存到快取。\n此操作可能需要幾分鐘，確定要繼續嗎？')) {
+            return;
+        }
+
+        setPopulatingCache(true);
+        const result = await populateCache(selectedDays);
+        setPopulatingCache(false);
+
+        if (result) {
+            const total = result.final_cache_stats?.total || 0;
+            alert(`快取填充完成！\n總共儲存了 ${total} 個 campaigns`);
+            await loadDiagnostics();
+            if (onForceRefresh) {
+                onForceRefresh();
+            }
+        } else {
+            alert('快取填充失敗，請檢查後端日誌');
         }
     };
 
@@ -87,11 +112,45 @@ export default function DiagnosticsDrawer({ isOpen, onClose, selectedDays, onFor
                         </div>
                     ) : (
                         <>
+                            {/* Cache Health Warning */}
+                            {cacheHealth && !cacheHealth.healthy && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold text-red-900 mb-1">快取問題偵測</h3>
+                                            <div className="space-y-1">
+                                                {cacheHealth.issues?.map((issue, idx) => (
+                                                    <p key={idx} className="text-sm text-red-700">• {issue}</p>
+                                                ))}
+                                            </div>
+                                            {cacheHealth.recommendations && cacheHealth.recommendations.length > 0 && (
+                                                <div className="mt-2 pt-2 border-t border-red-200">
+                                                    <p className="text-xs font-medium text-red-800 mb-1">建議：</p>
+                                                    {cacheHealth.recommendations.map((rec, idx) => (
+                                                        <p key={idx} className="text-xs text-red-700">• {rec}</p>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Cache Stats */}
                             <div className="bg-gray-50 rounded-lg p-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Database className="w-4 h-4 text-gray-600" />
                                     <h3 className="font-semibold text-gray-900">Cache Status</h3>
+                                    {cacheHealth && (
+                                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                            cacheHealth.healthy
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-red-100 text-red-700'
+                                        }`}>
+                                            {cacheHealth.healthy ? 'Healthy' : 'Unhealthy'}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -106,6 +165,14 @@ export default function DiagnosticsDrawer({ isOpen, onClose, selectedDays, onFor
                                             <span className="font-medium text-gray-900">{count}</span>
                                         </div>
                                     ))}
+                                    {cacheHealth?.database && (
+                                        <div className="pt-2 mt-2 border-t border-gray-200">
+                                            <div className="flex justify-between text-xs text-gray-500">
+                                                <span>Database Size:</span>
+                                                <span>{(cacheHealth.database.size_bytes / 1024).toFixed(1)} KB</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -175,6 +242,19 @@ export default function DiagnosticsDrawer({ isOpen, onClose, selectedDays, onFor
                             {/* Actions */}
                             <div className="space-y-3 pt-4 border-t border-gray-200">
                                 <h3 className="font-semibold text-gray-900">Quick Actions</h3>
+
+                                <button
+                                    onClick={handlePopulateCache}
+                                    disabled={populatingCache}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {populatingCache ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Download className="w-4 h-4" />
+                                    )}
+                                    {populatingCache ? 'Populating Cache...' : 'Populate Cache from API'}
+                                </button>
 
                                 <button
                                     onClick={handleForceRefresh}

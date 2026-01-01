@@ -176,14 +176,14 @@ function App() {
                 <h1 className="text-3xl font-bold text-[#241C15] tracking-tight">
                   {currentRegion.flag} {currentRegion.name}
                 </h1>
-                <p className="text-gray-500 mt-1">Regional campaign performance details</p>
+                <p className="text-gray-500 mt-1">EDM Campaign Analytics</p>
               </div>
             ) : (
               <div>
                 <h1 className="text-3xl font-bold text-[#241C15] tracking-tight">
-                  Multi-Region Dashboard
+                  EnGenius EDM 儀表板
                 </h1>
-                <p className="text-gray-500 mt-1">Monitor MailChimp performance across all regions</p>
+                <p className="text-gray-500 mt-1">Multi-Region Campaign Analytics</p>
               </div>
             )}
           </div>
@@ -200,15 +200,6 @@ function App() {
               onRegionChange={handleRegionChange}
             />
 
-            <button
-              onClick={() => setDiagnosticsOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors shadow-sm"
-              title="Open API Diagnostics"
-            >
-              <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Diagnostics</span>
-            </button>
-
             <AudienceSelector
               audiences={audiences}
               selectedAudience={selectedAudience}
@@ -223,6 +214,14 @@ function App() {
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
               {isSyncing ? 'Syncing...' : 'Sync'}
+            </button>
+
+            <button
+              onClick={() => setDiagnosticsOpen(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Open API Diagnostics"
+            >
+              <Activity className="w-4 h-4" />
             </button>
           </div>
         </div>
