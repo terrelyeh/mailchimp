@@ -31,6 +31,17 @@ export const fetchRegions = async () => {
     }
 };
 
+export const fetchAudiences = async (region = null) => {
+    try {
+        const params = region ? `?region=${region}` : '';
+        const response = await axios.get(`${API_BASE_URL}/audiences${params}`);
+        return response.data.audiences;
+    } catch (error) {
+        console.error("Audiences API Error:", error);
+        return null;
+    }
+};
+
 export const triggerSync = async (days = 30) => {
     try {
         await axios.post(`${API_BASE_URL}/sync?days=${days}`);

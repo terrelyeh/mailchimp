@@ -4,9 +4,10 @@ import DashboardCharts from './components/DashboardCharts';
 import CampaignList from './components/CampaignList';
 import RegionSelector from './components/RegionSelector';
 import TimeRangeSelector from './components/TimeRangeSelector';
+import AudienceSelector from './components/AudienceSelector';
 import RegionCards from './components/RegionCards';
 import RegionComparisonCharts from './components/RegionComparisonCharts';
-import { fetchDashboardData, triggerSync, fetchRegions } from './api';
+import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
 import { RefreshCw, ArrowLeft } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
@@ -19,6 +20,8 @@ function App() {
   const [selectedDays, setSelectedDays] = useState(60);
   const [view, setView] = useState('overview'); // 'overview' or 'region-detail'
   const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
+  const [audiences, setAudiences] = useState([]); // Available audiences
+  const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
 
   const loadData = async (force = false) => {
     setLoading(true);
@@ -63,9 +66,18 @@ function App() {
     }
   };
 
+  const loadAudiences = async () => {
+    const audiencesData = await fetchAudiences();
+    if (audiencesData) {
+      setAudiences(audiencesData);
+      console.log("Loaded audiences:", audiencesData);
+    }
+  };
+
   useEffect(() => {
-    // Load available regions on mount
+    // Load available regions and audiences on mount
     loadRegions();
+    loadAudiences();
   }, []);
 
   useEffect(() => {
@@ -106,7 +118,7 @@ function App() {
     : null;
 
   // Get display data based on view
-  const displayData = selectedRegion
+  let displayData = selectedRegion
     ? (Array.isArray(data)
         ? data // Single region data (already an array)
         : (typeof data === 'object' && data[selectedRegion])
@@ -117,7 +129,27 @@ function App() {
       ? data // Multi-region object
       : {}; // Empty object
 
+  // Filter by selected audience
+  if (selectedAudience) {
+    if (Array.isArray(displayData)) {
+      // Single region view - filter the array
+      displayData = displayData.filter(campaign => campaign.audience_id === selectedAudience);
+    } else if (typeof displayData === 'object') {
+      // Multi-region view - filter each region's campaigns
+      const filteredData = {};
+      Object.entries(displayData).forEach(([region, campaigns]) => {
+        if (Array.isArray(campaigns)) {
+          filteredData[region] = campaigns.filter(campaign => campaign.audience_id === selectedAudience);
+        } else {
+          filteredData[region] = campaigns;
+        }
+      });
+      displayData = filteredData;
+    }
+  }
+
   console.log('Render - selectedRegion:', selectedRegion);
+  console.log('Render - selectedAudience:', selectedAudience);
   console.log('Render - data type:', typeof data, 'isArray:', Array.isArray(data));
   console.log('Render - data:', data);
   console.log('Render - displayData:', displayData);
@@ -162,6 +194,12 @@ function App() {
               regions={availableRegions}
               selectedRegion={selectedRegion}
               onRegionChange={handleRegionChange}
+            />
+
+            <AudienceSelector
+              audiences={audiences}
+              selectedAudience={selectedAudience}
+              onAudienceChange={setSelectedAudience}
             />
 
             <button
