@@ -50,7 +50,9 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
         # Return cache
         if region:
             data = database.get_cached_campaigns(days=days, region=region)
+            # Auto-refresh if cache is empty
             if not data:
+                print(f"Cache empty for region {region}, forcing refresh...")
                 return get_dashboard_data(days=days, region=region, force_refresh=True)
             return {"source": "database", "region": region, "data": data}
         else:
@@ -59,10 +61,12 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
             for reg in mailchimp_service.REGIONS:
                 all_data[reg] = database.get_cached_campaigns(days=days, region=reg)
 
-            # If any region is empty, consider refetching (or use mock data)
-            if not any(all_data.values()):
-                # For demo purposes, return empty - frontend will use mock data
-                return {"source": "database", "data": all_data}
+            # Check if cache is mostly empty - if so, force refresh
+            total_campaigns = sum(len(campaigns) for campaigns in all_data.values() if campaigns)
+            if total_campaigns < len(mailchimp_service.REGIONS):
+                # Less than 1 campaign per region on average - likely cache issue
+                print(f"Cache has only {total_campaigns} campaigns across {len(mailchimp_service.REGIONS)} regions, forcing refresh...")
+                return get_dashboard_data(days=days, region=region, force_refresh=True)
 
             return {"source": "database", "data": all_data}
 
@@ -111,6 +115,24 @@ def get_audiences(region: str = None):
         return {
             "audiences": all_audiences
         }
+
+@app.get("/api/cache/stats")
+def get_cache_stats():
+    """Get statistics about cached campaigns"""
+    stats = database.get_cache_stats()
+    return {
+        "cache_stats": stats
+    }
+
+@app.post("/api/cache/clear")
+def clear_cache(region: str = None):
+    """Clear cached campaigns for a region or all regions"""
+    deleted_count = database.clear_cache(region=region)
+    return {
+        "status": "success",
+        "deleted_count": deleted_count,
+        "region": region if region else "all regions"
+    }
 
 @app.get("/api/test-credentials")
 def test_credentials():

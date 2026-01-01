@@ -87,5 +87,44 @@ def get_cached_campaigns(days=30, region=None):
     conn.close()
     return results
 
+def clear_cache(region=None):
+    """
+    Clear cached campaigns
+    region: specific region to clear, or None to clear all regions
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    if region:
+        c.execute("DELETE FROM campaigns WHERE region = ?", (region,))
+        print(f"Cleared cache for region: {region}")
+    else:
+        c.execute("DELETE FROM campaigns")
+        print("Cleared all cached campaigns")
+
+    conn.commit()
+    deleted_count = c.rowcount
+    conn.close()
+    return deleted_count
+
+def get_cache_stats():
+    """Get statistics about cached campaigns"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Total campaigns
+    c.execute("SELECT COUNT(*) FROM campaigns")
+    total = c.fetchone()[0]
+
+    # Campaigns by region
+    c.execute("SELECT region, COUNT(*) as count FROM campaigns GROUP BY region ORDER BY count DESC")
+    by_region = dict(c.fetchall())
+
+    conn.close()
+    return {
+        "total": total,
+        "by_region": by_region
+    }
+
 # Initialize on module load or explicitly
 init_db()
