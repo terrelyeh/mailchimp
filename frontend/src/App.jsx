@@ -95,6 +95,7 @@ function App() {
 
   const handleRegionChange = (region) => {
     setSelectedRegion(region);
+    setSelectedAudience(null); // Clear audience filter when region changes
     if (region) {
       setView('region-detail');
     } else {
@@ -104,6 +105,7 @@ function App() {
 
   const handleRegionClick = (regionCode) => {
     setSelectedRegion(regionCode);
+    setSelectedAudience(null); // Clear audience filter when region changes
     setView('region-detail');
   };
 
@@ -200,6 +202,7 @@ function App() {
               audiences={audiences}
               selectedAudience={selectedAudience}
               onAudienceChange={setSelectedAudience}
+              selectedRegion={selectedRegion}
             />
 
             <button
