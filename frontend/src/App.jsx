@@ -200,15 +200,6 @@ function App() {
               onRegionChange={handleRegionChange}
             />
 
-            <button
-              onClick={() => setDiagnosticsOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors shadow-sm"
-              title="Open API Diagnostics"
-            >
-              <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Diagnostics</span>
-            </button>
-
             <AudienceSelector
               audiences={audiences}
               selectedAudience={selectedAudience}
@@ -223,6 +214,14 @@ function App() {
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
               {isSyncing ? 'Syncing...' : 'Sync'}
+            </button>
+
+            <button
+              onClick={() => setDiagnosticsOpen(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Open API Diagnostics"
+            >
+              <Activity className="w-4 h-4" />
             </button>
           </div>
         </div>
