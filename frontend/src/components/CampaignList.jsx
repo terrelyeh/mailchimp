@@ -44,12 +44,20 @@ export default function CampaignList({ data }) {
                             <th className="px-6 py-3">Campaign Name</th>
                             <th className="px-6 py-3">Audience</th>
                             <th className="px-6 py-3">Sent Time</th>
+                            <th className="px-6 py-3 text-right">Total Sent</th>
                             <th className="px-6 py-3 text-right">Open Rate</th>
                             <th className="px-6 py-3 text-right">Click Rate</th>
+                            <th className="px-6 py-3 text-right">Bounce Rate</th>
+                            <th className="px-6 py-3 text-right">Unsubscribed</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {currentData.map((campaign) => (
+                        {currentData.map((campaign) => {
+                            const bounceRate = campaign.emails_sent > 0
+                                ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
+                                : 0;
+
+                            return (
                             <tr key={campaign.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-6 py-4">
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -74,6 +82,12 @@ export default function CampaignList({ data }) {
                                     {format(new Date(campaign.send_time), 'MMM dd, HH:mm')}
                                 </td>
                                 <td className="px-6 py-4 text-right">
+                                    <span className="font-medium text-gray-900">
+                                        {campaign.emails_sent?.toLocaleString() || 0}
+                                    </span>
+                                    <div className="text-xs text-gray-400">emails</div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
                                     <span className="font-medium text-gray-900">{(campaign.open_rate * 100).toFixed(1)}%</span>
                                     <div className="text-xs text-gray-400">{campaign.opens?.toLocaleString()} opens</div>
                                 </td>
@@ -81,8 +95,20 @@ export default function CampaignList({ data }) {
                                     <span className="font-medium text-gray-900">{(campaign.click_rate * 100).toFixed(1)}%</span>
                                     <div className="text-xs text-gray-400">{campaign.clicks?.toLocaleString()} clicks</div>
                                 </td>
+                                <td className="px-6 py-4 text-right">
+                                    <span className={`font-medium ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
+                                        {bounceRate.toFixed(1)}%
+                                    </span>
+                                    <div className="text-xs text-gray-400">{campaign.bounces?.toLocaleString() || 0} bounces</div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <span className={`font-medium ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-900'}`}>
+                                        {campaign.unsubscribed?.toLocaleString() || 0}
+                                    </span>
+                                    <div className="text-xs text-gray-400">unsubs</div>
+                                </td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>
