@@ -1,15 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function CampaignList({ data }) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Reset to page 1 when data changes (e.g., region or audience filter)
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [data.length]);
+
     // Sort descending by date
     const sortedData = [...data].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
+
+    // Calculate pagination
+    const totalItems = sortedData.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentData = sortedData.slice(startIndex, endIndex);
+
+    const goToPage = (page) => {
+        setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    };
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="font-bold text-gray-900">Recent Campaigns</h3>
+                <div>
+                    <h3 className="font-bold text-gray-900">Recent Campaigns</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Total: {totalItems} campaign{totalItems !== 1 ? 's' : ''}
+                        {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+                    </p>
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-gray-500">
@@ -24,7 +49,7 @@ export default function CampaignList({ data }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {sortedData.map((campaign) => (
+                        {currentData.map((campaign) => (
                             <tr key={campaign.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-6 py-4">
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -61,6 +86,65 @@ export default function CampaignList({ data }) {
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                        Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => goToPage(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                            Previous
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                // Show first page, last page, current page, and pages around current
+                                if (
+                                    page === 1 ||
+                                    page === totalPages ||
+                                    (page >= currentPage - 1 && page <= currentPage + 1)
+                                ) {
+                                    return (
+                                        <button
+                                            key={page}
+                                            onClick={() => goToPage(page)}
+                                            className={`px-3 py-1 rounded-md text-sm font-medium ${
+                                                page === currentPage
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    );
+                                } else if (
+                                    page === currentPage - 2 ||
+                                    page === currentPage + 2
+                                ) {
+                                    return <span key={page} className="px-2 text-gray-400">...</span>;
+                                }
+                                return null;
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => goToPage(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                        >
+                            Next
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

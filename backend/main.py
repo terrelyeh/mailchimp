@@ -173,4 +173,146 @@ def test_credentials():
         "results": results
     }
 
+@app.get("/api/diagnose")
+def diagnose_api(days: int = 60, region: str = None):
+    """
+    診斷 MailChimp API 連線狀況
+    測試是否能正常抓取資料、是否有 rate limit 等問題
+    """
+    import time
+    from datetime import datetime, timedelta
+
+    regions_to_test = [region] if region else mailchimp_service.REGIONS
+    results = {}
+
+    for reg in regions_to_test:
+        print(f"\n=== Testing region: {reg} ===")
+        client = mailchimp_service.get_client(reg)
+        region_result = {
+            "region": reg,
+            "tests": []
+        }
+
+        # Test 1: Basic API connection
+        try:
+            start_time = time.time()
+            test_result = client._get("/")
+            elapsed = time.time() - start_time
+
+            region_result["tests"].append({
+                "test": "Basic API Connection",
+                "status": "success",
+                "message": f"連線成功 (耗時: {elapsed:.2f}s)",
+                "response_time": f"{elapsed:.2f}s"
+            })
+        except Exception as e:
+            region_result["tests"].append({
+                "test": "Basic API Connection",
+                "status": "error",
+                "message": f"連線失敗: {str(e)}"
+            })
+            results[reg] = region_result
+            continue
+
+        # Test 2: Fetch first batch of campaigns (count=10)
+        try:
+            start_time = time.time()
+            first_batch = client._get("/campaigns", params={
+                "status": "sent",
+                "count": 10,
+                "offset": 0,
+                "sort_field": "send_time",
+                "sort_dir": "DESC"
+            })
+            elapsed = time.time() - start_time
+
+            total_items = first_batch.get('total_items', 0) if first_batch else 0
+            campaigns_returned = len(first_batch.get('campaigns', [])) if first_batch else 0
+
+            region_result["tests"].append({
+                "test": "Fetch First 10 Campaigns",
+                "status": "success",
+                "message": f"成功抓取 {campaigns_returned} 個 campaigns (總共有 {total_items} 個)",
+                "total_campaigns": total_items,
+                "campaigns_in_batch": campaigns_returned,
+                "response_time": f"{elapsed:.2f}s"
+            })
+
+            # Test 3: Check if we can fetch more (test pagination)
+            if total_items > 10:
+                try:
+                    start_time = time.time()
+                    second_batch = client._get("/campaigns", params={
+                        "status": "sent",
+                        "count": 10,
+                        "offset": 10,
+                        "sort_field": "send_time",
+                        "sort_dir": "DESC"
+                    })
+                    elapsed = time.time() - start_time
+
+                    second_batch_count = len(second_batch.get('campaigns', [])) if second_batch else 0
+
+                    region_result["tests"].append({
+                        "test": "Test Pagination (offset=10)",
+                        "status": "success",
+                        "message": f"分頁功能正常，成功抓取第二批 {second_batch_count} 個 campaigns",
+                        "campaigns_in_batch": second_batch_count,
+                        "response_time": f"{elapsed:.2f}s"
+                    })
+                except Exception as e:
+                    region_result["tests"].append({
+                        "test": "Test Pagination",
+                        "status": "error",
+                        "message": f"分頁測試失敗: {str(e)}"
+                    })
+
+            # Test 4: Test with date filter
+            since_send_time = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+            try:
+                start_time = time.time()
+                filtered_batch = client._get("/campaigns", params={
+                    "status": "sent",
+                    "since_send_time": since_send_time,
+                    "count": 100,
+                    "offset": 0,
+                    "sort_field": "send_time",
+                    "sort_dir": "DESC"
+                })
+                elapsed = time.time() - start_time
+
+                filtered_total = filtered_batch.get('total_items', 0) if filtered_batch else 0
+                filtered_count = len(filtered_batch.get('campaigns', [])) if filtered_batch else 0
+
+                region_result["tests"].append({
+                    "test": f"Fetch Last {days} Days",
+                    "status": "success",
+                    "message": f"過去 {days} 天有 {filtered_total} 個 campaigns，本次抓取 {filtered_count} 個",
+                    "total_in_period": filtered_total,
+                    "campaigns_fetched": filtered_count,
+                    "response_time": f"{elapsed:.2f}s"
+                })
+            except Exception as e:
+                region_result["tests"].append({
+                    "test": f"Fetch Last {days} Days",
+                    "status": "error",
+                    "message": f"日期篩選測試失敗: {str(e)}"
+                })
+
+        except Exception as e:
+            region_result["tests"].append({
+                "test": "Fetch Campaigns",
+                "status": "error",
+                "message": f"抓取 campaigns 失敗: {str(e)}"
+            })
+
+        results[reg] = region_result
+
+    return {
+        "diagnosis_time": datetime.utcnow().isoformat(),
+        "regions_tested": len(results),
+        "results": results
+    }
+
 

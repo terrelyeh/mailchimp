@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Mail, MousePointer, UserX } from 'lucide-react';
+import { TrendingUp, TrendingDown, Mail, MousePointer, UserX, FileText } from 'lucide-react';
 
 const Card = ({ title, value, subValue, trend, icon: Icon }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -39,9 +39,16 @@ export default function KPICards({ data, isMultiRegion = false }) {
     ) : 0;
 
     const totalUnsub = flatData.reduce((acc, curr) => acc + (curr.unsubscribed || 0), 0);
+    const totalCampaigns = flatData.length;
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <Card
+                title="Total Campaigns"
+                value={totalCampaigns.toLocaleString()}
+                subValue="in this period"
+                icon={FileText}
+            />
             <Card
                 title="Total Emails Sent"
                 value={totalSent.toLocaleString()}
