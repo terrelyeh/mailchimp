@@ -215,12 +215,15 @@ function App() {
               onRegionChange={handleRegionChange}
             />
 
-            <AudienceSelector
-              audiences={audiences}
-              selectedAudience={selectedAudience}
-              onAudienceChange={setSelectedAudience}
-              selectedRegion={selectedRegion}
-            />
+            {/* 只在選擇特定 region 時顯示 Audience 篩選器 */}
+            {selectedRegion && (
+              <AudienceSelector
+                audiences={audiences}
+                selectedAudience={selectedAudience}
+                onAudienceChange={setSelectedAudience}
+                selectedRegion={selectedRegion}
+              />
+            )}
 
             <button
               onClick={handleSync}

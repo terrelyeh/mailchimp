@@ -23,6 +23,14 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
     );
   }
 
+  // 過濾出有資料的 regions
+  const activeRegions = useMemo(() => {
+    return regions.filter(region => {
+      const campaigns = regionsData[region.code];
+      return campaigns && Array.isArray(campaigns) && campaigns.length > 0;
+    });
+  }, [regions, regionsData]);
+
   // 日期格式化函數（需要在 useMemo 之前定義）
   const formatDate = (date) => {
     const month = date.getMonth() + 1;
@@ -165,7 +173,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
         <p className="font-bold text-sm mb-2 pb-2 border-b border-gray-200">{label}</p>
         <div className="space-y-2">
           {Object.entries(regionData).map(([regionCode, metrics]) => {
-            const region = regions.find(r => r.code === regionCode);
+            const region = activeRegions.find(r => r.code === regionCode);
             if (!region) return null;
 
             return (
@@ -288,21 +296,21 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
             <RechartsTooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
 
-            {/* Bars for Campaigns */}
-            {selectedMetrics.includes('campaigns') && regions.map((region, idx) => (
+            {/* Bars for Campaigns - 只顯示有資料的 regions */}
+            {selectedMetrics.includes('campaigns') && activeRegions.map((region, idx) => (
               <Bar
                 key={`${region.code}_campaigns`}
                 dataKey={`${region.code}_campaigns`}
                 fill={region.color || '#3B82F6'}
                 yAxisId="left"
-                name={`${region.flag} ${region.code} Campaigns`}
+                name={`${region.flag} ${region.code}`}
                 radius={[4, 4, 0, 0]}
                 opacity={0.8}
               />
             ))}
 
-            {/* Lines for Open Rate */}
-            {selectedMetrics.includes('openRate') && regions.map((region) => (
+            {/* Lines for Open Rate - 只顯示有資料的 regions */}
+            {selectedMetrics.includes('openRate') && activeRegions.map((region) => (
               <Line
                 key={`${region.code}_openRate`}
                 type="monotone"
@@ -311,13 +319,13 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 yAxisId="right"
-                name={`${region.flag} ${region.code} Open Rate`}
+                name={`${region.flag} Open Rate`}
                 unit="%"
               />
             ))}
 
-            {/* Lines for Click Rate */}
-            {selectedMetrics.includes('clickRate') && regions.map((region) => (
+            {/* Lines for Click Rate - 只顯示有資料的 regions */}
+            {selectedMetrics.includes('clickRate') && activeRegions.map((region) => (
               <Line
                 key={`${region.code}_clickRate`}
                 type="monotone"
@@ -327,13 +335,13 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                 dot={{ r: 3 }}
                 strokeDasharray="5 5"
                 yAxisId="right"
-                name={`${region.flag} ${region.code} Click Rate`}
+                name={`${region.flag} Click Rate`}
                 unit="%"
               />
             ))}
 
-            {/* Lines for Unsubscribes */}
-            {selectedMetrics.includes('unsubscribes') && regions.map((region) => (
+            {/* Lines for Unsubscribes - 只顯示有資料的 regions */}
+            {selectedMetrics.includes('unsubscribes') && activeRegions.map((region) => (
               <Line
                 key={`${region.code}_unsubscribes`}
                 type="monotone"
@@ -343,7 +351,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                 dot={{ r: 3 }}
                 strokeDasharray="3 3"
                 yAxisId="right"
-                name={`${region.flag} ${region.code} Unsubscribes`}
+                name={`${region.flag} Unsubs`}
               />
             ))}
           </ComposedChart>
