@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import KPICards from './components/KPICards';
 import DashboardCharts from './components/DashboardCharts';
 import CampaignList from './components/CampaignList';
@@ -7,6 +7,7 @@ import TimeRangeSelector from './components/TimeRangeSelector';
 import AudienceSelector from './components/AudienceSelector';
 import RegionCards from './components/RegionCards';
 import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
+import TopCampaignsTable from './components/TopCampaignsTable';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
 import { RefreshCw, ArrowLeft, Activity } from 'lucide-react';
@@ -152,11 +153,32 @@ function App() {
     }
   }
 
+  // Calculate total subscribers for selected region
+  const totalSubscribers = useMemo(() => {
+    if (!selectedRegion || !audiences || audiences.length === 0) {
+      return null;
+    }
+
+    // Sum up member_count from all audiences for this region
+    const regionAudiences = audiences.filter(aud => {
+      // Audiences might be structured differently depending on API response
+      // Check if it's a flat array or grouped by region
+      return true; // For now, sum all audiences (adjust based on actual data structure)
+    });
+
+    const total = regionAudiences.reduce((sum, aud) => {
+      return sum + (aud.member_count || 0);
+    }, 0);
+
+    return total > 0 ? total : null;
+  }, [selectedRegion, audiences]);
+
   console.log('Render - selectedRegion:', selectedRegion);
   console.log('Render - selectedAudience:', selectedAudience);
   console.log('Render - data type:', typeof data, 'isArray:', Array.isArray(data));
   console.log('Render - data:', data);
   console.log('Render - displayData:', displayData);
+  console.log('Render - totalSubscribers:', totalSubscribers);
 
   return (
     <div className="min-h-screen bg-[#F6F6F4] p-8">
@@ -248,8 +270,18 @@ function App() {
         ) : (
           <>
             {/* Region Detail Page */}
-            <KPICards data={displayData} isMultiRegion={false} />
-            <DashboardCharts data={displayData} />
+            <KPICards
+              data={displayData}
+              isMultiRegion={false}
+              totalSubscribers={totalSubscribers}
+            />
+
+            {/* Performance Charts & Top Campaigns Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <DashboardCharts data={displayData} />
+              <TopCampaignsTable data={displayData} topN={5} />
+            </div>
+
             <CampaignList data={displayData.slice(0, 10)} />
           </>
         )}

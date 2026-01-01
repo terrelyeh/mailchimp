@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Mail, MousePointer, UserX, FileText } from 'lucide-react';
+import { TrendingUp, TrendingDown, Mail, MousePointer, UserX, FileText, Users } from 'lucide-react';
 
 const Card = ({ title, value, subValue, trend, icon: Icon }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -20,7 +20,7 @@ const Card = ({ title, value, subValue, trend, icon: Icon }) => (
     </div>
 );
 
-export default function KPICards({ data, isMultiRegion = false }) {
+export default function KPICards({ data, isMultiRegion = false, totalSubscribers = null }) {
     // Flatten data if it's multi-region (object with region keys)
     let flatData = data;
     if (isMultiRegion && typeof data === 'object' && !Array.isArray(data)) {
@@ -41,8 +41,11 @@ export default function KPICards({ data, isMultiRegion = false }) {
     const totalUnsub = flatData.reduce((acc, curr) => acc + (curr.unsubscribed || 0), 0);
     const totalCampaigns = flatData.length;
 
+    // Determine grid columns based on whether we show Total Subscribers
+    const gridCols = totalSubscribers !== null ? 'lg:grid-cols-6' : 'lg:grid-cols-5';
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${gridCols} gap-6 mb-8`}>
             <Card
                 title="Total Campaigns"
                 value={totalCampaigns.toLocaleString()}
@@ -54,6 +57,14 @@ export default function KPICards({ data, isMultiRegion = false }) {
                 value={totalSent.toLocaleString()}
                 icon={Mail}
             />
+            {totalSubscribers !== null && (
+                <Card
+                    title="Total Subscribers"
+                    value={totalSubscribers.toLocaleString()}
+                    subValue="active members"
+                    icon={Users}
+                />
+            )}
             <Card
                 title="Avg. Open Rate"
                 value={`${(avgOpenRate * 100).toFixed(1)}%`}
