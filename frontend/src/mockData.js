@@ -40,17 +40,17 @@ export const MOCK_REGIONS_DATA = {
   JP: generateCampaigns('JP', 30, 5000)
 };
 
-// Region metadata mapping
+// Region metadata mapping with coordinated, elegant color palette
 export const REGION_METADATA = {
-  US: { code: 'US', name: 'United States', flag: '🇺🇸', color: '#3B82F6' },
-  EU: { code: 'EU', name: 'Europe', flag: '🇪🇺', color: '#10B981' },
-  APAC: { code: 'APAC', name: 'Asia-Pacific', flag: '🌏', color: '#F59E0B' },
-  JP: { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#EF4444' },
-  INDIA: { code: 'INDIA', name: 'India', flag: '🇮🇳', color: '#8B5CF6' },
-  AU: { code: 'AU', name: 'Australia', flag: '🇦🇺', color: '#14B8A6' },
-  UK: { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', color: '#EC4899' },
-  CA: { code: 'CA', name: 'Canada', flag: '🇨🇦', color: '#F97316' },
-  SG: { code: 'SG', name: 'Singapore', flag: '🇸🇬', color: '#06B6D4' }
+  US: { code: 'US', name: 'United States', flag: '🇺🇸', color: '#2563EB' },      // Rich Blue
+  EU: { code: 'EU', name: 'Europe', flag: '🇪🇺', color: '#0891B2' },             // Deep Cyan
+  APAC: { code: 'APAC', name: 'Asia-Pacific', flag: '🌏', color: '#D97706' },    // Warm Amber
+  JP: { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#DC2626' },              // Classic Red
+  INDIA: { code: 'INDIA', name: 'India', flag: '🇮🇳', color: '#7C3AED' },        // Royal Purple
+  AU: { code: 'AU', name: 'Australia', flag: '🇦🇺', color: '#059669' },          // Deep Emerald
+  UK: { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', color: '#BE185D' },     // Deep Rose
+  CA: { code: 'CA', name: 'Canada', flag: '🇨🇦', color: '#EA580C' },             // Burnt Orange
+  SG: { code: 'SG', name: 'Singapore', flag: '🇸🇬', color: '#0284C7' }           // Sky Blue
 };
 
 // Helper function to get region info

@@ -127,19 +127,78 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
   ];
 
   const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border border-gray-100 shadow-lg rounded-lg">
-          <p className="font-bold text-sm mb-2">{label}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="text-xs" style={{ color: entry.color }}>
-              {entry.name}: {entry.value}{entry.unit || ''}
-            </p>
-          ))}
+    if (!active || !payload || payload.length === 0) return null;
+
+    // 按區域分組資料
+    const regionData = {};
+
+    payload.forEach(entry => {
+      // 從 dataKey 中提取區域代碼（例如 "APAC_campaigns" -> "APAC"）
+      const match = entry.dataKey.match(/^([A-Z]+)_(.+)$/);
+      if (match) {
+        const [, regionCode, metric] = match;
+        if (!regionData[regionCode]) {
+          regionData[regionCode] = {};
+        }
+        regionData[regionCode][metric] = {
+          value: entry.value,
+          color: entry.color,
+          unit: entry.unit || ''
+        };
+      }
+    });
+
+    return (
+      <div className="bg-white p-3 border border-gray-200 shadow-xl rounded-lg max-w-xs">
+        <p className="font-bold text-sm mb-2 pb-2 border-b border-gray-200">{label}</p>
+        <div className="space-y-2">
+          {Object.entries(regionData).map(([regionCode, metrics]) => {
+            const region = regions.find(r => r.code === regionCode);
+            if (!region) return null;
+
+            return (
+              <div key={regionCode} className="text-xs">
+                <div className="font-semibold text-gray-900 mb-1">
+                  {region.flag} {regionCode}
+                </div>
+                <div className="ml-4 space-y-0.5">
+                  {metrics.campaigns !== undefined && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600">Campaigns:</span>
+                      <span className="font-medium">{metrics.campaigns.value}</span>
+                    </div>
+                  )}
+                  {metrics.openRate !== undefined && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600">Open Rate:</span>
+                      <span className="font-medium" style={{ color: metrics.openRate.color }}>
+                        {metrics.openRate.value}%
+                      </span>
+                    </div>
+                  )}
+                  {metrics.clickRate !== undefined && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600">Click Rate:</span>
+                      <span className="font-medium" style={{ color: metrics.clickRate.color }}>
+                        {metrics.clickRate.value}%
+                      </span>
+                    </div>
+                  )}
+                  {metrics.unsubscribes !== undefined && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600">Unsubscribes:</span>
+                      <span className="font-medium" style={{ color: metrics.unsubscribes.color }}>
+                        {metrics.unsubscribes.value}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      );
-    }
-    return null;
+      </div>
+    );
   };
 
   // 如果沒有資料

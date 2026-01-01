@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import KPICards from './components/KPICards';
 import DashboardCharts from './components/DashboardCharts';
 import CampaignList from './components/CampaignList';
@@ -9,6 +9,7 @@ import RegionCards from './components/RegionCards';
 import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
 import TopCampaignsTable from './components/TopCampaignsTable';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
+import ExportButton from './components/ExportButton';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
 import { RefreshCw, ArrowLeft, Activity } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
@@ -25,6 +26,9 @@ function App() {
   const [audiences, setAudiences] = useState([]); // Available audiences
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
+
+  // Ref for export functionality
+  const exportContentRef = useRef(null);
 
   const loadData = async (force = false) => {
     setLoading(true);
@@ -238,6 +242,14 @@ function App() {
               {isSyncing ? 'Syncing...' : 'Sync'}
             </button>
 
+            <ExportButton
+              targetRef={exportContentRef}
+              fileName="EnGenius_EDM_Dashboard"
+              view={view}
+              selectedRegion={selectedRegion}
+              selectedDays={selectedDays}
+            />
+
             <button
               onClick={() => setDiagnosticsOpen(true)}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -256,34 +268,38 @@ function App() {
 
         {loading ? (
           <div className="h-64 flex items-center justify-center text-gray-400">Loading dashboard...</div>
-        ) : view === 'overview' ? (
-          <>
-            {/* Overview Page - All Regions */}
-            <KPICards data={displayData} isMultiRegion={true} />
-            <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
-            <RegionCards
-              regionsData={displayData}
-              regions={availableRegions}
-              onRegionClick={handleRegionClick}
-            />
-          </>
         ) : (
-          <>
-            {/* Region Detail Page */}
-            <KPICards
-              data={displayData}
-              isMultiRegion={false}
-              totalSubscribers={totalSubscribers}
-            />
+          <div ref={exportContentRef} data-export-content>
+            {view === 'overview' ? (
+              <>
+                {/* Overview Page - All Regions */}
+                <KPICards data={displayData} isMultiRegion={true} />
+                <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
+                <RegionCards
+                  regionsData={displayData}
+                  regions={availableRegions}
+                  onRegionClick={handleRegionClick}
+                />
+              </>
+            ) : (
+              <>
+                {/* Region Detail Page */}
+                <KPICards
+                  data={displayData}
+                  isMultiRegion={false}
+                  totalSubscribers={totalSubscribers}
+                />
 
-            {/* Performance Charts & Top Campaigns Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <DashboardCharts data={displayData} />
-              <TopCampaignsTable data={displayData} topN={5} />
-            </div>
+                {/* Performance Charts & Top Campaigns Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                  <DashboardCharts data={displayData} />
+                  <TopCampaignsTable data={displayData} topN={5} />
+                </div>
 
-            <CampaignList data={displayData.slice(0, 10)} />
-          </>
+                <CampaignList data={displayData.slice(0, 10)} />
+              </>
+            )}
+          </div>
         )}
       </div>
 

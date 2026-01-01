@@ -5,6 +5,18 @@ import { format } from 'date-fns';
 export default function DashboardCharts({ data }) {
     const [mode, setMode] = useState('trend'); // 'trend' or 'scatter'
 
+    // 確保 data 是陣列
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        return (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">Campaign Performance</h2>
+                <div className="h-[400px] flex items-center justify-center text-gray-400">
+                    No campaign data available
+                </div>
+            </div>
+        );
+    }
+
     // Sort by send_time (ascending for charts)
     const sortedData = [...data].sort((a, b) => new Date(a.send_time) - new Date(b.send_time));
 

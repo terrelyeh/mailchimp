@@ -8,7 +8,8 @@ import { Trophy, TrendingUp, MousePointer, Mail } from 'lucide-react';
 export default function TopCampaignsTable({ data, topN = 5 }) {
   // 計算綜合評分並排序
   const topCampaigns = useMemo(() => {
-    if (!data || data.length === 0) return [];
+    // 確保 data 是陣列且不為空
+    if (!data || !Array.isArray(data) || data.length === 0) return [];
 
     // 計算每個 campaign 的綜合評分
     // 公式：Open Rate * 60% + Click Rate * 40%
