@@ -2,20 +2,20 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Mail, MousePointer, UserX, FileText, Users, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const Card = ({ title, value, subValue, trend, icon: Icon }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-gray-50 rounded-lg">
-                <Icon className="w-5 h-5 text-gray-500" />
+    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex justify-between items-start mb-3 md:mb-4">
+            <div className="p-1.5 md:p-2 bg-gray-50 rounded-lg">
+                <Icon className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
             </div>
             {trend && (
-                <div className={`flex items-center text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {trend > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                <div className={`flex items-center text-xs md:text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {trend > 0 ? <TrendingUp className="w-3 h-3 md:w-4 md:h-4 mr-1" /> : <TrendingDown className="w-3 h-3 md:w-4 md:h-4 mr-1" />}
                     {Math.abs(trend)}%
                 </div>
             )}
         </div>
-        <h3 className="text-gray-500 text-sm font-medium mb-1">{title}</h3>
-        <div className="text-2xl font-bold text-gray-900">{value}</div>
+        <h3 className="text-gray-500 text-xs md:text-sm font-medium mb-1">{title}</h3>
+        <div className="text-xl md:text-2xl font-bold text-gray-900">{value}</div>
         {subValue && <div className="text-xs text-gray-400 mt-1">{subValue}</div>}
     </div>
 );
@@ -71,9 +71,9 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
     ) : 0;
 
     return (
-        <div className="space-y-6 mb-8">
+        <div className="space-y-4 md:space-y-6 mb-6 md:mb-8">
             {/* Row 1: Campaign & Email Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
                 <Card
                     title="Total Campaigns"
                     value={totalCampaigns.toLocaleString()}
@@ -102,7 +102,7 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
             </div>
 
             {/* Row 2: Engagement & Health Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
                 <Card
                     title="Avg. Open Rate"
                     value={`${(avgOpenRate * 100).toFixed(1)}%`}

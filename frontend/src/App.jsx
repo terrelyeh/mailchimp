@@ -181,36 +181,71 @@ function App() {
   }, [audiences, selectedAudience]);
 
   return (
-    <div className="min-h-screen bg-[#F6F6F4] p-8">
+    <div className="min-h-screen bg-[#F6F6F4] p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            {view === 'region-detail' && currentRegion ? (
-              <div>
-                <button
-                  onClick={handleBackToOverview}
-                  className="flex items-center text-gray-600 hover:text-gray-900 mb-2 text-sm"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-1" />
-                  Back to Overview
-                </button>
-                <h1 className="text-3xl font-bold text-[#241C15] tracking-tight">
-                  {currentRegion.flag} {currentRegion.name}
-                </h1>
-                <p className="text-gray-500 mt-1">EDM Campaign Analytics</p>
-              </div>
-            ) : (
-              <div>
-                <h1 className="text-3xl font-bold text-[#241C15] tracking-tight">
-                  EnGenius EDM 儀表板
-                </h1>
-                <p className="text-gray-500 mt-1">Multi-Region Campaign Analytics</p>
-              </div>
-            )}
+        <div className="flex flex-col gap-4 mb-6 md:mb-8">
+          {/* Title Row */}
+          <div className="flex items-start justify-between">
+            <div>
+              {view === 'region-detail' && currentRegion ? (
+                <div>
+                  <button
+                    onClick={handleBackToOverview}
+                    className="flex items-center text-gray-600 hover:text-gray-900 mb-2 text-sm"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-1" />
+                    Back to Overview
+                  </button>
+                  <h1 className="text-xl md:text-3xl font-bold text-[#241C15] tracking-tight">
+                    {currentRegion.flag} {currentRegion.name}
+                  </h1>
+                  <p className="text-gray-500 mt-1 text-sm md:text-base">EDM Campaign Analytics</p>
+                </div>
+              ) : (
+                <div>
+                  <h1 className="text-xl md:text-3xl font-bold text-[#241C15] tracking-tight">
+                    EnGenius EDM 儀表板
+                  </h1>
+                  <p className="text-gray-500 mt-1 text-sm md:text-base">Multi-Region Campaign Analytics</p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons - Always visible */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-3 md:px-4 py-2 rounded-lg font-bold shadow-sm transition-colors text-xs md:text-sm"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''} md:mr-2`} />
+                <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+              </button>
+
+              <ExportButton
+                targetRef={exportContentRef}
+                fileName="EnGenius_EDM_Dashboard"
+                view={view}
+                selectedRegion={selectedRegion}
+                selectedDays={selectedDays}
+                customDateRange={customDateRange}
+                selectedAudience={selectedAudience}
+                audienceList={audienceList}
+              />
+
+              <button
+                onClick={() => setDiagnosticsOpen(true)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Open API Diagnostics"
+              >
+                <Activity className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Filters Row */}
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <TimeRangeSelector
               selectedDays={selectedDays}
               onDaysChange={setSelectedDays}
@@ -233,34 +268,6 @@ function App() {
                 selectedRegion={selectedRegion}
               />
             )}
-
-            <button
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-4 py-2 rounded-lg font-bold shadow-sm transition-colors text-sm"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Syncing...' : 'Sync'}
-            </button>
-
-            <ExportButton
-              targetRef={exportContentRef}
-              fileName="EnGenius_EDM_Dashboard"
-              view={view}
-              selectedRegion={selectedRegion}
-              selectedDays={selectedDays}
-              customDateRange={customDateRange}
-              selectedAudience={selectedAudience}
-              audienceList={audienceList}
-            />
-
-            <button
-              onClick={() => setDiagnosticsOpen(true)}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Open API Diagnostics"
-            >
-              <Activity className="w-4 h-4" />
-            </button>
           </div>
         </div>
 

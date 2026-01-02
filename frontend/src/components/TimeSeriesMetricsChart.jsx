@@ -260,23 +260,23 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 mb-6 md:mb-8">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-lg font-bold text-gray-900">Campaign Metrics Over Time</h2>
+      <div className="mb-4 md:mb-6">
+        <h2 className="text-base md:text-lg font-bold text-gray-900">Campaign Metrics Over Time</h2>
       </div>
 
       {/* Selectors */}
-      <div className="flex flex-col lg:flex-row gap-6 mb-6 pb-6 border-b border-gray-100">
+      <div className="flex flex-col gap-4 md:gap-6 mb-4 md:mb-6 pb-4 md:pb-6 border-b border-gray-100">
         {/* Region Selector */}
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-3">
+        <div>
+          <div className="flex items-center gap-2 mb-2 md:mb-3">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Regions</span>
             <span className="text-xs text-gray-400">
               ({selectedRegions.length} selected)
             </span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 md:gap-2">
             {activeRegions.map(region => {
               const isSelected = selectedRegions.includes(region.code);
               return (
@@ -289,13 +289,13 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                     color: 'white'
                   } : {}}
                   className={`
-                    inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
+                    inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-medium
                     transition-all duration-150 border-2
                     ${!isSelected && 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}
                   `}
                 >
                   <span>{region.flag}</span>
-                  <span>{region.code}</span>
+                  <span className="hidden sm:inline">{region.code}</span>
                 </button>
               );
             })}
@@ -303,14 +303,14 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
         </div>
 
         {/* Metric Selector */}
-        <div className="lg:w-auto">
-          <div className="flex items-center gap-2 mb-3">
+        <div>
+          <div className="flex items-center gap-2 mb-2 md:mb-3">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Metric</span>
             <span className="text-xs text-gray-400">
               {isMultiRegionMode ? '(single)' : '(multi)'}
             </span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 md:gap-2">
             {metrics.map(metric => {
               const isSelected = selectedMetrics.includes(metric.key);
               return (
@@ -318,7 +318,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                   key={metric.key}
                   onClick={() => handleMetricChange(metric.key)}
                   className={`
-                    inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
+                    inline-flex items-center px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-medium
                     transition-all duration-150 border-2
                     ${isSelected
                       ? 'bg-gray-900 text-white border-gray-900'
@@ -335,7 +335,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
       </div>
 
       {/* Chart */}
-      <div className="h-[400px]">
+      <div className="h-[280px] md:h-[400px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
