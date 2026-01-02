@@ -44,9 +44,9 @@ export const MOCK_REGIONS_DATA = {
 export const REGION_METADATA = {
   US: { code: 'US', name: 'United States', flag: '🇺🇸', color: '#2563EB' },      // Rich Blue
   EU: { code: 'EU', name: 'Europe', flag: '🇪🇺', color: '#0891B2' },             // Deep Cyan
-  APAC: { code: 'APAC', name: 'Asia-Pacific', flag: '🌏', color: '#D97706' },    // Warm Amber
-  JP: { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#DC2626' },              // Classic Red
-  INDIA: { code: 'INDIA', name: 'India', flag: '🇮🇳', color: '#7C3AED' },        // Royal Purple
+  APAC: { code: 'APAC', name: 'Asia-Pacific', flag: '🌏', color: '#F59E0B' },    // Golden Amber
+  JP: { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#E11D48' },              // Rose Red (distinct from orange)
+  INDIA: { code: 'INDIA', name: 'India', flag: '🇮🇳', color: '#8B5CF6' },        // Bright Violet
   AU: { code: 'AU', name: 'Australia', flag: '🇦🇺', color: '#059669' },          // Deep Emerald
   UK: { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', color: '#BE185D' },     // Deep Rose
   CA: { code: 'CA', name: 'Canada', flag: '🇨🇦', color: '#EA580C' },             // Burnt Orange

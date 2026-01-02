@@ -397,48 +397,48 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
               />
             ))}
 
-            {/* Lines for Open Rate - 使用各區域顏色，統一實線 */}
+            {/* Lines for Open Rate - 使用各區域顏色，統一實線，無圓點 */}
             {selectedMetrics.includes('openRate') && displayRegions.map((region) => (
               <Line
                 key={`${region.code}_openRate`}
                 type="monotone"
                 dataKey={`${region.code}_openRate`}
                 stroke={region.color}
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: region.color, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
                 yAxisId="right"
                 name={`${region.flag} ${region.code}`}
                 unit="%"
               />
             ))}
 
-            {/* Lines for Click Rate - 使用各區域顏色，統一實線 */}
+            {/* Lines for Click Rate - 使用各區域顏色，統一實線，無圓點 */}
             {selectedMetrics.includes('clickRate') && displayRegions.map((region) => (
               <Line
                 key={`${region.code}_clickRate`}
                 type="monotone"
                 dataKey={`${region.code}_clickRate`}
                 stroke={region.color}
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: region.color, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
                 yAxisId="right"
                 name={`${region.flag} ${region.code}`}
                 unit="%"
               />
             ))}
 
-            {/* Lines for Unsubscribes - 使用各區域顏色，統一實線 */}
+            {/* Lines for Unsubscribes - 使用各區域顏色，統一實線，無圓點 */}
             {selectedMetrics.includes('unsubscribes') && displayRegions.map((region) => (
               <Line
                 key={`${region.code}_unsubscribes`}
                 type="monotone"
                 dataKey={`${region.code}_unsubscribes`}
                 stroke={region.color}
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: region.color, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
                 yAxisId="right"
                 name={`${region.flag} ${region.code}`}
               />
