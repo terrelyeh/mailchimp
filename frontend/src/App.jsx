@@ -148,9 +148,9 @@ function App() {
     }
   }
 
-  // Calculate total subscribers for selected region
+  // Calculate total subscribers (for both overview and region detail)
   const totalSubscribers = useMemo(() => {
-    if (!selectedRegion || !audiences) {
+    if (!audiences) {
       return null;
     }
 
@@ -172,7 +172,7 @@ function App() {
     }, 0);
 
     return total > 0 ? total : null;
-  }, [selectedRegion, audiences]);
+  }, [audiences]);
 
   return (
     <div className="min-h-screen bg-[#F6F6F4] p-8">
@@ -268,7 +268,7 @@ function App() {
             {view === 'overview' ? (
               <>
                 {/* Overview Page - All Regions */}
-                <KPICards data={displayData} isMultiRegion={true} />
+                <KPICards data={displayData} isMultiRegion={true} totalSubscribers={totalSubscribers} />
                 <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
                 <RegionCards
                   regionsData={displayData}
