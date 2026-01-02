@@ -7,7 +7,6 @@ import TimeRangeSelector from './components/TimeRangeSelector';
 import AudienceSelector from './components/AudienceSelector';
 import RegionCards from './components/RegionCards';
 import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
-import TopCampaignsTable from './components/TopCampaignsTable';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import ExportButton from './components/ExportButton';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
@@ -285,11 +284,8 @@ function App() {
                   totalSubscribers={totalSubscribers}
                 />
 
-                {/* Performance Charts & Top Campaigns Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                  <DashboardCharts data={displayData} />
-                  <TopCampaignsTable data={displayData} topN={5} />
-                </div>
+                {/* Performance Chart */}
+                <DashboardCharts data={displayData} />
 
                 <CampaignList data={Array.isArray(displayData) ? displayData : []} />
               </>

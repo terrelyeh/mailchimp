@@ -1,18 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+
+// Sortable column header component
+const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) => {
+    const isActive = currentSort.field === field;
+    const Icon = isActive
+        ? (currentSort.direction === 'asc' ? ChevronUp : ChevronDown)
+        : ChevronsUpDown;
+
+    return (
+        <th
+            className={`px-6 py-3 cursor-pointer hover:bg-gray-100 transition-colors select-none ${align === 'right' ? 'text-right' : ''}`}
+            onClick={() => onSort(field)}
+        >
+            <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+                <span>{label}</span>
+                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+            </div>
+        </th>
+    );
+};
 
 export default function CampaignList({ data }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [sort, setSort] = useState({ field: 'send_time', direction: 'desc' });
     const itemsPerPage = 10;
 
-    // Reset to page 1 when data changes (e.g., region or audience filter)
+    // Reset to page 1 when data changes
     useEffect(() => {
         setCurrentPage(1);
     }, [data.length]);
 
-    // Sort descending by date
-    const sortedData = [...data].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
+    // Handle sort
+    const handleSort = (field) => {
+        setSort(prev => ({
+            field,
+            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+        }));
+        setCurrentPage(1); // Reset to first page when sorting
+    };
+
+    // Sort data
+    const sortedData = useMemo(() => {
+        return [...data].sort((a, b) => {
+            let aVal, bVal;
+
+            switch (sort.field) {
+                case 'send_time':
+                    aVal = new Date(a.send_time);
+                    bVal = new Date(b.send_time);
+                    break;
+                case 'title':
+                    aVal = (a.title || '').toLowerCase();
+                    bVal = (b.title || '').toLowerCase();
+                    break;
+                case 'emails_sent':
+                    aVal = a.emails_sent || 0;
+                    bVal = b.emails_sent || 0;
+                    break;
+                case 'open_rate':
+                    aVal = a.open_rate || 0;
+                    bVal = b.open_rate || 0;
+                    break;
+                case 'click_rate':
+                    aVal = a.click_rate || 0;
+                    bVal = b.click_rate || 0;
+                    break;
+                case 'bounce_rate':
+                    aVal = a.emails_sent > 0 ? (a.bounces || 0) / a.emails_sent : 0;
+                    bVal = b.emails_sent > 0 ? (b.bounces || 0) / b.emails_sent : 0;
+                    break;
+                case 'unsubscribed':
+                    aVal = a.unsubscribed || 0;
+                    bVal = b.unsubscribed || 0;
+                    break;
+                default:
+                    aVal = a[sort.field];
+                    bVal = b[sort.field];
+            }
+
+            if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [data, sort]);
 
     // Calculate pagination
     const totalItems = sortedData.length;
@@ -41,14 +113,14 @@ export default function CampaignList({ data }) {
                     <thead className="bg-gray-50 text-gray-900 font-medium border-b border-gray-100">
                         <tr>
                             <th className="px-6 py-3">Status</th>
-                            <th className="px-6 py-3">Campaign Name</th>
+                            <SortableHeader label="Campaign Name" field="title" currentSort={sort} onSort={handleSort} />
                             <th className="px-6 py-3">Audience / Segment</th>
-                            <th className="px-6 py-3">Sent Time</th>
-                            <th className="px-6 py-3 text-right">Total Sent</th>
-                            <th className="px-6 py-3 text-right">Open Rate</th>
-                            <th className="px-6 py-3 text-right">Click Rate</th>
-                            <th className="px-6 py-3 text-right">Bounce Rate</th>
-                            <th className="px-6 py-3 text-right">Unsubscribed</th>
+                            <SortableHeader label="Sent Time" field="send_time" currentSort={sort} onSort={handleSort} />
+                            <SortableHeader label="Total Sent" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Open Rate" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Click Rate" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Bounce Rate" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Unsubscribed" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
