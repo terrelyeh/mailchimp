@@ -123,6 +123,11 @@ class MailchimpClient:
                 list_id = recipients.get('list_id', '')
                 list_name = recipients.get('list_name', 'Unknown Audience')
 
+                # Extract segment information if available
+                segment_opts = recipients.get('segment_opts', {})
+                segment_id = segment_opts.get('saved_segment_id')
+                segment_text = segment_opts.get('segment_text', '')  # Segment name/description
+
                 all_campaigns.append({
                     "id": c['id'],
                     "web_id": c['web_id'],
@@ -132,7 +137,10 @@ class MailchimpClient:
                     "emails_sent": c['emails_sent'],
                     "archive_url": c['archive_url'],
                     "audience_id": list_id,
-                    "audience_name": list_name
+                    "audience_name": list_name,
+                    "segment_id": segment_id,
+                    "segment_text": segment_text,
+                    "recipient_count": recipients.get('recipient_count', 0)
                 })
 
             logger.info(f"Fetched {len(campaigns_batch)} campaigns for region {self.region} (total so far: {len(all_campaigns)})")
@@ -152,7 +160,7 @@ class MailchimpClient:
         data = self._get(f"/reports/{campaign_id}")
         if not data:
             return {}
-            
+
         return {
             "campaign_id": campaign_id,
             "opens": data.get('opens', {}).get('opens_total', 0),
@@ -163,6 +171,7 @@ class MailchimpClient:
             "click_rate": data.get('clicks', {}).get('click_rate', 0),
             "unsubscribed": data.get('unsubscribed', 0),
             "bounces": data.get('bounces', {}).get('hard_bounces', 0) + data.get('bounces', {}).get('soft_bounces', 0),
+            "share_report": data.get('share_report', ''),  # Shareable report URL
         }
 
     def get_dashboard_data(self, days=30):

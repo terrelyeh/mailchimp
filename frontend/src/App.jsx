@@ -21,6 +21,7 @@ function App() {
   const [useMock, setUseMock] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [selectedDays, setSelectedDays] = useState(60);
+  const [customDateRange, setCustomDateRange] = useState(null); // Custom date range { start, end }
   const [view, setView] = useState('overview'); // 'overview' or 'region-detail'
   const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
   const [audiences, setAudiences] = useState([]); // Available audiences
@@ -207,6 +208,8 @@ function App() {
             <TimeRangeSelector
               selectedDays={selectedDays}
               onDaysChange={setSelectedDays}
+              dateRange={customDateRange}
+              onDateRangeChange={setCustomDateRange}
             />
 
             <RegionSelector

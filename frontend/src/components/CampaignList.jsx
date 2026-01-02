@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, BarChart2, Users } from 'lucide-react';
 
 export default function CampaignList({ data }) {
     const [currentPage, setCurrentPage] = useState(1);
@@ -42,13 +42,14 @@ export default function CampaignList({ data }) {
                         <tr>
                             <th className="px-6 py-3">Status</th>
                             <th className="px-6 py-3">Campaign Name</th>
-                            <th className="px-6 py-3">Audience</th>
+                            <th className="px-6 py-3">Audience / Segment</th>
                             <th className="px-6 py-3">Sent Time</th>
                             <th className="px-6 py-3 text-right">Total Sent</th>
                             <th className="px-6 py-3 text-right">Open Rate</th>
                             <th className="px-6 py-3 text-right">Click Rate</th>
                             <th className="px-6 py-3 text-right">Bounce Rate</th>
                             <th className="px-6 py-3 text-right">Unsubscribed</th>
+                            <th className="px-6 py-3 text-center">Report</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -74,9 +75,19 @@ export default function CampaignList({ data }) {
                                     <div className="text-xs text-gray-400 font-normal truncate max-w-[200px]">{campaign.subject_line}</div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                        {campaign.audience_name || 'N/A'}
-                                    </span>
+                                    <div className="space-y-1">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                            {campaign.audience_name || 'N/A'}
+                                        </span>
+                                        {campaign.segment_text && (
+                                            <div className="flex items-center gap-1 text-xs text-purple-600">
+                                                <Users className="w-3 h-3" />
+                                                <span className="truncate max-w-[150px]" title={campaign.segment_text}>
+                                                    {campaign.segment_text}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4">
                                     {format(new Date(campaign.send_time), 'MMM dd, HH:mm')}
@@ -106,6 +117,22 @@ export default function CampaignList({ data }) {
                                         {campaign.unsubscribed?.toLocaleString() || 0}
                                     </span>
                                     <div className="text-xs text-gray-400">unsubs</div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    {campaign.share_report ? (
+                                        <a
+                                            href={campaign.share_report}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+                                            title="View Campaign Report"
+                                        >
+                                            <BarChart2 className="w-3 h-3" />
+                                            Report
+                                        </a>
+                                    ) : (
+                                        <span className="text-gray-300 text-xs">—</span>
+                                    )}
                                 </td>
                             </tr>
                         )})}
