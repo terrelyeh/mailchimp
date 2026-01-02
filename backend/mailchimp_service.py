@@ -4,7 +4,9 @@ from urllib3.util.retry import Retry
 import os
 import json
 import logging
+import time
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -92,7 +94,7 @@ class MailchimpClient:
 
         all_campaigns = []
         offset = 0
-        batch_size = 100  # MailChimp API limit per request
+        batch_size = 1000  # MailChimp API max is 1000 per request
 
         while True:
             params = {
@@ -164,22 +166,52 @@ class MailchimpClient:
         }
 
     def get_dashboard_data(self, days=30):
-        """Aggregate data for dashboard"""
+        """Aggregate data for dashboard with parallel report fetching"""
         campaigns = self.get_campaigns(days=days)
-        
-        # In a real scenario, we might want to fetch reports asynchronously or from cache
-        # For simplicity, we loop (be careful with rate limits)
-        
+
+        if not campaigns:
+            return []
+
+        logger.info(f"Fetching reports for {len(campaigns)} campaigns in region {self.region}")
+
+        # Use ThreadPoolExecutor for parallel requests (limit to 5 concurrent to avoid rate limits)
         results = []
-        for camp in campaigns:
-            # Check cache here (TODO)
-            report = self.get_campaign_report(camp['id'])
-            if report:
-                # Merge dictionaries
-                results.append({**camp, **report})
-            else:
-                results.append(camp) # Just basic info if report fails
-                
+        failed_count = 0
+
+        def fetch_report_with_delay(camp):
+            """Fetch report with small delay to avoid rate limits"""
+            try:
+                report = self.get_campaign_report(camp['id'])
+                if report:
+                    return {**camp, **report}
+                return camp
+            except Exception as e:
+                logger.warning(f"Failed to fetch report for campaign {camp['id']}: {e}")
+                return camp
+
+        # Process in batches of 10 with small delays to respect rate limits
+        batch_size = 10
+        for i in range(0, len(campaigns), batch_size):
+            batch = campaigns[i:i + batch_size]
+
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {executor.submit(fetch_report_with_delay, camp): camp for camp in batch}
+                for future in as_completed(futures):
+                    try:
+                        result = future.result()
+                        results.append(result)
+                    except Exception as e:
+                        failed_count += 1
+                        results.append(futures[future])
+
+            # Small delay between batches to avoid rate limits
+            if i + batch_size < len(campaigns):
+                time.sleep(0.5)
+
+        if failed_count > 0:
+            logger.warning(f"Failed to fetch {failed_count} reports for region {self.region}")
+
+        logger.info(f"Completed fetching {len(results)} campaigns with reports for region {self.region}")
         return results
 
 class MultiRegionMailchimpService:
