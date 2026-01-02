@@ -58,6 +58,10 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
     const bounceRate = totalSent > 0 ? (totalBounces / totalSent * 100) : 0;
     const unsubRate = totalSent > 0 ? (totalUnsub / totalSent * 100) : 0;
 
+    // Calculate total opens and clicks
+    const totalOpens = flatData.reduce((acc, curr) => acc + (curr.opens || 0), 0);
+    const totalClicks = flatData.reduce((acc, curr) => acc + (curr.clicks || 0), 0);
+
     const avgOpenRate = flatData.length ? (
         flatData.reduce((acc, curr) => acc + (curr.open_rate || 0), 0) / flatData.length
     ) : 0;
@@ -102,11 +106,13 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
                 <Card
                     title="Avg. Open Rate"
                     value={`${(avgOpenRate * 100).toFixed(1)}%`}
+                    subValue={`${totalOpens.toLocaleString()} opens`}
                     icon={TrendingUp}
                 />
                 <Card
                     title="Avg. Click Rate"
                     value={`${(avgClickRate * 100).toFixed(1)}%`}
+                    subValue={`${totalClicks.toLocaleString()} clicks`}
                     icon={MousePointer}
                 />
                 <Card
