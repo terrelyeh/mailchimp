@@ -76,11 +76,6 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
                     subValue="in this period"
                     icon={FileText}
                 />
-                <Card
-                    title="Total Emails Sent"
-                    value={totalSent.toLocaleString()}
-                    icon={Mail}
-                />
                 {totalSubscribers !== null && (
                     <Card
                         title="Total Subscribers"
@@ -89,6 +84,11 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
                         icon={Users}
                     />
                 )}
+                <Card
+                    title="Total Emails Sent"
+                    value={totalSent.toLocaleString()}
+                    icon={Mail}
+                />
                 <Card
                     title="Delivery Rate"
                     value={`${deliveryRate.toFixed(1)}%`}
