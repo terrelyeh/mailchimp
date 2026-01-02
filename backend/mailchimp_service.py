@@ -171,7 +171,7 @@ class MailchimpClient:
             "click_rate": data.get('clicks', {}).get('click_rate', 0),
             "unsubscribed": data.get('unsubscribed', 0),
             "bounces": data.get('bounces', {}).get('hard_bounces', 0) + data.get('bounces', {}).get('soft_bounces', 0),
-            "share_report": data.get('share_report', ''),  # Shareable report URL
+            "share_report": data.get('share_report', {}).get('share_url', ''),  # Shareable report URL
         }
 
     def get_dashboard_data(self, days=30):
