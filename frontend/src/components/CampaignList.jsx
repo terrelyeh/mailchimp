@@ -119,13 +119,13 @@ export default function CampaignList({ data }) {
                                     <div className="text-xs text-gray-400">unsubs</div>
                                 </td>
                                 <td className="px-6 py-4 text-center">
-                                    {campaign.share_report ? (
+                                    {campaign.report_url ? (
                                         <a
-                                            href={campaign.share_report}
+                                            href={campaign.report_url}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
-                                            title="View Campaign Report"
+                                            title="View Campaign Report in MailChimp"
                                         >
                                             <BarChart2 className="w-3 h-3" />
                                             Report

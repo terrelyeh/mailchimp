@@ -44,9 +44,11 @@ class MailchimpClient:
         if not api_key or not server_prefix:
             logger.warning(f"Mailchimp API credentials not found for region {region}")
             self.base_url = "https://us1.api.mailchimp.com/3.0"
+            self.admin_url = "https://us1.admin.mailchimp.com"
             self.headers = {}
         else:
             self.base_url = f"https://{server_prefix}.api.mailchimp.com/3.0"
+            self.admin_url = f"https://{server_prefix}.admin.mailchimp.com"
             self.headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
@@ -136,6 +138,7 @@ class MailchimpClient:
                     "send_time": c['send_time'],
                     "emails_sent": c['emails_sent'],
                     "archive_url": c['archive_url'],
+                    "report_url": f"{self.admin_url}/reports/summary?id={c['web_id']}",
                     "audience_id": list_id,
                     "audience_name": list_name,
                     "segment_id": segment_id,
