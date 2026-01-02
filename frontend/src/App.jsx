@@ -271,6 +271,24 @@ function App() {
           <div className="h-64 flex items-center justify-center text-gray-400">Loading dashboard...</div>
         ) : (
           <div ref={exportContentRef} data-export-content>
+            {/* Date Range Display */}
+            <div className="mb-4 text-sm text-gray-600">
+              <span className="font-medium">Data Range:</span>{' '}
+              {customDateRange ? (
+                <>
+                  {new Date(customDateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {' - '}
+                  {new Date(customDateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </>
+              ) : (
+                <>
+                  {new Date(Date.now() - selectedDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {' - '}
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </>
+              )}
+            </div>
+
             {view === 'overview' ? (
               <>
                 {/* Overview Page - All Regions */}

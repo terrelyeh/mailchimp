@@ -71,6 +71,10 @@ export default function CampaignList({ data }) {
                     aVal = a.emails_sent > 0 ? (a.bounces || 0) / a.emails_sent : 0;
                     bVal = b.emails_sent > 0 ? (b.bounces || 0) / b.emails_sent : 0;
                     break;
+                case 'delivery_rate':
+                    aVal = a.emails_sent > 0 ? (a.emails_sent - (a.bounces || 0)) / a.emails_sent : 0;
+                    bVal = b.emails_sent > 0 ? (b.emails_sent - (b.bounces || 0)) / b.emails_sent : 0;
+                    break;
                 case 'unsubscribed':
                     aVal = a.unsubscribed || 0;
                     bVal = b.unsubscribed || 0;
@@ -117,6 +121,7 @@ export default function CampaignList({ data }) {
                             <th className="px-6 py-3">Audience / Segment</th>
                             <SortableHeader label="Sent Time" field="send_time" currentSort={sort} onSort={handleSort} />
                             <SortableHeader label="Total Sent" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Delivery Rate" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Open Rate" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Click Rate" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Bounce Rate" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
@@ -127,6 +132,10 @@ export default function CampaignList({ data }) {
                         {currentData.map((campaign) => {
                             const bounceRate = campaign.emails_sent > 0
                                 ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
+                                : 0;
+                            const delivered = campaign.emails_sent - (campaign.bounces || 0);
+                            const deliveryRate = campaign.emails_sent > 0
+                                ? (delivered / campaign.emails_sent * 100)
                                 : 0;
 
                             return (
@@ -168,6 +177,10 @@ export default function CampaignList({ data }) {
                                         {campaign.emails_sent?.toLocaleString() || 0}
                                     </span>
                                     <div className="text-xs text-gray-400">emails</div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <span className="font-medium text-gray-900">{deliveryRate.toFixed(1)}%</span>
+                                    <div className="text-xs text-gray-400">{delivered.toLocaleString()} delivered</div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <span className="font-medium text-gray-900">{(campaign.open_rate * 100).toFixed(1)}%</span>

@@ -84,46 +84,40 @@ export default function TimeRangeSelector({ selectedDays, onDaysChange, dateRang
 
   return (
     <div className="relative">
-      <div className="flex flex-col">
-        <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="px-3 py-2 border-r border-gray-200">
-            <Calendar className="w-4 h-4 text-gray-400" />
-          </div>
+      <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="px-3 py-2 border-r border-gray-200">
+          <Calendar className="w-4 h-4 text-gray-400" />
+        </div>
 
-          {isCustomMode ? (
-          <div className="flex items-center">
-            <span className="px-4 py-2 text-sm font-medium text-gray-700">
-              {formatDateDisplay()}
-            </span>
-            <button
-              onClick={() => {
-                if (onDateRangeChange) onDateRangeChange(null);
-                onDaysChange(60);
-              }}
-              className="px-2 py-2 text-gray-400 hover:text-gray-600"
-              title="Clear custom range"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <select
-            value={showCustomPicker ? 'custom' : selectedDays}
-            onChange={handleSelectChange}
-            className="px-4 py-2 bg-transparent text-sm font-medium text-gray-700 focus:outline-none cursor-pointer"
+        {isCustomMode ? (
+        <div className="flex items-center">
+          <span className="px-4 py-2 text-sm font-medium text-gray-700">
+            {formatDateDisplay()}
+          </span>
+          <button
+            onClick={() => {
+              if (onDateRangeChange) onDateRangeChange(null);
+              onDaysChange(60);
+            }}
+            className="px-2 py-2 text-gray-400 hover:text-gray-600"
+            title="Clear custom range"
           >
-            {TIME_RANGES.map((range) => (
-              <option key={range.value} value={range.value}>
-                {range.value === 'custom' ? range.label : `Last ${range.label}`}
-              </option>
-            ))}
-          </select>
-        )}
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        {/* Show actual date range */}
-        <div className="text-xs text-gray-500 mt-1 text-center">
-          {actualRange.start} - {actualRange.end}
-        </div>
+      ) : (
+        <select
+          value={showCustomPicker ? 'custom' : selectedDays}
+          onChange={handleSelectChange}
+          className="px-4 py-2 bg-transparent text-sm font-medium text-gray-700 focus:outline-none cursor-pointer"
+        >
+          {TIME_RANGES.map((range) => (
+            <option key={range.value} value={range.value}>
+              {range.value === 'custom' ? range.label : `Last ${range.label}`}
+            </option>
+          ))}
+        </select>
+      )}
       </div>
 
       {/* Custom Date Picker Modal */}
