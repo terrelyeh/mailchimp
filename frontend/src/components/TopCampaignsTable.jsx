@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Trophy, TrendingUp, MousePointer, Mail } from 'lucide-react';
+import { Trophy, TrendingUp, MousePointer, Mail, Users } from 'lucide-react';
 
 /**
  * Top N Campaigns 表格
@@ -128,6 +128,14 @@ export default function TopCampaignsTable({ data, topN = 5 }) {
                       <p className="text-xs text-gray-500 truncate">
                         {campaign.subject_line}
                       </p>
+                      {campaign.segment_text && (
+                        <div className="flex items-center gap-1 text-xs text-purple-600 mt-0.5">
+                          <Users className="w-3 h-3" />
+                          <span className="truncate" title={campaign.segment_text}>
+                            {campaign.segment_text}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </td>
 

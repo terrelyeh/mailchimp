@@ -160,7 +160,7 @@ class MailchimpClient:
         data = self._get(f"/reports/{campaign_id}")
         if not data:
             return {}
-            
+
         return {
             "campaign_id": campaign_id,
             "opens": data.get('opens', {}).get('opens_total', 0),
@@ -171,6 +171,7 @@ class MailchimpClient:
             "click_rate": data.get('clicks', {}).get('click_rate', 0),
             "unsubscribed": data.get('unsubscribed', 0),
             "bounces": data.get('bounces', {}).get('hard_bounces', 0) + data.get('bounces', {}).get('soft_bounces', 0),
+            "share_report": data.get('share_report', ''),  # Shareable report URL
         }
 
     def get_dashboard_data(self, days=30):
