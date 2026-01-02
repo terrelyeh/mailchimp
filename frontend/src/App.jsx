@@ -249,6 +249,9 @@ function App() {
               view={view}
               selectedRegion={selectedRegion}
               selectedDays={selectedDays}
+              customDateRange={customDateRange}
+              selectedAudience={selectedAudience}
+              audienceList={audienceList}
             />
 
             <button
