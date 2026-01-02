@@ -147,7 +147,7 @@ function App() {
     }
   }
 
-  // Calculate total subscribers (for both overview and region detail)
+  // Calculate total subscribers (based on selected audience or all)
   const totalSubscribers = useMemo(() => {
     if (!audiences) {
       return null;
@@ -166,12 +166,19 @@ function App() {
       return null;
     }
 
+    // If a specific audience is selected, show only that audience's subscribers
+    if (selectedAudience) {
+      const selected = audienceList.find(aud => aud.id === selectedAudience);
+      return selected ? selected.member_count : null;
+    }
+
+    // Otherwise show total across all audiences
     const total = audienceList.reduce((sum, aud) => {
       return sum + (aud.member_count || 0);
     }, 0);
 
     return total > 0 ? total : null;
-  }, [audiences]);
+  }, [audiences, selectedAudience]);
 
   return (
     <div className="min-h-screen bg-[#F6F6F4] p-8">
@@ -264,6 +271,24 @@ function App() {
           <div className="h-64 flex items-center justify-center text-gray-400">Loading dashboard...</div>
         ) : (
           <div ref={exportContentRef} data-export-content>
+            {/* Date Range Display */}
+            <div className="mb-4 text-sm text-gray-600">
+              <span className="font-medium">Data Range:</span>{' '}
+              {customDateRange ? (
+                <>
+                  {new Date(customDateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {' - '}
+                  {new Date(customDateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </>
+              ) : (
+                <>
+                  {new Date(Date.now() - selectedDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {' - '}
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </>
+              )}
+            </div>
+
             {view === 'overview' ? (
               <>
                 {/* Overview Page - All Regions */}
