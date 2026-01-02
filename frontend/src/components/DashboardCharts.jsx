@@ -23,10 +23,42 @@ export default function DashboardCharts({ data }) {
     // Prepare data for Line Chart (aggregated by day if needed, but for now simple linear)
     const lineData = sortedData.map(c => ({
         date: format(new Date(c.send_time), 'MMM dd'),
-        openRate: (c.open_rate * 100).toFixed(1),
-        clickRate: (c.click_rate * 100).toFixed(1),
-        title: c.title
+        fullDate: format(new Date(c.send_time), 'yyyy-MM-dd'),
+        openRate: (c.open_rate * 100),
+        clickRate: (c.click_rate * 100),
+        title: c.title,
+        emailsSent: c.emails_sent || 0
     }));
+
+    // Custom tooltip for Line Chart
+    const CustomLineTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            return (
+                <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg min-w-[180px]">
+                    <p className="font-bold text-sm text-gray-900 mb-2 truncate max-w-[200px]" title={data.title}>
+                        {data.title}
+                    </p>
+                    <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500">Open Rate</span>
+                            <span className="text-sm font-semibold text-[#FFE01B]">{data.openRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500">Click Rate</span>
+                            <span className="text-sm font-semibold text-[#007C89]">{data.clickRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-gray-100 mt-1">
+                            <span className="text-xs text-gray-500">Total Sent</span>
+                            <span className="text-sm font-medium text-gray-700">{data.emailsSent.toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{data.fullDate}</p>
+                </div>
+            );
+        }
+        return null;
+    };
 
     // Prepare data for Scatter Plot
     const scatterData = sortedData.map(c => ({
@@ -63,9 +95,7 @@ export default function DashboardCharts({ data }) {
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                             <XAxis dataKey="date" stroke="#9CA3AF" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                             <YAxis stroke="#9CA3AF" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} unit="%" />
-                            <RechartsTooltip
-                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                            />
+                            <RechartsTooltip content={<CustomLineTooltip />} />
                             <Line type="monotone" dataKey="openRate" stroke="#FFE01B" strokeWidth={3} dot={{ r: 4, fill: '#FFE01B' }} activeDot={{ r: 6 }} name="Open Rate" />
                             <Line type="monotone" dataKey="clickRate" stroke="#007C89" strokeWidth={3} dot={{ r: 4, fill: '#007C89' }} activeDot={{ r: 6 }} name="Click Rate" />
                         </LineChart>

@@ -51,6 +51,28 @@ export default function TimeRangeSelector({ selectedDays, onDaysChange, dateRang
 
   const isCustomMode = dateRange && dateRange.start && dateRange.end;
 
+  // Calculate actual date range for display
+  const getActualDateRange = () => {
+    if (isCustomMode) {
+      const start = new Date(dateRange.start);
+      const end = new Date(dateRange.end);
+      return {
+        start: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        end: end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      };
+    } else {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - selectedDays);
+      return {
+        start: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        end: end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      };
+    }
+  };
+
+  const actualRange = getActualDateRange();
+
   const formatDateDisplay = () => {
     if (isCustomMode) {
       const start = new Date(dateRange.start);
@@ -62,12 +84,13 @@ export default function TimeRangeSelector({ selectedDays, onDaysChange, dateRang
 
   return (
     <div className="relative">
-      <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="px-3 py-2 border-r border-gray-200">
-          <Calendar className="w-4 h-4 text-gray-400" />
-        </div>
+      <div className="flex flex-col">
+        <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="px-3 py-2 border-r border-gray-200">
+            <Calendar className="w-4 h-4 text-gray-400" />
+          </div>
 
-        {isCustomMode ? (
+          {isCustomMode ? (
           <div className="flex items-center">
             <span className="px-4 py-2 text-sm font-medium text-gray-700">
               {formatDateDisplay()}
@@ -96,6 +119,11 @@ export default function TimeRangeSelector({ selectedDays, onDaysChange, dateRang
             ))}
           </select>
         )}
+        </div>
+        {/* Show actual date range */}
+        <div className="text-xs text-gray-500 mt-1 text-center">
+          {actualRange.start} - {actualRange.end}
+        </div>
       </div>
 
       {/* Custom Date Picker Modal */}
