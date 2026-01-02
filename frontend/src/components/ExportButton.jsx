@@ -206,7 +206,7 @@ export default function ExportButton({
     <button
       onClick={exportToPNG}
       disabled={isExporting}
-      className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
       title="Export Dashboard as PNG"
     >
       {isExporting ? (
@@ -214,7 +214,7 @@ export default function ExportButton({
       ) : (
         <>
           <Download className="w-4 h-4" />
-          <span>PNG</span>
+          <span className="hidden md:inline">PNG</span>
         </>
       )}
     </button>
