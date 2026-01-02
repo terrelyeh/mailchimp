@@ -44,9 +44,11 @@ class MailchimpClient:
         if not api_key or not server_prefix:
             logger.warning(f"Mailchimp API credentials not found for region {region}")
             self.base_url = "https://us1.api.mailchimp.com/3.0"
+            self.admin_url = "https://us1.admin.mailchimp.com"
             self.headers = {}
         else:
             self.base_url = f"https://{server_prefix}.api.mailchimp.com/3.0"
+            self.admin_url = f"https://{server_prefix}.admin.mailchimp.com"
             self.headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
@@ -88,6 +90,15 @@ class MailchimpClient:
             })
         return lists
 
+    def get_segment_name(self, list_id, segment_id):
+        """Fetch segment name by ID"""
+        if not list_id or not segment_id:
+            return None
+        data = self._get(f"/lists/{list_id}/segments/{segment_id}")
+        if data:
+            return data.get('name', '')
+        return None
+
     def get_campaigns(self, days=30, status="sent", count=1000):
         """Fetch sent campaigns from the last N days with pagination support"""
         since_send_time = (datetime.utcnow() - timedelta(days=days)).isoformat()
@@ -125,8 +136,27 @@ class MailchimpClient:
 
                 # Extract segment information if available
                 segment_opts = recipients.get('segment_opts', {})
-                segment_id = segment_opts.get('saved_segment_id')
-                segment_text = segment_opts.get('segment_text', '')  # Segment name/description
+                segment_id = segment_opts.get('saved_segment_id') or segment_opts.get('prebuilt_segment_id')
+
+                # Try multiple locations for segment text/name
+                segment_text = (
+                    recipients.get('segment_text') or  # Direct on recipients
+                    segment_opts.get('segment_text') or  # Inside segment_opts
+                    segment_opts.get('match', '')  # Fallback to match type if no name
+                )
+
+                # If we have segment_id but no text, try to fetch segment name
+                if segment_id and not segment_text:
+                    # Use cache to avoid redundant API calls
+                    cache_key = f"{list_id}:{segment_id}"
+                    if not hasattr(self, '_segment_cache'):
+                        self._segment_cache = {}
+
+                    if cache_key not in self._segment_cache:
+                        segment_name = self.get_segment_name(list_id, segment_id)
+                        self._segment_cache[cache_key] = segment_name or f"Segment #{segment_id}"
+
+                    segment_text = self._segment_cache[cache_key]
 
                 all_campaigns.append({
                     "id": c['id'],
@@ -136,6 +166,7 @@ class MailchimpClient:
                     "send_time": c['send_time'],
                     "emails_sent": c['emails_sent'],
                     "archive_url": c['archive_url'],
+                    "report_url": f"{self.admin_url}/reports/summary?id={c['web_id']}",
                     "audience_id": list_id,
                     "audience_name": list_name,
                     "segment_id": segment_id,
@@ -171,7 +202,7 @@ class MailchimpClient:
             "click_rate": data.get('clicks', {}).get('click_rate', 0),
             "unsubscribed": data.get('unsubscribed', 0),
             "bounces": data.get('bounces', {}).get('hard_bounces', 0) + data.get('bounces', {}).get('soft_bounces', 0),
-            "share_report": data.get('share_report', ''),  # Shareable report URL
+            "share_report": data.get('share_report', {}).get('share_url', ''),  # Shareable report URL
         }
 
     def get_dashboard_data(self, days=30):
