@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer
@@ -33,7 +33,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
   }, [regions, regionsData]);
 
   // 初始化選中所有區域
-  useMemo(() => {
+  useEffect(() => {
     if (selectedRegions.length === 0 && activeRegions.length > 0) {
       setSelectedRegions(activeRegions.map(r => r.code));
     }
@@ -131,22 +131,21 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
     return result;
   }, [regionsData, regions]);
 
-  // 區域選擇處理
+  // 區域選擇處理 - 確保至少選一個
   const toggleRegion = (regionCode) => {
     setSelectedRegions(prev => {
-      const newSelection = prev.includes(regionCode)
-        ? prev.filter(r => r !== regionCode)
-        : [...prev, regionCode];
-
-      // 確保至少選擇一個區域
-      if (newSelection.length === 0) return prev;
-
-      // 當從單選變多選時，限制為單一指標
-      if (newSelection.length > 1 && selectedMetrics.length > 1) {
-        setSelectedMetrics([selectedMetrics[0]]);
+      if (prev.includes(regionCode)) {
+        // 如果只剩一個，不允許取消
+        if (prev.length === 1) return prev;
+        return prev.filter(r => r !== regionCode);
+      } else {
+        const newSelection = [...prev, regionCode];
+        // 當從單選變多選時，限制為單一指標
+        if (newSelection.length > 1 && selectedMetrics.length > 1) {
+          setSelectedMetrics([selectedMetrics[0]]);
+        }
+        return newSelection;
       }
-
-      return newSelection;
     });
   };
 
@@ -202,44 +201,42 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
       <div className="bg-white p-3 border border-gray-200 shadow-xl rounded-lg max-w-xs">
         <p className="font-bold text-sm mb-2 pb-2 border-b border-gray-200">{label}</p>
         <div className="space-y-2">
-          {Object.entries(regionData).map(([regionCode, metrics]) => {
+          {Object.entries(regionData).map(([regionCode, metricsData]) => {
             const region = activeRegions.find(r => r.code === regionCode);
             if (!region) return null;
 
             return (
               <div key={regionCode} className="text-xs">
-                <div className="font-semibold text-gray-900 mb-1">
+                <div className="flex items-center gap-1.5 font-semibold mb-1" style={{ color: region.color }}>
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: region.color }}
+                  />
                   {region.flag} {regionCode}
                 </div>
                 <div className="ml-4 space-y-0.5">
-                  {metrics.campaigns !== undefined && (
+                  {metricsData.campaigns !== undefined && (
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Campaigns:</span>
-                      <span className="font-medium text-gray-900">{metrics.campaigns.value}</span>
+                      <span className="font-medium text-gray-900">{metricsData.campaigns.value}</span>
                     </div>
                   )}
-                  {metrics.openRate !== undefined && (
+                  {metricsData.openRate !== undefined && (
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Open Rate:</span>
-                      <span className="font-medium" style={{ color: metrics.openRate.color }}>
-                        {metrics.openRate.value}%
-                      </span>
+                      <span className="font-medium text-gray-900">{metricsData.openRate.value}%</span>
                     </div>
                   )}
-                  {metrics.clickRate !== undefined && (
+                  {metricsData.clickRate !== undefined && (
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Click Rate:</span>
-                      <span className="font-medium" style={{ color: metrics.clickRate.color }}>
-                        {metrics.clickRate.value}%
-                      </span>
+                      <span className="font-medium text-gray-900">{metricsData.clickRate.value}%</span>
                     </div>
                   )}
-                  {metrics.unsubscribes !== undefined && (
+                  {metricsData.unsubscribes !== undefined && (
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Unsubscribes:</span>
-                      <span className="font-medium" style={{ color: metrics.unsubscribes.color }}>
-                        {metrics.unsubscribes.value}
-                      </span>
+                      <span className="font-medium text-gray-900">{metricsData.unsubscribes.value}</span>
                     </div>
                   )}
                 </div>
@@ -286,13 +283,15 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                 <button
                   key={region.code}
                   onClick={() => toggleRegion(region.code)}
+                  style={isSelected ? {
+                    backgroundColor: region.color,
+                    borderColor: region.color,
+                    color: 'white'
+                  } : {}}
                   className={`
                     inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-                    transition-all duration-150 border
-                    ${isSelected
-                      ? 'bg-gray-900 text-white border-gray-900'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                    }
+                    transition-all duration-150 border-2
+                    ${!isSelected && 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}
                   `}
                 >
                   <span>{region.flag}</span>
@@ -304,11 +303,11 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
         </div>
 
         {/* Metric Selector */}
-        <div className="lg:w-80">
+        <div className="lg:w-auto">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Metric</span>
             <span className="text-xs text-gray-400">
-              {isMultiRegionMode ? '(single selection)' : '(multi selection)'}
+              {isMultiRegionMode ? '(single)' : '(multi)'}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -320,30 +319,14 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                   onClick={() => handleMetricChange(metric.key)}
                   className={`
                     inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-                    transition-all duration-150 border
+                    transition-all duration-150 border-2
                     ${isSelected
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                      ? 'bg-gray-900 text-white border-gray-900'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
                     }
                   `}
                 >
-                  {/* Radio/Checkbox indicator */}
-                  <span className={`
-                    w-3.5 h-3.5 flex items-center justify-center border-2
-                    ${isMultiRegionMode ? 'rounded-full' : 'rounded'}
-                    ${isSelected
-                      ? 'border-white bg-white'
-                      : 'border-gray-400'
-                    }
-                  `}>
-                    {isSelected && (
-                      <span className={`
-                        ${isMultiRegionMode ? 'w-1.5 h-1.5 rounded-full' : 'w-2 h-2'}
-                        bg-blue-600
-                      `} />
-                    )}
-                  </span>
-                  <span>{metric.label}</span>
+                  {metric.label}
                 </button>
               );
             })}
@@ -390,64 +373,74 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
             )}
 
             <RechartsTooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
+            <Legend
+              wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
+              formatter={(value, entry) => {
+                const region = displayRegions.find(r => value.includes(r.code) || value.includes(r.flag));
+                if (region) {
+                  return <span style={{ color: region.color }}>{value}</span>;
+                }
+                return value;
+              }}
+            />
 
-            {/* Bars for Campaigns */}
+            {/* Bars for Campaigns - 使用各區域顏色 */}
             {selectedMetrics.includes('campaigns') && displayRegions.map((region) => (
               <Bar
                 key={`${region.code}_campaigns`}
                 dataKey={`${region.code}_campaigns`}
-                fill={region.color || '#3B82F6'}
+                fill={region.color}
                 yAxisId="left"
                 name={`${region.flag} ${region.code}`}
                 radius={[4, 4, 0, 0]}
-                opacity={0.8}
+                opacity={0.85}
               />
             ))}
 
-            {/* Lines for Open Rate */}
+            {/* Lines for Open Rate - 使用各區域顏色，統一實線 */}
             {selectedMetrics.includes('openRate') && displayRegions.map((region) => (
               <Line
                 key={`${region.code}_openRate`}
                 type="monotone"
                 dataKey={`${region.code}_openRate`}
-                stroke={region.color || '#3B82F6'}
-                strokeWidth={2}
-                dot={{ r: 3 }}
+                stroke={region.color}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: region.color, strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
                 yAxisId="right"
-                name={`${region.flag} Open Rate`}
+                name={`${region.flag} ${region.code}`}
                 unit="%"
               />
             ))}
 
-            {/* Lines for Click Rate */}
+            {/* Lines for Click Rate - 使用各區域顏色，統一實線 */}
             {selectedMetrics.includes('clickRate') && displayRegions.map((region) => (
               <Line
                 key={`${region.code}_clickRate`}
                 type="monotone"
                 dataKey={`${region.code}_clickRate`}
-                stroke={region.color || '#10B981'}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                strokeDasharray="5 5"
+                stroke={region.color}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: region.color, strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
                 yAxisId="right"
-                name={`${region.flag} Click Rate`}
+                name={`${region.flag} ${region.code}`}
                 unit="%"
               />
             ))}
 
-            {/* Lines for Unsubscribes */}
+            {/* Lines for Unsubscribes - 使用各區域顏色，統一實線 */}
             {selectedMetrics.includes('unsubscribes') && displayRegions.map((region) => (
               <Line
                 key={`${region.code}_unsubscribes`}
                 type="monotone"
                 dataKey={`${region.code}_unsubscribes`}
-                stroke={region.color || '#EF4444'}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                strokeDasharray="3 3"
+                stroke={region.color}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: region.color, strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
                 yAxisId="right"
-                name={`${region.flag} Unsubs`}
+                name={`${region.flag} ${region.code}`}
               />
             ))}
           </ComposedChart>
@@ -458,8 +451,8 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
       <div className="mt-4 pt-4 border-t border-gray-100">
         <p className="text-xs text-gray-400">
           {isMultiRegionMode
-            ? '💡 Multiple regions selected — showing single metric for comparison'
-            : '💡 Single region selected — you can compare multiple metrics'
+            ? '💡 Compare regions: Select one metric to compare across multiple regions'
+            : '💡 Analyze region: Select multiple metrics to analyze one region in detail'
           }
         </p>
       </div>
