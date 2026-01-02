@@ -116,7 +116,6 @@ export default function CampaignList({ data }) {
                 <table className="w-full text-left text-sm text-gray-500">
                     <thead className="bg-gray-50 text-gray-900 font-medium border-b border-gray-100">
                         <tr>
-                            <th className="px-6 py-3">Status</th>
                             <SortableHeader label="Campaign Name" field="title" currentSort={sort} onSort={handleSort} />
                             <th className="px-6 py-3">Audience / Segment</th>
                             <SortableHeader label="Sent Time" field="send_time" currentSort={sort} onSort={handleSort} />
@@ -125,7 +124,7 @@ export default function CampaignList({ data }) {
                             <SortableHeader label="Open Rate" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Click Rate" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Bounce Rate" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Unsubscribed" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -138,13 +137,13 @@ export default function CampaignList({ data }) {
                                 ? (delivered / campaign.emails_sent * 100)
                                 : 0;
 
+                            // Filter out HTML content from segment_text
+                            const segmentName = campaign.segment_text && !campaign.segment_text.startsWith('<')
+                                ? campaign.segment_text
+                                : null;
+
                             return (
                             <tr key={campaign.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        Sent
-                                    </span>
-                                </td>
                                 <td className="px-6 py-4 font-medium text-gray-900">
                                     <div className="flex items-center group cursor-pointer">
                                         {campaign.title}
@@ -152,18 +151,18 @@ export default function CampaignList({ data }) {
                                             <ExternalLink className="w-3 h-3 text-gray-400" />
                                         </a>
                                     </div>
-                                    <div className="text-xs text-gray-400 font-normal truncate max-w-[200px]">{campaign.subject_line}</div>
+                                    <div className="text-xs text-gray-400 font-normal truncate max-w-[250px]">{campaign.subject_line}</div>
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="space-y-1">
                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                             {campaign.audience_name || 'N/A'}
                                         </span>
-                                        {campaign.segment_text && (
+                                        {segmentName && (
                                             <div className="flex items-center gap-1 text-xs text-purple-600">
                                                 <Users className="w-3 h-3" />
-                                                <span className="truncate max-w-[150px]" title={campaign.segment_text}>
-                                                    {campaign.segment_text}
+                                                <span className="truncate max-w-[150px]" title={segmentName}>
+                                                    {segmentName}
                                                 </span>
                                             </div>
                                         )}
