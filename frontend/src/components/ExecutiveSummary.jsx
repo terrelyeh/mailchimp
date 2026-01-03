@@ -345,7 +345,7 @@ function OverviewContent({ metrics }) {
             </div>
             <div className="mb-2">
               <div className="font-semibold text-sm line-clamp-1">
-                {metrics.topCampaign.title}
+                {metrics.topCampaign.title || metrics.topCampaign.subject_line || 'Untitled Campaign'}
               </div>
               <div className="text-xs text-slate-400 mt-1">
                 {metrics.topCampaignRegion?.flag} {metrics.topCampaignRegion?.name}
@@ -473,7 +473,7 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
               <span className="text-xs text-green-300 uppercase tracking-wide">Top Performer</span>
             </div>
             <div className="font-semibold text-sm line-clamp-1 mb-2">
-              {metrics.topCampaign.title}
+              {metrics.topCampaign.title || metrics.topCampaign.subject_line || 'Untitled Campaign'}
             </div>
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div>
@@ -521,7 +521,7 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
                 <span className="text-xs text-orange-300 uppercase tracking-wide">Needs Review</span>
               </div>
               <div className="font-semibold text-sm line-clamp-1 mb-2">
-                {metrics.bottomCampaign.title}
+                {metrics.bottomCampaign.title || metrics.bottomCampaign.subject_line || 'Untitled Campaign'}
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
