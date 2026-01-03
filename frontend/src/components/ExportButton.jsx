@@ -184,10 +184,15 @@ export default function ExportButton({
             btn.style.display = 'none';
           });
 
-          // 移除 hover 效果
+          // 移除 hover 效果 (注意 SVG 元素的 className 是 SVGAnimatedString)
           const hoverElements = clonedElement.querySelectorAll('[class*="hover:"]');
           hoverElements.forEach(el => {
-            el.className = el.className.replace(/hover:[^\s]+/g, '');
+            if (typeof el.className === 'string') {
+              el.className = el.className.replace(/hover:[^\s]+/g, '');
+            } else if (el.className && el.className.baseVal !== undefined) {
+              // Handle SVG elements
+              el.className.baseVal = el.className.baseVal.replace(/hover:[^\s]+/g, '');
+            }
           });
         }
       }
