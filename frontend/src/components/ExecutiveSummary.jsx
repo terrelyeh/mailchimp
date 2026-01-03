@@ -208,8 +208,9 @@ function hasInsufficientData(region) {
   return region.totalSent < MIN_SENT_THRESHOLD || region.campaigns < MIN_CAMPAIGNS_THRESHOLD;
 }
 
-// Insufficient data card component (Home Dashboard - region level)
-function InsufficientDataCard({ title, icon: Icon, iconColor }) {
+// Insufficient data card component
+// type: 'region' for region-level (uses both thresholds), 'campaign' for single campaign (only sent threshold)
+function InsufficientDataCard({ title, icon: Icon, iconColor, type = 'region' }) {
   return (
     <div className="bg-white/10 rounded-lg p-4 opacity-70 shadow-lg ring-1 ring-white/10">
       <div className="flex items-center gap-2 mb-3">
@@ -221,7 +222,10 @@ function InsufficientDataCard({ title, icon: Icon, iconColor }) {
         <span className="font-semibold text-slate-300">Insufficient Data</span>
       </div>
       <div className="text-xs text-slate-400 mt-2">
-        Requires ≥{MIN_SENT_THRESHOLD} sent or ≥{MIN_CAMPAIGNS_THRESHOLD} campaigns
+        {type === 'region'
+          ? `Requires ≥${MIN_SENT_THRESHOLD} sent or ≥${MIN_CAMPAIGNS_THRESHOLD} campaigns`
+          : `Requires ≥${MIN_SENT_THRESHOLD} emails sent`
+        }
       </div>
     </div>
   );
@@ -263,17 +267,23 @@ function OverviewContent({ metrics }) {
               <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
               <span className="font-bold text-lg">{metrics.bestRegion.info.name}</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+            <div className="grid grid-cols-3 gap-2 text-sm mb-2">
               <div>
-                <span className="text-slate-400">Open Rate</span>
+                <span className="text-slate-400 text-xs">Open</span>
                 <div className="font-semibold text-green-400">
                   {(metrics.bestRegion.avgOpenRate * 100).toFixed(1)}%
                 </div>
               </div>
               <div>
-                <span className="text-slate-400">Click Rate</span>
+                <span className="text-slate-400 text-xs">Click</span>
                 <div className="font-semibold text-green-400">
                   {(metrics.bestRegion.avgClickRate * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs">Delivery</span>
+                <div className="font-semibold text-green-400">
+                  {(metrics.bestRegion.deliveryRate * 100).toFixed(1)}%
                 </div>
               </div>
             </div>
@@ -297,17 +307,23 @@ function OverviewContent({ metrics }) {
                 <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
                 <span className="font-bold text-lg">{metrics.worstRegion.info.name}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+              <div className="grid grid-cols-3 gap-2 text-sm mb-2">
                 <div>
-                  <span className="text-slate-400">Open Rate</span>
+                  <span className="text-slate-400 text-xs">Open</span>
                   <div className="font-semibold text-orange-400">
                     {(metrics.worstRegion.avgOpenRate * 100).toFixed(1)}%
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400">Click Rate</span>
+                  <span className="text-slate-400 text-xs">Click</span>
                   <div className="font-semibold text-orange-400">
                     {(metrics.worstRegion.avgClickRate * 100).toFixed(1)}%
+                  </div>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-xs">Delivery</span>
+                  <div className="font-semibold text-orange-400">
+                    {(metrics.worstRegion.deliveryRate * 100).toFixed(1)}%
                   </div>
                 </div>
               </div>
@@ -328,20 +344,31 @@ function OverviewContent({ metrics }) {
               <span className="text-xs text-slate-300 uppercase tracking-wide">Best Campaign</span>
             </div>
             <div className="mb-2">
-              <div className="font-semibold text-sm line-clamp-2">
+              <div className="font-semibold text-sm line-clamp-1">
                 {metrics.topCampaign.title}
               </div>
               <div className="text-xs text-slate-400 mt-1">
                 {metrics.topCampaignRegion?.flag} {metrics.topCampaignRegion?.name}
               </div>
             </div>
-            <div className="flex items-center gap-3 text-sm mb-2">
-              <div className="flex items-center gap-1">
-                <TrendingUp className="w-3 h-3 text-green-400" />
-                <span className="font-semibold text-green-400">
+            <div className="grid grid-cols-3 gap-2 text-sm mb-2">
+              <div>
+                <span className="text-slate-400 text-xs">Open</span>
+                <div className="font-semibold text-green-400">
                   {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
-                </span>
-                <span className="text-slate-400 text-xs">open</span>
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs">Click</span>
+                <div className="font-semibold text-green-400">
+                  {((metrics.topCampaign.click_rate || 0) * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs">Delivery</span>
+                <div className="font-semibold text-green-400">
+                  {((metrics.topCampaign.emails_sent - (metrics.topCampaign.bounces || 0)) / metrics.topCampaign.emails_sent * 100).toFixed(1)}%
+                </div>
               </div>
             </div>
             <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
@@ -349,7 +376,7 @@ function OverviewContent({ metrics }) {
             </div>
           </div>
         ) : (
-          <InsufficientDataCard title="Best Campaign" icon={Award} iconColor="text-blue-400" />
+          <InsufficientDataCard title="Best Campaign" icon={Award} iconColor="text-blue-400" type="campaign" />
         )}
       </div>
 
@@ -448,7 +475,7 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
             <div className="font-semibold text-sm line-clamp-1 mb-2">
               {metrics.topCampaign.title}
             </div>
-            <div className="flex gap-4 text-sm">
+            <div className="grid grid-cols-3 gap-2 text-sm">
               <div>
                 <span className="text-slate-400 text-xs">Open</span>
                 <div className="font-semibold text-green-400">
@@ -462,9 +489,9 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
                 </div>
               </div>
               <div>
-                <span className="text-slate-400 text-xs">Sent</span>
-                <div className="font-semibold">
-                  {(metrics.topCampaign.emails_sent || 0).toLocaleString()}
+                <span className="text-slate-400 text-xs">Delivery</span>
+                <div className="font-semibold text-green-400">
+                  {((metrics.topCampaign.emails_sent - (metrics.topCampaign.bounces || 0)) / metrics.topCampaign.emails_sent * 100).toFixed(1)}%
                 </div>
               </div>
             </div>
@@ -496,7 +523,7 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
               <div className="font-semibold text-sm line-clamp-1 mb-2">
                 {metrics.bottomCampaign.title}
               </div>
-              <div className="flex gap-4 text-sm">
+              <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <span className="text-slate-400 text-xs">Open</span>
                   <div className="font-semibold text-orange-400">
@@ -510,9 +537,9 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-xs">Sent</span>
-                  <div className="font-semibold">
-                    {(metrics.bottomCampaign.emails_sent || 0).toLocaleString()}
+                  <span className="text-slate-400 text-xs">Delivery</span>
+                  <div className="font-semibold text-orange-400">
+                    {((metrics.bottomCampaign.emails_sent - (metrics.bottomCampaign.bounces || 0)) / metrics.bottomCampaign.emails_sent * 100).toFixed(1)}%
                   </div>
                 </div>
               </div>
