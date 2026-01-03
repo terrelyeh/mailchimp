@@ -102,8 +102,8 @@ export default function CampaignList({ data }) {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-4 md:px-5 py-3 border-b border-gray-100 flex justify-between items-center">
+        <div className="bg-white rounded-xl shadow-md border border-gray-100/80 overflow-hidden ring-1 ring-gray-900/5">
+            <div className="px-4 md:px-5 py-3 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-white to-gray-50/50">
                 <div className="flex items-baseline gap-3">
                     <h3 className="font-bold text-gray-900 text-base md:text-lg">Recent Campaigns</h3>
                     <span className="text-xs text-gray-400">

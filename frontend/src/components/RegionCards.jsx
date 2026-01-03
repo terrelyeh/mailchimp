@@ -4,7 +4,7 @@ import { TrendingUp, Mail, MousePointer, ArrowRight, AlertTriangle, UserMinus, F
 const RegionCard = ({ region, data, onClick }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+      <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100/80 ring-1 ring-gray-900/5 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
         onClick={onClick}>
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-3">
@@ -38,7 +38,7 @@ const RegionCard = ({ region, data, onClick }) => {
 
   return (
     <div
-      className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+      className="bg-white p-6 rounded-xl shadow-md border border-gray-100/80 ring-1 ring-gray-900/5 hover:shadow-xl hover:-translate-y-1 hover:ring-yellow-400/30 transition-all duration-200 cursor-pointer group"
       onClick={onClick}
     >
       <div className="flex justify-between items-start mb-4">
