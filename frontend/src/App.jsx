@@ -320,6 +320,8 @@ function App() {
                   data={displayData}
                   isOverview={false}
                   currentRegion={currentRegion}
+                  selectedAudience={selectedAudience}
+                  audienceList={audienceList}
                 />
                 <KPICards
                   data={displayData}
