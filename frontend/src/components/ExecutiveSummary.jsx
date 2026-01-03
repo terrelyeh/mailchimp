@@ -517,7 +517,10 @@ function MetricCard({ label, value, benchmark, actual }) {
         ) : (
           <ArrowDownRight className="w-3 h-3" />
         )}
-        <span>{isPositive ? '+' : ''}{diffPercent.toFixed(0)}% vs avg</span>
+        <span>{isPositive ? '+' : ''}{diffPercent.toFixed(0)}% vs industry</span>
+      </div>
+      <div className="text-[10px] text-slate-500 mt-1">
+        Industry avg: {(benchmark * 100).toFixed(1)}%
       </div>
     </div>
   );
