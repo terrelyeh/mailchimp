@@ -1,9 +1,13 @@
 import React, { useMemo } from 'react';
 import {
   TrendingUp, Award, AlertTriangle,
-  Target, Crown, ThumbsDown, BarChart3
+  Target, Crown, ThumbsDown, BarChart3, Info
 } from 'lucide-react';
 import { getRegionInfo } from '../mockData';
+
+// Minimum thresholds for statistical significance
+const MIN_SENT_THRESHOLD = 100;
+const MIN_CAMPAIGNS_THRESHOLD = 3;
 
 /**
  * ExecutiveSummary - Management-level insights
@@ -196,8 +200,36 @@ function calculateRegionMetrics(data, currentRegion) {
   };
 }
 
+// Helper to check if region has sufficient data
+function hasInsufficientData(region) {
+  return region.totalSent < MIN_SENT_THRESHOLD || region.campaigns < MIN_CAMPAIGNS_THRESHOLD;
+}
+
+// Insufficient data card component
+function InsufficientDataCard({ title, icon: Icon, iconColor }) {
+  return (
+    <div className="bg-white/10 rounded-lg p-4 opacity-60">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className={`w-4 h-4 ${iconColor}`} />
+        <span className="text-xs text-slate-300 uppercase tracking-wide">{title}</span>
+      </div>
+      <div className="flex items-center gap-2 mb-2">
+        <Info className="w-5 h-5 text-slate-400" />
+        <span className="font-semibold text-slate-400">Insufficient Data</span>
+      </div>
+      <div className="text-xs text-slate-500 mt-2">
+        Requires ≥{MIN_SENT_THRESHOLD} sent or ≥{MIN_CAMPAIGNS_THRESHOLD} campaigns
+      </div>
+    </div>
+  );
+}
+
 // Overview content component
 function OverviewContent({ metrics }) {
+  // Check if best/worst regions have sufficient data
+  const bestHasData = metrics.bestRegion && !hasInsufficientData(metrics.bestRegion);
+  const worstHasData = metrics.worstRegion && !hasInsufficientData(metrics.worstRegion);
+
   return (
     <div className="space-y-4">
       {/* Overall Stats Bar */}
@@ -218,67 +250,75 @@ function OverviewContent({ metrics }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Best Performing Region */}
-        <div className="bg-white/10 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Crown className="w-4 h-4 text-yellow-400" />
-            <span className="text-xs text-slate-300 uppercase tracking-wide">Top Region</span>
-          </div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
-            <span className="font-bold text-lg">{metrics.bestRegion.info.name}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-            <div>
-              <span className="text-slate-400">Open Rate</span>
-              <div className="font-semibold text-green-400">
-                {(metrics.bestRegion.avgOpenRate * 100).toFixed(1)}%
-              </div>
-            </div>
-            <div>
-              <span className="text-slate-400">Click Rate</span>
-              <div className="font-semibold text-green-400">
-                {(metrics.bestRegion.avgClickRate * 100).toFixed(1)}%
-              </div>
-            </div>
-          </div>
-          <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
-            {metrics.bestRegion.campaigns} campaigns · {metrics.bestRegion.totalSent.toLocaleString()} sent
-          </div>
-        </div>
-
-        {/* Needs Attention Region */}
-        {metrics.worstRegion && metrics.regionStats.length > 1 && (
+        {bestHasData ? (
           <div className="bg-white/10 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Target className="w-4 h-4 text-orange-400" />
-              <span className="text-xs text-slate-300 uppercase tracking-wide">Needs Attention</span>
+              <Crown className="w-4 h-4 text-yellow-400" />
+              <span className="text-xs text-slate-300 uppercase tracking-wide">Top Region</span>
             </div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
-              <span className="font-bold text-lg">{metrics.worstRegion.info.name}</span>
+              <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
+              <span className="font-bold text-lg">{metrics.bestRegion.info.name}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-2">
               <div>
                 <span className="text-slate-400">Open Rate</span>
-                <div className="font-semibold text-orange-400">
-                  {(metrics.worstRegion.avgOpenRate * 100).toFixed(1)}%
+                <div className="font-semibold text-green-400">
+                  {(metrics.bestRegion.avgOpenRate * 100).toFixed(1)}%
                 </div>
               </div>
               <div>
                 <span className="text-slate-400">Click Rate</span>
-                <div className="font-semibold text-orange-400">
-                  {(metrics.worstRegion.avgClickRate * 100).toFixed(1)}%
+                <div className="font-semibold text-green-400">
+                  {(metrics.bestRegion.avgClickRate * 100).toFixed(1)}%
                 </div>
               </div>
             </div>
             <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
-              {metrics.worstRegion.campaigns} campaigns · {metrics.worstRegion.totalSent.toLocaleString()} sent
+              {metrics.bestRegion.campaigns} campaigns · {metrics.bestRegion.totalSent.toLocaleString()} sent
             </div>
           </div>
+        ) : (
+          <InsufficientDataCard title="Top Region" icon={Crown} iconColor="text-yellow-400" />
+        )}
+
+        {/* Needs Attention Region */}
+        {metrics.regionStats.length > 1 && (
+          worstHasData ? (
+            <div className="bg-white/10 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-orange-400" />
+                <span className="text-xs text-slate-300 uppercase tracking-wide">Needs Attention</span>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
+                <span className="font-bold text-lg">{metrics.worstRegion.info.name}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                <div>
+                  <span className="text-slate-400">Open Rate</span>
+                  <div className="font-semibold text-orange-400">
+                    {(metrics.worstRegion.avgOpenRate * 100).toFixed(1)}%
+                  </div>
+                </div>
+                <div>
+                  <span className="text-slate-400">Click Rate</span>
+                  <div className="font-semibold text-orange-400">
+                    {(metrics.worstRegion.avgClickRate * 100).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
+                {metrics.worstRegion.campaigns} campaigns · {metrics.worstRegion.totalSent.toLocaleString()} sent
+              </div>
+            </div>
+          ) : (
+            <InsufficientDataCard title="Needs Attention" icon={Target} iconColor="text-orange-400" />
+          )
         )}
 
         {/* Top Campaign */}
-        {metrics.topCampaign && (
+        {metrics.topCampaign && (metrics.topCampaign.emails_sent || 0) >= MIN_SENT_THRESHOLD ? (
           <div className="bg-white/10 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-3">
               <Award className="w-4 h-4 text-blue-400" />
@@ -305,6 +345,8 @@ function OverviewContent({ metrics }) {
               {(metrics.topCampaign.emails_sent || 0).toLocaleString()} emails sent
             </div>
           </div>
+        ) : (
+          <InsufficientDataCard title="Best Campaign" icon={Award} iconColor="text-blue-400" />
         )}
       </div>
 
