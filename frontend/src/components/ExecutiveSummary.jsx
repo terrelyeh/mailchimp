@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
-  TrendingUp, TrendingDown, Award, AlertTriangle,
-  Target, Crown, ThumbsDown, BarChart3, ArrowUpRight, ArrowDownRight
+  TrendingUp, Award, AlertTriangle,
+  Target, Crown, ThumbsDown, BarChart3
 } from 'lucide-react';
 import { getRegionInfo } from '../mockData';
 
@@ -166,39 +166,13 @@ function calculateRegionMetrics(data, currentRegion) {
   const topCampaign = sortedByOpenRate[0];
   const bottomCampaign = sortedByOpenRate[sortedByOpenRate.length - 1];
 
-  // Industry benchmarks (approximate)
-  const benchmarks = {
-    openRate: 0.21,  // 21% industry average
-    clickRate: 0.025, // 2.5% industry average
-    deliveryRate: 0.95
-  };
-
-  // Calculate performance vs benchmarks
-  const openRateVsBenchmark = avgOpenRate - benchmarks.openRate;
-  const clickRateVsBenchmark = avgClickRate - benchmarks.clickRate;
-
-  // Identify issues
+  // Identify issues (based on absolute thresholds, not industry benchmarks)
   const issues = [];
   if (bounceRate > 0.05) {
-    issues.push({ type: 'bounce', message: 'High bounce rate detected', value: bounceRate });
+    issues.push({ type: 'bounce', message: `High bounce rate (${(bounceRate * 100).toFixed(1)}%)` });
   }
   if (unsubRate > 0.01) {
-    issues.push({ type: 'unsub', message: 'Elevated unsubscribe rate', value: unsubRate });
-  }
-  if (avgOpenRate < benchmarks.openRate * 0.8) {
-    issues.push({ type: 'engagement', message: 'Open rate below industry average', value: avgOpenRate });
-  }
-
-  // Identify wins
-  const wins = [];
-  if (avgOpenRate > benchmarks.openRate * 1.2) {
-    wins.push({ type: 'openRate', message: 'Excellent open rate', value: avgOpenRate });
-  }
-  if (avgClickRate > benchmarks.clickRate * 1.5) {
-    wins.push({ type: 'clickRate', message: 'Outstanding click-through rate', value: avgClickRate });
-  }
-  if (deliveryRate > 0.98) {
-    wins.push({ type: 'delivery', message: 'Excellent deliverability', value: deliveryRate });
+    issues.push({ type: 'unsub', message: `Elevated unsubscribe rate (${(unsubRate * 100).toFixed(1)}%)` });
   }
 
   return {
@@ -209,11 +183,7 @@ function calculateRegionMetrics(data, currentRegion) {
     unsubRate,
     topCampaign,
     bottomCampaign,
-    benchmarks,
-    openRateVsBenchmark,
-    clickRateVsBenchmark,
     issues,
-    wins,
     campaignCount: campaigns.length,
     totalSent
   };
@@ -367,35 +337,27 @@ function RegionContent({ metrics, currentRegion }) {
         </div>
       </div>
 
-      {/* Performance vs Benchmark */}
+      {/* Performance Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <MetricCard
+        <SimpleMetricCard
           label="Open Rate"
           value={`${(metrics.avgOpenRate * 100).toFixed(1)}%`}
-          benchmark={metrics.benchmarks.openRate}
-          actual={metrics.avgOpenRate}
         />
-        <MetricCard
+        <SimpleMetricCard
           label="Click Rate"
           value={`${(metrics.avgClickRate * 100).toFixed(1)}%`}
-          benchmark={metrics.benchmarks.clickRate}
-          actual={metrics.avgClickRate}
         />
-        <MetricCard
+        <SimpleMetricCard
           label="Delivery Rate"
           value={`${(metrics.deliveryRate * 100).toFixed(1)}%`}
-          benchmark={metrics.benchmarks.deliveryRate}
-          actual={metrics.deliveryRate}
         />
-        <div className="bg-white/10 rounded-lg p-3">
-          <div className="text-xs text-slate-400 mb-1">Avg per Campaign</div>
-          <div className="text-xl font-bold">
-            {metrics.campaignCount > 0
-              ? Math.round(metrics.totalSent / metrics.campaignCount).toLocaleString()
-              : 0}
-          </div>
-          <div className="text-xs text-slate-400">emails</div>
-        </div>
+        <SimpleMetricCard
+          label="Avg per Campaign"
+          value={metrics.campaignCount > 0
+            ? Math.round(metrics.totalSent / metrics.campaignCount).toLocaleString()
+            : '0'}
+          subLabel="emails"
+        />
       </div>
 
       {/* Top & Bottom Campaigns */}
@@ -467,61 +429,35 @@ function RegionContent({ metrics, currentRegion }) {
         )}
       </div>
 
-      {/* Wins & Issues */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {metrics.wins.length > 0 && (
-          <div className="bg-green-500/10 rounded-lg p-3">
-            <div className="text-xs text-green-300 uppercase tracking-wide mb-2">Highlights</div>
-            <div className="space-y-1">
-              {metrics.wins.map((win, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm text-green-200">
-                  <TrendingUp className="w-3 h-3" />
-                  {win.message}
-                </div>
-              ))}
-            </div>
+      {/* Issues Alert */}
+      {metrics.issues.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <span className="text-xs text-red-300 uppercase tracking-wide">Attention Required</span>
           </div>
-        )}
-
-        {metrics.issues.length > 0 && (
-          <div className="bg-red-500/10 rounded-lg p-3">
-            <div className="text-xs text-red-300 uppercase tracking-wide mb-2">Areas for Improvement</div>
-            <div className="space-y-1">
-              {metrics.issues.map((issue, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm text-red-200">
-                  <AlertTriangle className="w-3 h-3" />
-                  {issue.message}
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-3">
+            {metrics.issues.map((issue, i) => (
+              <span key={i} className="text-sm text-red-200">
+                {issue.message}
+              </span>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Metric card with benchmark comparison
-function MetricCard({ label, value, benchmark, actual }) {
-  const diff = actual - benchmark;
-  const isPositive = diff >= 0;
-  const diffPercent = benchmark > 0 ? (diff / benchmark) * 100 : 0;
-
+// Simple metric card without benchmark comparison
+function SimpleMetricCard({ label, value, subLabel }) {
   return (
     <div className="bg-white/10 rounded-lg p-3">
       <div className="text-xs text-slate-400 mb-1">{label}</div>
-      <div className="text-xl font-bold mb-1">{value}</div>
-      <div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-        {isPositive ? (
-          <ArrowUpRight className="w-3 h-3" />
-        ) : (
-          <ArrowDownRight className="w-3 h-3" />
-        )}
-        <span>{isPositive ? '+' : ''}{diffPercent.toFixed(0)}% vs industry</span>
-      </div>
-      <div className="text-[10px] text-slate-500 mt-1">
-        Industry avg: {(benchmark * 100).toFixed(1)}%
-      </div>
+      <div className="text-xl font-bold">{value}</div>
+      {subLabel && (
+        <div className="text-xs text-slate-400">{subLabel}</div>
+      )}
     </div>
   );
 }
