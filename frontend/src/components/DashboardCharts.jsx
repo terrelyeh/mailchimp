@@ -8,7 +8,7 @@ export default function DashboardCharts({ data }) {
     // 確保 data 是陣列
     if (!data || !Array.isArray(data) || data.length === 0) {
         return (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100/80 ring-1 ring-gray-900/5">
                 <h2 className="text-lg font-bold text-gray-900 mb-6">Campaign Performance</h2>
                 <div className="h-[400px] flex items-center justify-center text-gray-400">
                     No campaign data available
@@ -69,7 +69,7 @@ export default function DashboardCharts({ data }) {
     }));
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100/80 ring-1 ring-gray-900/5 mb-8">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-900">Campaign Performance</h2>
                 <div className="flex bg-gray-100 rounded-lg p-1">

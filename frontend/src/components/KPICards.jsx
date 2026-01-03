@@ -2,10 +2,10 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Mail, MousePointer, UserX, FileText, Users, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const Card = ({ title, value, subValue, trend, icon: Icon }) => (
-    <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-100">
+    <div className="bg-white p-3 md:p-4 rounded-xl shadow-md border border-gray-100/80 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 ring-1 ring-gray-900/5">
         <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 bg-gray-50 rounded-lg">
-                <Icon className="w-4 h-4 text-gray-400" />
+            <div className="p-1.5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow-sm">
+                <Icon className="w-4 h-4 text-gray-500" />
             </div>
             <h3 className="text-gray-500 text-xs font-medium truncate">{title}</h3>
             {trend && (
