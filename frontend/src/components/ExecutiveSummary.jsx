@@ -1,0 +1,478 @@
+import React, { useMemo } from 'react';
+import {
+  TrendingUp, TrendingDown, Award, AlertTriangle,
+  Target, Crown, ThumbsDown, BarChart3, ArrowUpRight, ArrowDownRight
+} from 'lucide-react';
+import { getRegionInfo } from '../mockData';
+
+/**
+ * ExecutiveSummary - Management-level insights
+ * Works for both Overview (all regions) and Region Detail views
+ */
+export default function ExecutiveSummary({
+  data,
+  isOverview = true,
+  regions = [],
+  currentRegion = null
+}) {
+  // Calculate metrics for all views
+  const metrics = useMemo(() => {
+    if (!data) return null;
+
+    if (isOverview) {
+      // Overview mode - compare regions
+      return calculateOverviewMetrics(data, regions);
+    } else {
+      // Region detail mode - analyze single region
+      return calculateRegionMetrics(data, currentRegion);
+    }
+  }, [data, isOverview, regions, currentRegion]);
+
+  if (!metrics) {
+    return null;
+  }
+
+  return (
+    <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-4 md:p-6 mb-6 text-white">
+      <div className="flex items-center gap-2 mb-4">
+        <BarChart3 className="w-5 h-5 text-yellow-400" />
+        <h2 className="font-bold text-base md:text-lg">Executive Summary</h2>
+        <span className="text-xs text-slate-400 ml-auto">
+          {isOverview ? 'Multi-Region Overview' : `${currentRegion?.name || 'Region'} Analysis`}
+        </span>
+      </div>
+
+      {isOverview ? (
+        <OverviewContent metrics={metrics} />
+      ) : (
+        <RegionContent metrics={metrics} currentRegion={currentRegion} />
+      )}
+    </div>
+  );
+}
+
+// Calculate metrics for overview (all regions)
+function calculateOverviewMetrics(data, regions) {
+  const regionStats = [];
+
+  // Calculate stats for each region
+  Object.entries(data).forEach(([regionCode, campaigns]) => {
+    if (!Array.isArray(campaigns) || campaigns.length === 0) return;
+
+    const totalSent = campaigns.reduce((acc, c) => acc + (c.emails_sent || 0), 0);
+    const totalOpens = campaigns.reduce((acc, c) => acc + (c.opens || 0), 0);
+    const totalClicks = campaigns.reduce((acc, c) => acc + (c.clicks || 0), 0);
+    const totalBounces = campaigns.reduce((acc, c) => acc + (c.bounces || 0), 0);
+    const totalUnsubs = campaigns.reduce((acc, c) => acc + (c.unsubscribed || 0), 0);
+
+    const avgOpenRate = campaigns.reduce((acc, c) => acc + (c.open_rate || 0), 0) / campaigns.length;
+    const avgClickRate = campaigns.reduce((acc, c) => acc + (c.click_rate || 0), 0) / campaigns.length;
+    const deliveryRate = totalSent > 0 ? (totalSent - totalBounces) / totalSent : 0;
+
+    // Find best campaign in this region
+    const bestCampaign = campaigns.reduce((best, curr) =>
+      (curr.open_rate || 0) > (best.open_rate || 0) ? curr : best
+    , campaigns[0]);
+
+    regionStats.push({
+      code: regionCode,
+      info: getRegionInfo(regionCode),
+      campaigns: campaigns.length,
+      totalSent,
+      avgOpenRate,
+      avgClickRate,
+      deliveryRate,
+      bounceRate: totalSent > 0 ? totalBounces / totalSent : 0,
+      unsubRate: totalSent > 0 ? totalUnsubs / totalSent : 0,
+      bestCampaign,
+      // Composite score for ranking (weighted)
+      score: avgOpenRate * 0.4 + avgClickRate * 0.3 + deliveryRate * 0.3
+    });
+  });
+
+  if (regionStats.length === 0) return null;
+
+  // Sort by score
+  regionStats.sort((a, b) => b.score - a.score);
+
+  // Find best and worst
+  const bestRegion = regionStats[0];
+  const worstRegion = regionStats[regionStats.length - 1];
+
+  // Find top campaign across all regions
+  let topCampaign = null;
+  let topCampaignRegion = null;
+  Object.entries(data).forEach(([regionCode, campaigns]) => {
+    if (!Array.isArray(campaigns)) return;
+    campaigns.forEach(c => {
+      if (!topCampaign || (c.open_rate || 0) > (topCampaign.open_rate || 0)) {
+        topCampaign = c;
+        topCampaignRegion = regionCode;
+      }
+    });
+  });
+
+  // Calculate overall averages
+  const allCampaigns = Object.values(data).flat().filter(Boolean);
+  const overallAvgOpenRate = allCampaigns.length > 0
+    ? allCampaigns.reduce((acc, c) => acc + (c.open_rate || 0), 0) / allCampaigns.length
+    : 0;
+  const overallAvgClickRate = allCampaigns.length > 0
+    ? allCampaigns.reduce((acc, c) => acc + (c.click_rate || 0), 0) / allCampaigns.length
+    : 0;
+
+  // Identify alerts
+  const alerts = [];
+  regionStats.forEach(r => {
+    if (r.bounceRate > 0.05) {
+      alerts.push({ region: r.info.name, type: 'bounce', value: r.bounceRate });
+    }
+    if (r.unsubRate > 0.01) {
+      alerts.push({ region: r.info.name, type: 'unsub', value: r.unsubRate });
+    }
+  });
+
+  return {
+    bestRegion,
+    worstRegion,
+    topCampaign,
+    topCampaignRegion: getRegionInfo(topCampaignRegion),
+    regionStats,
+    overallAvgOpenRate,
+    overallAvgClickRate,
+    alerts,
+    totalCampaigns: allCampaigns.length
+  };
+}
+
+// Calculate metrics for single region detail
+function calculateRegionMetrics(data, currentRegion) {
+  if (!Array.isArray(data) || data.length === 0) return null;
+
+  const campaigns = data;
+  const totalSent = campaigns.reduce((acc, c) => acc + (c.emails_sent || 0), 0);
+  const totalBounces = campaigns.reduce((acc, c) => acc + (c.bounces || 0), 0);
+  const totalUnsubs = campaigns.reduce((acc, c) => acc + (c.unsubscribed || 0), 0);
+
+  const avgOpenRate = campaigns.reduce((acc, c) => acc + (c.open_rate || 0), 0) / campaigns.length;
+  const avgClickRate = campaigns.reduce((acc, c) => acc + (c.click_rate || 0), 0) / campaigns.length;
+  const deliveryRate = totalSent > 0 ? (totalSent - totalBounces) / totalSent : 0;
+  const bounceRate = totalSent > 0 ? totalBounces / totalSent : 0;
+  const unsubRate = totalSent > 0 ? totalUnsubs / totalSent : 0;
+
+  // Sort campaigns by open rate
+  const sortedByOpenRate = [...campaigns].sort((a, b) => (b.open_rate || 0) - (a.open_rate || 0));
+  const topCampaign = sortedByOpenRate[0];
+  const bottomCampaign = sortedByOpenRate[sortedByOpenRate.length - 1];
+
+  // Industry benchmarks (approximate)
+  const benchmarks = {
+    openRate: 0.21,  // 21% industry average
+    clickRate: 0.025, // 2.5% industry average
+    deliveryRate: 0.95
+  };
+
+  // Calculate performance vs benchmarks
+  const openRateVsBenchmark = avgOpenRate - benchmarks.openRate;
+  const clickRateVsBenchmark = avgClickRate - benchmarks.clickRate;
+
+  // Identify issues
+  const issues = [];
+  if (bounceRate > 0.05) {
+    issues.push({ type: 'bounce', message: 'High bounce rate detected', value: bounceRate });
+  }
+  if (unsubRate > 0.01) {
+    issues.push({ type: 'unsub', message: 'Elevated unsubscribe rate', value: unsubRate });
+  }
+  if (avgOpenRate < benchmarks.openRate * 0.8) {
+    issues.push({ type: 'engagement', message: 'Open rate below industry average', value: avgOpenRate });
+  }
+
+  // Identify wins
+  const wins = [];
+  if (avgOpenRate > benchmarks.openRate * 1.2) {
+    wins.push({ type: 'openRate', message: 'Excellent open rate', value: avgOpenRate });
+  }
+  if (avgClickRate > benchmarks.clickRate * 1.5) {
+    wins.push({ type: 'clickRate', message: 'Outstanding click-through rate', value: avgClickRate });
+  }
+  if (deliveryRate > 0.98) {
+    wins.push({ type: 'delivery', message: 'Excellent deliverability', value: deliveryRate });
+  }
+
+  return {
+    avgOpenRate,
+    avgClickRate,
+    deliveryRate,
+    bounceRate,
+    unsubRate,
+    topCampaign,
+    bottomCampaign,
+    benchmarks,
+    openRateVsBenchmark,
+    clickRateVsBenchmark,
+    issues,
+    wins,
+    campaignCount: campaigns.length
+  };
+}
+
+// Overview content component
+function OverviewContent({ metrics }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      {/* Best Performing Region */}
+      <div className="bg-white/10 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Crown className="w-4 h-4 text-yellow-400" />
+          <span className="text-xs text-slate-300 uppercase tracking-wide">Top Region</span>
+        </div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
+          <span className="font-bold text-lg">{metrics.bestRegion.info.name}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <span className="text-slate-400">Open Rate</span>
+            <div className="font-semibold text-green-400">
+              {(metrics.bestRegion.avgOpenRate * 100).toFixed(1)}%
+            </div>
+          </div>
+          <div>
+            <span className="text-slate-400">Click Rate</span>
+            <div className="font-semibold text-green-400">
+              {(metrics.bestRegion.avgClickRate * 100).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Needs Attention Region */}
+      {metrics.worstRegion && metrics.regionStats.length > 1 && (
+        <div className="bg-white/10 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="w-4 h-4 text-orange-400" />
+            <span className="text-xs text-slate-300 uppercase tracking-wide">Needs Attention</span>
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
+            <span className="font-bold text-lg">{metrics.worstRegion.info.name}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-slate-400">Open Rate</span>
+              <div className="font-semibold text-orange-400">
+                {(metrics.worstRegion.avgOpenRate * 100).toFixed(1)}%
+              </div>
+            </div>
+            <div>
+              <span className="text-slate-400">Click Rate</span>
+              <div className="font-semibold text-orange-400">
+                {(metrics.worstRegion.avgClickRate * 100).toFixed(1)}%
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Campaign */}
+      {metrics.topCampaign && (
+        <div className="bg-white/10 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Award className="w-4 h-4 text-blue-400" />
+            <span className="text-xs text-slate-300 uppercase tracking-wide">Best Campaign</span>
+          </div>
+          <div className="mb-2">
+            <div className="font-semibold text-sm line-clamp-2">
+              {metrics.topCampaign.title}
+            </div>
+            <div className="text-xs text-slate-400 mt-1">
+              {metrics.topCampaignRegion?.flag} {metrics.topCampaignRegion?.name}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-green-400" />
+              <span className="font-semibold text-green-400">
+                {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
+              </span>
+              <span className="text-slate-400 text-xs">open</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerts Section - Full Width */}
+      {metrics.alerts.length > 0 && (
+        <div className="md:col-span-3 bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <span className="text-sm font-medium text-red-300">Alerts</span>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm">
+            {metrics.alerts.slice(0, 3).map((alert, i) => (
+              <span key={i} className="text-red-200">
+                {alert.region}: {alert.type === 'bounce' ? 'High bounce' : 'High unsub'} ({(alert.value * 100).toFixed(1)}%)
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Region detail content component
+function RegionContent({ metrics, currentRegion }) {
+  return (
+    <div className="space-y-4">
+      {/* Performance vs Benchmark */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <MetricCard
+          label="Open Rate"
+          value={`${(metrics.avgOpenRate * 100).toFixed(1)}%`}
+          benchmark={metrics.benchmarks.openRate}
+          actual={metrics.avgOpenRate}
+        />
+        <MetricCard
+          label="Click Rate"
+          value={`${(metrics.avgClickRate * 100).toFixed(1)}%`}
+          benchmark={metrics.benchmarks.clickRate}
+          actual={metrics.avgClickRate}
+        />
+        <MetricCard
+          label="Delivery Rate"
+          value={`${(metrics.deliveryRate * 100).toFixed(1)}%`}
+          benchmark={metrics.benchmarks.deliveryRate}
+          actual={metrics.deliveryRate}
+        />
+        <div className="bg-white/10 rounded-lg p-3">
+          <div className="text-xs text-slate-400 mb-1">Campaigns</div>
+          <div className="text-xl font-bold">{metrics.campaignCount}</div>
+        </div>
+      </div>
+
+      {/* Top & Bottom Campaigns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Best Campaign */}
+        {metrics.topCampaign && (
+          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Crown className="w-4 h-4 text-green-400" />
+              <span className="text-xs text-green-300 uppercase tracking-wide">Top Performer</span>
+            </div>
+            <div className="font-semibold text-sm line-clamp-1 mb-2">
+              {metrics.topCampaign.title}
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div>
+                <span className="text-slate-400 text-xs">Open</span>
+                <div className="font-semibold text-green-400">
+                  {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs">Click</span>
+                <div className="font-semibold text-green-400">
+                  {((metrics.topCampaign.click_rate || 0) * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs">Sent</span>
+                <div className="font-semibold">
+                  {(metrics.topCampaign.emails_sent || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Worst Campaign */}
+        {metrics.bottomCampaign && metrics.campaignCount > 1 && (
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <ThumbsDown className="w-4 h-4 text-orange-400" />
+              <span className="text-xs text-orange-300 uppercase tracking-wide">Needs Review</span>
+            </div>
+            <div className="font-semibold text-sm line-clamp-1 mb-2">
+              {metrics.bottomCampaign.title}
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div>
+                <span className="text-slate-400 text-xs">Open</span>
+                <div className="font-semibold text-orange-400">
+                  {((metrics.bottomCampaign.open_rate || 0) * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs">Click</span>
+                <div className="font-semibold text-orange-400">
+                  {((metrics.bottomCampaign.click_rate || 0) * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 text-xs">Sent</span>
+                <div className="font-semibold">
+                  {(metrics.bottomCampaign.emails_sent || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Wins & Issues */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {metrics.wins.length > 0 && (
+          <div className="bg-green-500/10 rounded-lg p-3">
+            <div className="text-xs text-green-300 uppercase tracking-wide mb-2">Highlights</div>
+            <div className="space-y-1">
+              {metrics.wins.map((win, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm text-green-200">
+                  <TrendingUp className="w-3 h-3" />
+                  {win.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {metrics.issues.length > 0 && (
+          <div className="bg-red-500/10 rounded-lg p-3">
+            <div className="text-xs text-red-300 uppercase tracking-wide mb-2">Areas for Improvement</div>
+            <div className="space-y-1">
+              {metrics.issues.map((issue, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm text-red-200">
+                  <AlertTriangle className="w-3 h-3" />
+                  {issue.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Metric card with benchmark comparison
+function MetricCard({ label, value, benchmark, actual }) {
+  const diff = actual - benchmark;
+  const isPositive = diff >= 0;
+  const diffPercent = benchmark > 0 ? (diff / benchmark) * 100 : 0;
+
+  return (
+    <div className="bg-white/10 rounded-lg p-3">
+      <div className="text-xs text-slate-400 mb-1">{label}</div>
+      <div className="text-xl font-bold mb-1">{value}</div>
+      <div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        {isPositive ? (
+          <ArrowUpRight className="w-3 h-3" />
+        ) : (
+          <ArrowDownRight className="w-3 h-3" />
+        )}
+        <span>{isPositive ? '+' : ''}{diffPercent.toFixed(0)}% vs avg</span>
+      </div>
+    </div>
+  );
+}
