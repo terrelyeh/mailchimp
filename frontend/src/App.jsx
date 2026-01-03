@@ -27,6 +27,7 @@ function App() {
   const [audiences, setAudiences] = useState([]); // Available audiences
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
+  const [lastFetchTime, setLastFetchTime] = useState(null); // Last data fetch timestamp
 
   // Ref for export functionality
   const exportContentRef = useRef(null);
@@ -44,6 +45,7 @@ function App() {
       if (hasData) {
         setData(result.data);
         setUseMock(false);
+        setLastFetchTime(new Date()); // Update fetch time on success
       } else {
         // Fallback to mock if API returns empty
         setData(MOCK_REGIONS_DATA);
@@ -212,6 +214,15 @@ function App() {
 
             {/* Action Buttons - Always visible */}
             <div className="flex items-center gap-2">
+              {/* Last Sync Time */}
+              {lastFetchTime && !useMock && (
+                <span
+                  className="text-xs text-gray-400 hidden md:block"
+                  title={lastFetchTime.toLocaleString()}
+                >
+                  {lastFetchTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
               <button
                 onClick={handleSync}
                 disabled={isSyncing}
