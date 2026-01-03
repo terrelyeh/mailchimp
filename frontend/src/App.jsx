@@ -9,6 +9,7 @@ import RegionCards from './components/RegionCards';
 import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import ExportButton from './components/ExportButton';
+import ExecutiveSummary from './components/ExecutiveSummary';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
 import { RefreshCw, ArrowLeft, Activity } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
@@ -299,6 +300,11 @@ function App() {
             {view === 'overview' ? (
               <>
                 {/* Overview Page - All Regions */}
+                <ExecutiveSummary
+                  data={displayData}
+                  isOverview={true}
+                  regions={availableRegions}
+                />
                 <KPICards data={displayData} isMultiRegion={true} totalSubscribers={totalSubscribers} />
                 <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
                 <RegionCards
@@ -310,6 +316,11 @@ function App() {
             ) : (
               <>
                 {/* Region Detail Page */}
+                <ExecutiveSummary
+                  data={displayData}
+                  isOverview={false}
+                  currentRegion={currentRegion}
+                />
                 <KPICards
                   data={displayData}
                   isMultiRegion={false}
