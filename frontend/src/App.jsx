@@ -147,21 +147,18 @@ function App() {
     }
   }
 
+  // Convert audiences to a flat list for use across components
+  const audienceList = useMemo(() => {
+    if (!audiences) return [];
+    if (Array.isArray(audiences)) return audiences;
+    if (typeof audiences === 'object') {
+      return Object.values(audiences).flat().filter(Boolean);
+    }
+    return [];
+  }, [audiences]);
+
   // Calculate total subscribers (based on selected audience or all)
   const totalSubscribers = useMemo(() => {
-    if (!audiences) {
-      return null;
-    }
-
-    // audiences 可能是物件（按區域分組）或陣列
-    let audienceList = [];
-    if (Array.isArray(audiences)) {
-      audienceList = audiences;
-    } else if (typeof audiences === 'object') {
-      // 如果是按區域分組的物件，取得所有區域的 audiences
-      audienceList = Object.values(audiences).flat().filter(Boolean);
-    }
-
     if (audienceList.length === 0) {
       return null;
     }
@@ -178,7 +175,7 @@ function App() {
     }, 0);
 
     return total > 0 ? total : null;
-  }, [audiences, selectedAudience]);
+  }, [audienceList, selectedAudience]);
 
   return (
     <div className="min-h-screen bg-[#F6F6F4] p-4 md:p-8">
