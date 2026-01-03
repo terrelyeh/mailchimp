@@ -44,22 +44,15 @@ export default function ExecutiveSummary({
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <BarChart3 className="w-5 h-5 text-yellow-400" />
         <h2 className="font-bold text-base md:text-lg">Executive Summary</h2>
-        <div className="flex items-center gap-2 ml-auto text-xs">
-          {!isOverview && (
-            <span className="text-slate-300 bg-slate-600/50 px-2 py-1 rounded">
-              {audienceName}
-            </span>
-          )}
-          <span className="text-slate-400">
-            {isOverview ? 'Multi-Region Overview' : `${currentRegion?.name || 'Region'} Analysis`}
-          </span>
-        </div>
+        <span className="text-xs text-slate-400 ml-auto">
+          {isOverview ? 'Multi-Region Overview' : `${currentRegion?.name || 'Region'} Analysis`}
+        </span>
       </div>
 
       {isOverview ? (
         <OverviewContent metrics={metrics} />
       ) : (
-        <RegionContent metrics={metrics} currentRegion={currentRegion} />
+        <RegionContent metrics={metrics} currentRegion={currentRegion} audienceName={audienceName} />
       )}
     </div>
   );
@@ -336,7 +329,7 @@ function OverviewContent({ metrics }) {
 }
 
 // Region detail content component
-function RegionContent({ metrics, currentRegion }) {
+function RegionContent({ metrics, currentRegion, audienceName }) {
   return (
     <div className="space-y-4">
       {/* Sample Size Bar */}
@@ -348,6 +341,10 @@ function RegionContent({ metrics, currentRegion }) {
         <div>
           <span className="text-slate-400">Total Emails Sent:</span>{' '}
           <span className="font-semibold text-white">{metrics.totalSent.toLocaleString()}</span>
+        </div>
+        <div>
+          <span className="text-slate-400">Audience:</span>{' '}
+          <span className="font-semibold text-white">{audienceName}</span>
         </div>
       </div>
 

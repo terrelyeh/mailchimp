@@ -11,12 +11,12 @@ const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) =
 
     return (
         <th
-            className={`px-3 md:px-6 py-2 md:py-3 cursor-pointer hover:bg-gray-100 transition-colors select-none whitespace-nowrap ${align === 'right' ? 'text-right' : ''}`}
+            className={`px-2 md:px-4 py-2 cursor-pointer hover:bg-gray-100 transition-colors select-none whitespace-nowrap text-xs font-semibold text-gray-600 uppercase tracking-wide ${align === 'right' ? 'text-right' : ''}`}
             onClick={() => onSort(field)}
         >
             <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
                 <span>{label}</span>
-                <Icon className={`w-3 h-3 md:w-4 md:h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <Icon className={`w-3 h-3 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
             </div>
         </th>
     );
@@ -103,22 +103,22 @@ export default function CampaignList({ data }) {
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 flex justify-between items-center">
-                <div>
-                    <h3 className="font-bold text-gray-900 text-sm md:text-base">Recent Campaigns</h3>
-                    <p className="text-xs md:text-sm text-gray-500 mt-1">
-                        Total: {totalItems} campaign{totalItems !== 1 ? 's' : ''}
-                        {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
-                    </p>
+            <div className="px-4 md:px-5 py-3 border-b border-gray-100 flex justify-between items-center">
+                <div className="flex items-baseline gap-3">
+                    <h3 className="font-bold text-gray-900 text-base md:text-lg">Recent Campaigns</h3>
+                    <span className="text-xs text-gray-400">
+                        {totalItems} campaign{totalItems !== 1 ? 's' : ''}
+                        {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
+                    </span>
                 </div>
                 <span className="text-xs text-gray-400 md:hidden">← Scroll →</span>
             </div>
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs md:text-sm text-gray-500 min-w-[800px]">
-                    <thead className="bg-gray-50 text-gray-900 font-medium border-b border-gray-100">
+                <table className="w-full text-left text-xs text-gray-500 min-w-[800px]">
+                    <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
-                            <SortableHeader label="Campaign Name" field="title" currentSort={sort} onSort={handleSort} />
-                            <th className="px-3 md:px-6 py-2 md:py-3 whitespace-nowrap">Audience / Segment</th>
+                            <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
+                            <th className="px-2 md:px-4 py-2 whitespace-nowrap text-xs font-semibold text-gray-600 uppercase tracking-wide">Audience</th>
                             <SortableHeader label="Sent Time" field="send_time" currentSort={sort} onSort={handleSort} />
                             <SortableHeader label="Total Sent" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Delivery Rate" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
@@ -128,7 +128,7 @@ export default function CampaignList({ data }) {
                             <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody>
                         {currentData.map((campaign) => {
                             const bounceRate = campaign.emails_sent > 0
                                 ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
@@ -144,63 +144,54 @@ export default function CampaignList({ data }) {
                                 : null;
 
                             return (
-                            <tr key={campaign.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-3 md:px-6 py-3 md:py-4 font-medium text-gray-900">
+                            <tr key={campaign.id} className="hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+                                <td className="px-2 md:px-4 py-2.5 md:py-3">
                                     <div className="flex items-center group cursor-pointer">
-                                        {campaign.title}
-                                        <a href={campaign.archive_url} target="_blank" rel="noreferrer" className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className="font-semibold text-gray-900 text-sm">{campaign.title}</span>
+                                        <a href={campaign.archive_url} target="_blank" rel="noreferrer" className="ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <ExternalLink className="w-3 h-3 text-gray-400" />
                                         </a>
                                     </div>
-                                    <div className="text-xs text-gray-400 font-normal truncate max-w-[250px]">{campaign.subject_line}</div>
+                                    <div className="text-xs text-gray-400 truncate max-w-[220px]">{campaign.subject_line}</div>
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4">
-                                    <div className="space-y-1">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                            {campaign.audience_name || 'N/A'}
-                                        </span>
-                                        {segmentName && (
-                                            <div className="flex items-center gap-1 text-xs text-purple-600">
-                                                <Users className="w-3 h-3" />
-                                                <span className="truncate max-w-[150px]" title={segmentName}>
-                                                    {segmentName}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
+                                <td className="px-2 md:px-4 py-2.5 md:py-3">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                        {campaign.audience_name || 'N/A'}
+                                    </span>
+                                    {segmentName && (
+                                        <div className="flex items-center gap-1 text-xs text-purple-600 mt-0.5">
+                                            <Users className="w-3 h-3" />
+                                            <span className="truncate max-w-[120px]" title={segmentName}>{segmentName}</span>
+                                        </div>
+                                    )}
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4">
+                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-gray-600">
                                     {format(new Date(campaign.send_time), 'MMM dd, HH:mm')}
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4 text-right">
-                                    <span className="font-medium text-gray-900">
-                                        {campaign.emails_sent?.toLocaleString() || 0}
-                                    </span>
-                                    <div className="text-xs text-gray-400">emails</div>
+                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
+                                    <span className="font-semibold text-gray-900">{campaign.emails_sent?.toLocaleString() || 0}</span>
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4 text-right">
-                                    <span className="font-medium text-gray-900">{deliveryRate.toFixed(1)}%</span>
-                                    <div className="text-xs text-gray-400">{delivered.toLocaleString()} delivered</div>
+                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
+                                    <span className="font-semibold text-gray-900">{deliveryRate.toFixed(1)}%</span>
+                                    <div className="text-xs text-gray-400">{delivered.toLocaleString()}</div>
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4 text-right">
-                                    <span className="font-medium text-gray-900">{(campaign.open_rate * 100).toFixed(1)}%</span>
-                                    <div className="text-xs text-gray-400">{campaign.opens?.toLocaleString()} opens</div>
+                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
+                                    <span className="font-semibold text-gray-900">{(campaign.open_rate * 100).toFixed(1)}%</span>
+                                    <div className="text-xs text-gray-400">{campaign.opens?.toLocaleString()}</div>
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4 text-right">
-                                    <span className="font-medium text-gray-900">{(campaign.click_rate * 100).toFixed(1)}%</span>
-                                    <div className="text-xs text-gray-400">{campaign.clicks?.toLocaleString()} clicks</div>
+                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
+                                    <span className="font-semibold text-gray-900">{(campaign.click_rate * 100).toFixed(1)}%</span>
+                                    <div className="text-xs text-gray-400">{campaign.clicks?.toLocaleString()}</div>
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4 text-right">
-                                    <span className={`font-medium ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
+                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
+                                    <span className={`font-semibold ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
                                         {bounceRate.toFixed(1)}%
                                     </span>
-                                    <div className="text-xs text-gray-400">{campaign.bounces?.toLocaleString() || 0} bounces</div>
                                 </td>
-                                <td className="px-3 md:px-6 py-3 md:py-4 text-right">
-                                    <span className={`font-medium ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-900'}`}>
+                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
+                                    <span className={`font-semibold ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-900'}`}>
                                         {campaign.unsubscribed?.toLocaleString() || 0}
                                     </span>
-                                    <div className="text-xs text-gray-400">unsubs</div>
                                 </td>
                             </tr>
                         )})}
@@ -210,9 +201,9 @@ export default function CampaignList({ data }) {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                    <div className="text-sm text-gray-500">
-                        Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems}
+                <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                        {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems}
                     </div>
                     <div className="flex items-center gap-2">
                         <button
