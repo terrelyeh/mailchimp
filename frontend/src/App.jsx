@@ -20,7 +20,7 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [useMock, setUseMock] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState(null);
-  const [selectedDays, setSelectedDays] = useState(60);
+  const [selectedDays, setSelectedDays] = useState(90);
   const [customDateRange, setCustomDateRange] = useState(null); // Custom date range { start, end }
   const [view, setView] = useState('overview'); // 'overview' or 'region-detail'
   const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
