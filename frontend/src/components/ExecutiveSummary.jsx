@@ -13,7 +13,9 @@ export default function ExecutiveSummary({
   data,
   isOverview = true,
   regions = [],
-  currentRegion = null
+  currentRegion = null,
+  selectedAudience = null,
+  audienceList = []
 }) {
   // Calculate metrics for all views
   const metrics = useMemo(() => {
@@ -32,14 +34,26 @@ export default function ExecutiveSummary({
     return null;
   }
 
+  // Get audience name for display
+  const audienceName = selectedAudience
+    ? audienceList.find(a => a.id === selectedAudience)?.name || 'Selected Audience'
+    : 'All Audiences';
+
   return (
     <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-4 md:p-6 mb-6 text-white">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <BarChart3 className="w-5 h-5 text-yellow-400" />
         <h2 className="font-bold text-base md:text-lg">Executive Summary</h2>
-        <span className="text-xs text-slate-400 ml-auto">
-          {isOverview ? 'Multi-Region Overview' : `${currentRegion?.name || 'Region'} Analysis`}
-        </span>
+        <div className="flex items-center gap-2 ml-auto text-xs">
+          {!isOverview && (
+            <span className="text-slate-300 bg-slate-600/50 px-2 py-1 rounded">
+              {audienceName}
+            </span>
+          )}
+          <span className="text-slate-400">
+            {isOverview ? 'Multi-Region Overview' : `${currentRegion?.name || 'Region'} Analysis`}
+          </span>
+        </div>
       </div>
 
       {isOverview ? (
