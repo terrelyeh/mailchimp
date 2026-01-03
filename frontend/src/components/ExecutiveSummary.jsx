@@ -141,7 +141,8 @@ function calculateOverviewMetrics(data, regions) {
     overallAvgOpenRate,
     overallAvgClickRate,
     alerts,
-    totalCampaigns: allCampaigns.length
+    totalCampaigns: allCampaigns.length,
+    totalSent: allCampaigns.reduce((acc, c) => acc + (c.emails_sent || 0), 0)
   };
 }
 
@@ -213,98 +214,126 @@ function calculateRegionMetrics(data, currentRegion) {
     clickRateVsBenchmark,
     issues,
     wins,
-    campaignCount: campaigns.length
+    campaignCount: campaigns.length,
+    totalSent
   };
 }
 
 // Overview content component
 function OverviewContent({ metrics }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-      {/* Best Performing Region */}
-      <div className="bg-white/10 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Crown className="w-4 h-4 text-yellow-400" />
-          <span className="text-xs text-slate-300 uppercase tracking-wide">Top Region</span>
+    <div className="space-y-4">
+      {/* Overall Stats Bar */}
+      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300 pb-3 border-b border-slate-600">
+        <div>
+          <span className="text-slate-400">Total Campaigns:</span>{' '}
+          <span className="font-semibold text-white">{metrics.totalCampaigns}</span>
         </div>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
-          <span className="font-bold text-lg">{metrics.bestRegion.info.name}</span>
+        <div>
+          <span className="text-slate-400">Total Sent:</span>{' '}
+          <span className="font-semibold text-white">{metrics.totalSent.toLocaleString()}</span>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="text-slate-400">Open Rate</span>
-            <div className="font-semibold text-green-400">
-              {(metrics.bestRegion.avgOpenRate * 100).toFixed(1)}%
-            </div>
-          </div>
-          <div>
-            <span className="text-slate-400">Click Rate</span>
-            <div className="font-semibold text-green-400">
-              {(metrics.bestRegion.avgClickRate * 100).toFixed(1)}%
-            </div>
-          </div>
+        <div>
+          <span className="text-slate-400">Regions:</span>{' '}
+          <span className="font-semibold text-white">{metrics.regionStats.length}</span>
         </div>
       </div>
 
-      {/* Needs Attention Region */}
-      {metrics.worstRegion && metrics.regionStats.length > 1 && (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        {/* Best Performing Region */}
         <div className="bg-white/10 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Target className="w-4 h-4 text-orange-400" />
-            <span className="text-xs text-slate-300 uppercase tracking-wide">Needs Attention</span>
+            <Crown className="w-4 h-4 text-yellow-400" />
+            <span className="text-xs text-slate-300 uppercase tracking-wide">Top Region</span>
           </div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
-            <span className="font-bold text-lg">{metrics.worstRegion.info.name}</span>
+            <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
+            <span className="font-bold text-lg">{metrics.bestRegion.info.name}</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-2 gap-2 text-sm mb-2">
             <div>
               <span className="text-slate-400">Open Rate</span>
-              <div className="font-semibold text-orange-400">
-                {(metrics.worstRegion.avgOpenRate * 100).toFixed(1)}%
+              <div className="font-semibold text-green-400">
+                {(metrics.bestRegion.avgOpenRate * 100).toFixed(1)}%
               </div>
             </div>
             <div>
               <span className="text-slate-400">Click Rate</span>
-              <div className="font-semibold text-orange-400">
-                {(metrics.worstRegion.avgClickRate * 100).toFixed(1)}%
+              <div className="font-semibold text-green-400">
+                {(metrics.bestRegion.avgClickRate * 100).toFixed(1)}%
               </div>
             </div>
           </div>
+          <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
+            {metrics.bestRegion.campaigns} campaigns · {metrics.bestRegion.totalSent.toLocaleString()} sent
+          </div>
         </div>
-      )}
 
-      {/* Top Campaign */}
-      {metrics.topCampaign && (
-        <div className="bg-white/10 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Award className="w-4 h-4 text-blue-400" />
-            <span className="text-xs text-slate-300 uppercase tracking-wide">Best Campaign</span>
-          </div>
-          <div className="mb-2">
-            <div className="font-semibold text-sm line-clamp-2">
-              {metrics.topCampaign.title}
+        {/* Needs Attention Region */}
+        {metrics.worstRegion && metrics.regionStats.length > 1 && (
+          <div className="bg-white/10 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="w-4 h-4 text-orange-400" />
+              <span className="text-xs text-slate-300 uppercase tracking-wide">Needs Attention</span>
             </div>
-            <div className="text-xs text-slate-400 mt-1">
-              {metrics.topCampaignRegion?.flag} {metrics.topCampaignRegion?.name}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
+              <span className="font-bold text-lg">{metrics.worstRegion.info.name}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+              <div>
+                <span className="text-slate-400">Open Rate</span>
+                <div className="font-semibold text-orange-400">
+                  {(metrics.worstRegion.avgOpenRate * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400">Click Rate</span>
+                <div className="font-semibold text-orange-400">
+                  {(metrics.worstRegion.avgClickRate * 100).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
+              {metrics.worstRegion.campaigns} campaigns · {metrics.worstRegion.totalSent.toLocaleString()} sent
             </div>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-green-400" />
-              <span className="font-semibold text-green-400">
-                {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
-              </span>
-              <span className="text-slate-400 text-xs">open</span>
+        )}
+
+        {/* Top Campaign */}
+        {metrics.topCampaign && (
+          <div className="bg-white/10 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Award className="w-4 h-4 text-blue-400" />
+              <span className="text-xs text-slate-300 uppercase tracking-wide">Best Campaign</span>
+            </div>
+            <div className="mb-2">
+              <div className="font-semibold text-sm line-clamp-2">
+                {metrics.topCampaign.title}
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                {metrics.topCampaignRegion?.flag} {metrics.topCampaignRegion?.name}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-sm mb-2">
+              <div className="flex items-center gap-1">
+                <TrendingUp className="w-3 h-3 text-green-400" />
+                <span className="font-semibold text-green-400">
+                  {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
+                </span>
+                <span className="text-slate-400 text-xs">open</span>
+              </div>
+            </div>
+            <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
+              {(metrics.topCampaign.emails_sent || 0).toLocaleString()} emails sent
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Alerts Section - Full Width */}
       {metrics.alerts.length > 0 && (
-        <div className="md:col-span-3 bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-red-400" />
             <span className="text-sm font-medium text-red-300">Alerts</span>
@@ -326,6 +355,18 @@ function OverviewContent({ metrics }) {
 function RegionContent({ metrics, currentRegion }) {
   return (
     <div className="space-y-4">
+      {/* Sample Size Bar */}
+      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300 pb-3 border-b border-slate-600">
+        <div>
+          <span className="text-slate-400">Campaigns Analyzed:</span>{' '}
+          <span className="font-semibold text-white">{metrics.campaignCount}</span>
+        </div>
+        <div>
+          <span className="text-slate-400">Total Emails Sent:</span>{' '}
+          <span className="font-semibold text-white">{metrics.totalSent.toLocaleString()}</span>
+        </div>
+      </div>
+
       {/* Performance vs Benchmark */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <MetricCard
@@ -347,8 +388,13 @@ function RegionContent({ metrics, currentRegion }) {
           actual={metrics.deliveryRate}
         />
         <div className="bg-white/10 rounded-lg p-3">
-          <div className="text-xs text-slate-400 mb-1">Campaigns</div>
-          <div className="text-xl font-bold">{metrics.campaignCount}</div>
+          <div className="text-xs text-slate-400 mb-1">Avg per Campaign</div>
+          <div className="text-xl font-bold">
+            {metrics.campaignCount > 0
+              ? Math.round(metrics.totalSent / metrics.campaignCount).toLocaleString()
+              : 0}
+          </div>
+          <div className="text-xs text-slate-400">emails</div>
         </div>
       </div>
 
