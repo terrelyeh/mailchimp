@@ -6,8 +6,11 @@ import {
 import { getRegionInfo } from '../mockData';
 
 // Minimum thresholds for statistical significance
+// Home Dashboard: Region-level comparison (higher threshold)
 const MIN_SENT_THRESHOLD = 100;
 const MIN_CAMPAIGNS_THRESHOLD = 3;
+// Second Level: Individual campaign comparison (lower threshold)
+const MIN_CAMPAIGN_SENT_THRESHOLD = 50;
 
 /**
  * ExecutiveSummary - Management-level insights
@@ -205,19 +208,19 @@ function hasInsufficientData(region) {
   return region.totalSent < MIN_SENT_THRESHOLD || region.campaigns < MIN_CAMPAIGNS_THRESHOLD;
 }
 
-// Insufficient data card component
+// Insufficient data card component (Home Dashboard - region level)
 function InsufficientDataCard({ title, icon: Icon, iconColor }) {
   return (
-    <div className="bg-white/10 rounded-lg p-4 opacity-60 shadow-lg ring-1 ring-white/10">
+    <div className="bg-white/10 rounded-lg p-4 opacity-70 shadow-lg ring-1 ring-white/10">
       <div className="flex items-center gap-2 mb-3">
         <Icon className={`w-4 h-4 ${iconColor}`} />
         <span className="text-xs text-slate-300 uppercase tracking-wide">{title}</span>
       </div>
       <div className="flex items-center gap-2 mb-2">
-        <Info className="w-5 h-5 text-slate-400" />
-        <span className="font-semibold text-slate-400">Insufficient Data</span>
+        <Info className="w-5 h-5 text-slate-300" />
+        <span className="font-semibold text-slate-300">Insufficient Data</span>
       </div>
-      <div className="text-xs text-slate-500 mt-2">
+      <div className="text-xs text-slate-400 mt-2">
         Requires ≥{MIN_SENT_THRESHOLD} sent or ≥{MIN_CAMPAIGNS_THRESHOLD} campaigns
       </div>
     </div>
@@ -372,10 +375,11 @@ function OverviewContent({ metrics }) {
 
 // Region detail content component
 function RegionContent({ metrics, currentRegion, audienceName }) {
-  // Check if region has sufficient data
+  // Check if region has sufficient data (uses region-level threshold)
   const regionHasData = metrics.totalSent >= MIN_SENT_THRESHOLD || metrics.campaignCount >= MIN_CAMPAIGNS_THRESHOLD;
-  const topCampaignHasData = metrics.topCampaign && (metrics.topCampaign.emails_sent || 0) >= MIN_SENT_THRESHOLD;
-  const bottomCampaignHasData = metrics.bottomCampaign && (metrics.bottomCampaign.emails_sent || 0) >= MIN_SENT_THRESHOLD;
+  // Individual campaign comparison uses lower threshold (50 vs 100)
+  const topCampaignHasData = metrics.topCampaign && (metrics.topCampaign.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD;
+  const bottomCampaignHasData = metrics.bottomCampaign && (metrics.bottomCampaign.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD;
 
   return (
     <div className="space-y-4">
@@ -466,17 +470,17 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
             </div>
           </div>
         ) : (
-          <div className="bg-green-500/5 border border-green-500/10 rounded-lg p-4 opacity-60 shadow-lg">
+          <div className="bg-green-500/5 border border-green-500/10 rounded-lg p-4 opacity-70 shadow-lg">
             <div className="flex items-center gap-2 mb-2">
-              <Crown className="w-4 h-4 text-green-400/50" />
-              <span className="text-xs text-green-300/50 uppercase tracking-wide">Top Performer</span>
+              <Crown className="w-4 h-4 text-green-400/60" />
+              <span className="text-xs text-green-300/60 uppercase tracking-wide">Top Performer</span>
             </div>
             <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-slate-500" />
-              <span className="text-sm text-slate-500">Insufficient Data</span>
+              <Info className="w-4 h-4 text-slate-300" />
+              <span className="text-sm text-slate-300">Insufficient Data</span>
             </div>
-            <div className="text-xs text-slate-600 mt-1">
-              Requires ≥{MIN_SENT_THRESHOLD} emails sent
+            <div className="text-xs text-slate-400 mt-1">
+              Requires ≥{MIN_CAMPAIGN_SENT_THRESHOLD} emails sent
             </div>
           </div>
         )}
@@ -514,17 +518,17 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
               </div>
             </div>
           ) : (
-            <div className="bg-orange-500/5 border border-orange-500/10 rounded-lg p-4 opacity-60 shadow-lg">
+            <div className="bg-orange-500/5 border border-orange-500/10 rounded-lg p-4 opacity-70 shadow-lg">
               <div className="flex items-center gap-2 mb-2">
-                <ThumbsDown className="w-4 h-4 text-orange-400/50" />
-                <span className="text-xs text-orange-300/50 uppercase tracking-wide">Needs Review</span>
+                <ThumbsDown className="w-4 h-4 text-orange-400/60" />
+                <span className="text-xs text-orange-300/60 uppercase tracking-wide">Needs Review</span>
               </div>
               <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 text-slate-500" />
-                <span className="text-sm text-slate-500">Insufficient Data</span>
+                <Info className="w-4 h-4 text-slate-300" />
+                <span className="text-sm text-slate-300">Insufficient Data</span>
               </div>
-              <div className="text-xs text-slate-600 mt-1">
-                Requires ≥{MIN_SENT_THRESHOLD} emails sent
+              <div className="text-xs text-slate-400 mt-1">
+                Requires ≥{MIN_CAMPAIGN_SENT_THRESHOLD} emails sent
               </div>
             </div>
           )
