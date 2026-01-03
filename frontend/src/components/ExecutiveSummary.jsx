@@ -12,6 +12,13 @@ const MIN_CAMPAIGNS_THRESHOLD = 3;
 // Second Level: Individual campaign comparison (lower threshold)
 const MIN_CAMPAIGN_SENT_THRESHOLD = 50;
 
+// Absolute thresholds for "Needs Review" criteria
+const NEEDS_REVIEW_THRESHOLDS = {
+  openRate: 0.20,      // < 20% open rate
+  clickRate: 0.02,     // < 2% click rate
+  deliveryRate: 0.90   // < 90% delivery rate
+};
+
 /**
  * ExecutiveSummary - Management-level insights
  * Works for both Overview (all regions) and Region Detail views
@@ -175,10 +182,33 @@ function calculateRegionMetrics(data, currentRegion) {
   const bounceRate = totalSent > 0 ? totalBounces / totalSent : 0;
   const unsubRate = totalSent > 0 ? totalUnsubs / totalSent : 0;
 
-  // Sort campaigns by open rate
+  // Find top performer (highest open rate)
   const sortedByOpenRate = [...campaigns].sort((a, b) => (b.open_rate || 0) - (a.open_rate || 0));
   const topCampaign = sortedByOpenRate[0];
-  const bottomCampaign = sortedByOpenRate[sortedByOpenRate.length - 1];
+
+  // Find "Needs Review" campaign using absolute thresholds
+  // Criteria: Open < 20% OR Click < 2% OR Delivery < 90%
+  const campaignsNeedingReview = campaigns.filter(c => {
+    const deliveryRate = c.emails_sent > 0
+      ? (c.emails_sent - (c.bounces || 0)) / c.emails_sent
+      : 1;
+    return (
+      (c.open_rate || 0) < NEEDS_REVIEW_THRESHOLDS.openRate ||
+      (c.click_rate || 0) < NEEDS_REVIEW_THRESHOLDS.clickRate ||
+      deliveryRate < NEEDS_REVIEW_THRESHOLDS.deliveryRate
+    );
+  });
+
+  // Pick the worst one (lowest composite score) from campaigns needing review
+  const bottomCampaign = campaignsNeedingReview.length > 0
+    ? campaignsNeedingReview.sort((a, b) => {
+        const aDelivery = a.emails_sent > 0 ? (a.emails_sent - (a.bounces || 0)) / a.emails_sent : 1;
+        const bDelivery = b.emails_sent > 0 ? (b.emails_sent - (b.bounces || 0)) / b.emails_sent : 1;
+        const aScore = (a.open_rate || 0) * 0.4 + (a.click_rate || 0) * 0.3 + aDelivery * 0.3;
+        const bScore = (b.open_rate || 0) * 0.4 + (b.click_rate || 0) * 0.3 + bDelivery * 0.3;
+        return aScore - bScore; // ascending, worst first
+      })[0]
+    : null; // No campaign needs review - all performing well!
 
   // Identify issues (based on absolute thresholds, not industry benchmarks)
   const issues = [];
@@ -512,9 +542,23 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
           </div>
         )}
 
-        {/* Worst Campaign */}
+        {/* Needs Review Campaign */}
         {metrics.campaignCount > 1 && (
-          bottomCampaignHasData ? (
+          !metrics.bottomCampaign ? (
+            // All campaigns performing well - no one needs review!
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 shadow-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Crown className="w-4 h-4 text-green-400" />
+                <span className="text-xs text-green-300 uppercase tracking-wide">All Performing Well</span>
+              </div>
+              <div className="text-sm text-green-300">
+                No campaigns below threshold
+              </div>
+              <div className="text-xs text-slate-400 mt-2">
+                Open ≥20%, Click ≥2%, Delivery ≥90%
+              </div>
+            </div>
+          ) : bottomCampaignHasData ? (
             <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 shadow-lg ring-1 ring-orange-500/20 hover:bg-orange-500/15 transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <ThumbsDown className="w-4 h-4 text-orange-400" />
@@ -526,19 +570,19 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <span className="text-slate-400 text-xs">Open</span>
-                  <div className="font-semibold text-orange-400">
+                  <div className={`font-semibold ${(metrics.bottomCampaign.open_rate || 0) < NEEDS_REVIEW_THRESHOLDS.openRate ? 'text-red-400' : 'text-orange-400'}`}>
                     {((metrics.bottomCampaign.open_rate || 0) * 100).toFixed(1)}%
                   </div>
                 </div>
                 <div>
                   <span className="text-slate-400 text-xs">Click</span>
-                  <div className="font-semibold text-orange-400">
+                  <div className={`font-semibold ${(metrics.bottomCampaign.click_rate || 0) < NEEDS_REVIEW_THRESHOLDS.clickRate ? 'text-red-400' : 'text-orange-400'}`}>
                     {((metrics.bottomCampaign.click_rate || 0) * 100).toFixed(1)}%
                   </div>
                 </div>
                 <div>
                   <span className="text-slate-400 text-xs">Delivery</span>
-                  <div className="font-semibold text-orange-400">
+                  <div className={`font-semibold ${((metrics.bottomCampaign.emails_sent - (metrics.bottomCampaign.bounces || 0)) / metrics.bottomCampaign.emails_sent) < NEEDS_REVIEW_THRESHOLDS.deliveryRate ? 'text-red-400' : 'text-orange-400'}`}>
                     {((metrics.bottomCampaign.emails_sent - (metrics.bottomCampaign.bounces || 0)) / metrics.bottomCampaign.emails_sent * 100).toFixed(1)}%
                   </div>
                 </div>
