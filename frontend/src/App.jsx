@@ -10,8 +10,10 @@ import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import ExportButton from './components/ExportButton';
 import ExecutiveSummary from './components/ExecutiveSummary';
+import SettingsModal from './components/SettingsModal';
+import { ThresholdProvider } from './contexts/ThresholdContext';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
-import { RefreshCw, ArrowLeft, Activity } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Activity, Settings } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
@@ -27,6 +29,7 @@ function App() {
   const [audiences, setAudiences] = useState([]); // Available audiences
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
+  const [settingsOpen, setSettingsOpen] = useState(false); // Settings modal state
   const [lastFetchTime, setLastFetchTime] = useState(null); // Last data fetch timestamp
 
   // Ref for export functionality
@@ -250,6 +253,14 @@ function App() {
               >
                 <Activity className="w-4 h-4" />
               </button>
+
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Alert Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
@@ -357,8 +368,22 @@ function App() {
         selectedDays={selectedDays}
         onForceRefresh={() => loadData(true)}
       />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   );
 }
 
-export default App;
+function AppWithProviders() {
+  return (
+    <ThresholdProvider>
+      <App />
+    </ThresholdProvider>
+  );
+}
+
+export default AppWithProviders;

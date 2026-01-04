@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getRegionInfo } from '../mockData';
+import { useThresholds } from '../contexts/ThresholdContext';
 
 // Minimum thresholds for statistical significance
 // Home Dashboard: Region-level comparison (higher threshold)
@@ -32,18 +33,22 @@ export default function ExecutiveSummary({
   selectedAudience = null,
   audienceList = []
 }) {
+  // Get thresholds from context
+  const { getThresholdsForCalculation } = useThresholds();
+  const alertThresholds = getThresholdsForCalculation();
+
   // Calculate metrics for all views
   const metrics = useMemo(() => {
     if (!data) return null;
 
     if (isOverview) {
       // Overview mode - compare regions
-      return calculateOverviewMetrics(data, regions);
+      return calculateOverviewMetrics(data, regions, alertThresholds);
     } else {
       // Region detail mode - analyze single region
       return calculateRegionMetrics(data, currentRegion);
     }
-  }, [data, isOverview, regions, currentRegion]);
+  }, [data, isOverview, regions, currentRegion, alertThresholds]);
 
   if (!metrics) {
     return null;
@@ -74,8 +79,10 @@ export default function ExecutiveSummary({
 }
 
 // Calculate metrics for overview (all regions)
-function calculateOverviewMetrics(data, regions) {
+function calculateOverviewMetrics(data, regions, alertThresholds) {
   const regionStats = [];
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   // Calculate stats for each region
   Object.entries(data).forEach(([regionCode, campaigns]) => {
@@ -91,6 +98,10 @@ function calculateOverviewMetrics(data, regions) {
     const avgClickRate = campaigns.reduce((acc, c) => acc + (c.click_rate || 0), 0) / campaigns.length;
     const deliveryRate = totalSent > 0 ? (totalSent - totalBounces) / totalSent : 0;
 
+    // Count campaigns in last 30 days
+    const recentCampaigns = campaigns.filter(c => new Date(c.send_time) >= thirtyDaysAgo);
+    const campaignsLast30Days = recentCampaigns.length;
+
     // Find best campaign in this region
     const bestCampaign = campaigns.reduce((best, curr) =>
       (curr.open_rate || 0) > (best.open_rate || 0) ? curr : best
@@ -105,6 +116,7 @@ function calculateOverviewMetrics(data, regions) {
       code: regionCode,
       info: getRegionInfo(regionCode),
       campaigns: campaigns.length,
+      campaignsLast30Days,
       totalSent,
       avgOpenRate,
       avgClickRate,
@@ -153,12 +165,31 @@ function calculateOverviewMetrics(data, regions) {
   // Identify alerts
   const alerts = [];
   regionStats.forEach(r => {
-    if (r.bounceRate > 0.05) {
-      alerts.push({ region: r.info.name, type: 'bounce', value: r.bounceRate });
+    // High bounce rate
+    if (r.bounceRate > alertThresholds.bounceRate) {
+      alerts.push({ region: r.info.name, type: 'bounce', value: r.bounceRate, severity: 'high' });
     }
-    if (r.unsubRate > 0.01) {
-      alerts.push({ region: r.info.name, type: 'unsub', value: r.unsubRate });
+    // High unsub rate
+    if (r.unsubRate > alertThresholds.unsubRate) {
+      alerts.push({ region: r.info.name, type: 'unsub', value: r.unsubRate, severity: 'high' });
     }
+    // Low activity (< X campaigns in last 30 days)
+    if (r.campaignsLast30Days < alertThresholds.lowActivityCampaigns) {
+      alerts.push({ region: r.info.name, type: 'lowActivity', value: r.campaignsLast30Days, severity: 'medium' });
+    }
+    // Low engagement (open < X% OR click < X%)
+    if (r.avgOpenRate < alertThresholds.lowOpenRate || r.avgClickRate < alertThresholds.lowClickRate) {
+      const reason = r.avgOpenRate < alertThresholds.lowOpenRate ? 'open' : 'click';
+      const value = reason === 'open' ? r.avgOpenRate : r.avgClickRate;
+      alerts.push({ region: r.info.name, type: 'lowEngagement', reason, value, severity: 'medium' });
+    }
+  });
+
+  // Sort alerts by severity (high first)
+  alerts.sort((a, b) => {
+    if (a.severity === 'high' && b.severity !== 'high') return -1;
+    if (a.severity !== 'high' && b.severity === 'high') return 1;
+    return 0;
   });
 
   // Find inactive regions (>30 days since last campaign)
@@ -469,16 +500,40 @@ function OverviewContent({ metrics }) {
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-red-400" />
                 <span className="text-sm font-medium text-red-300">Alerts</span>
+                <span className="text-xs text-red-400/60 ml-1">({metrics.alerts.length})</span>
               </div>
               <div className="space-y-2">
-                {metrics.alerts.slice(0, 5).map((alert, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                    <span className="text-sm text-white">{alert.region}</span>
-                    <span className="text-xs text-red-300">
-                      {alert.type === 'bounce' ? 'High bounce' : 'High unsub'} ({(alert.value * 100).toFixed(1)}%)
-                    </span>
-                  </div>
-                ))}
+                {metrics.alerts.slice(0, 6).map((alert, i) => {
+                  // Format alert message based on type
+                  let message = '';
+                  let colorClass = alert.severity === 'high' ? 'text-red-300' : 'text-orange-300';
+
+                  switch (alert.type) {
+                    case 'bounce':
+                      message = `High bounce (${(alert.value * 100).toFixed(1)}%)`;
+                      break;
+                    case 'unsub':
+                      message = `High unsub (${(alert.value * 100).toFixed(1)}%)`;
+                      break;
+                    case 'lowActivity':
+                      message = `Low activity (${alert.value} campaigns/30d)`;
+                      break;
+                    case 'lowEngagement':
+                      message = alert.reason === 'open'
+                        ? `Low open (${(alert.value * 100).toFixed(1)}%)`
+                        : `Low click (${(alert.value * 100).toFixed(1)}%)`;
+                      break;
+                    default:
+                      message = 'Unknown alert';
+                  }
+
+                  return (
+                    <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                      <span className="text-sm text-white">{alert.region}</span>
+                      <span className={`text-xs ${colorClass}`}>{message}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
