@@ -21,14 +21,21 @@ export default function DashboardCharts({ data }) {
     const sortedData = [...data].sort((a, b) => new Date(a.send_time) - new Date(b.send_time));
 
     // Prepare data for Line Chart (aggregated by day if needed, but for now simple linear)
-    const lineData = sortedData.map(c => ({
-        date: format(new Date(c.send_time), 'MMM dd'),
-        fullDate: format(new Date(c.send_time), 'yyyy-MM-dd'),
-        openRate: (c.open_rate * 100),
-        clickRate: (c.click_rate * 100),
-        title: c.title,
-        emailsSent: c.emails_sent || 0
-    }));
+    const lineData = sortedData.map(c => {
+        const emailsSent = c.emails_sent || 0;
+        const bounces = c.bounces || 0;
+        const deliveryRate = emailsSent > 0 ? ((emailsSent - bounces) / emailsSent) * 100 : 0;
+
+        return {
+            date: format(new Date(c.send_time), 'MMM dd'),
+            fullDate: format(new Date(c.send_time), 'yyyy-MM-dd'),
+            openRate: (c.open_rate * 100),
+            clickRate: (c.click_rate * 100),
+            deliveryRate: deliveryRate,
+            title: c.title || c.subject_line || 'Untitled Campaign',
+            emailsSent: emailsSent
+        };
+    });
 
     // Custom tooltip for Line Chart
     const CustomLineTooltip = ({ active, payload, label }) => {
@@ -47,6 +54,10 @@ export default function DashboardCharts({ data }) {
                         <div className="flex justify-between items-center">
                             <span className="text-xs text-gray-500">Click Rate</span>
                             <span className="text-sm font-semibold text-[#007C89]">{data.clickRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500">Delivery Rate</span>
+                            <span className="text-sm font-semibold text-[#8B5CF6]">{data.deliveryRate.toFixed(1)}%</span>
                         </div>
                         <div className="flex justify-between items-center pt-1 border-t border-gray-100 mt-1">
                             <span className="text-xs text-gray-500">Total Sent</span>
@@ -98,6 +109,7 @@ export default function DashboardCharts({ data }) {
                             <RechartsTooltip content={<CustomLineTooltip />} />
                             <Line type="monotone" dataKey="openRate" stroke="#FFE01B" strokeWidth={3} dot={{ r: 4, fill: '#FFE01B' }} activeDot={{ r: 6 }} name="Open Rate" />
                             <Line type="monotone" dataKey="clickRate" stroke="#007C89" strokeWidth={3} dot={{ r: 4, fill: '#007C89' }} activeDot={{ r: 6 }} name="Click Rate" />
+                            <Line type="monotone" dataKey="deliveryRate" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 3, fill: '#8B5CF6' }} activeDot={{ r: 5 }} name="Delivery Rate" strokeDasharray="5 5" />
                         </LineChart>
                     </ResponsiveContainer>
                 ) : (
