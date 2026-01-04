@@ -73,9 +73,20 @@ export default function ExecutiveSummary({
   );
 }
 
+// Alert thresholds
+const ALERT_THRESHOLDS = {
+  bounceRate: 0.05,         // > 5% bounce rate
+  unsubRate: 0.01,          // > 1% unsub rate
+  lowActivityCampaigns: 2,  // < 2 campaigns in last 30 days
+  lowOpenRate: 0.15,        // < 15% open rate
+  lowClickRate: 0.01        // < 1% click rate
+};
+
 // Calculate metrics for overview (all regions)
 function calculateOverviewMetrics(data, regions) {
   const regionStats = [];
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   // Calculate stats for each region
   Object.entries(data).forEach(([regionCode, campaigns]) => {
@@ -91,6 +102,10 @@ function calculateOverviewMetrics(data, regions) {
     const avgClickRate = campaigns.reduce((acc, c) => acc + (c.click_rate || 0), 0) / campaigns.length;
     const deliveryRate = totalSent > 0 ? (totalSent - totalBounces) / totalSent : 0;
 
+    // Count campaigns in last 30 days
+    const recentCampaigns = campaigns.filter(c => new Date(c.send_time) >= thirtyDaysAgo);
+    const campaignsLast30Days = recentCampaigns.length;
+
     // Find best campaign in this region
     const bestCampaign = campaigns.reduce((best, curr) =>
       (curr.open_rate || 0) > (best.open_rate || 0) ? curr : best
@@ -105,6 +120,7 @@ function calculateOverviewMetrics(data, regions) {
       code: regionCode,
       info: getRegionInfo(regionCode),
       campaigns: campaigns.length,
+      campaignsLast30Days,
       totalSent,
       avgOpenRate,
       avgClickRate,
@@ -153,12 +169,31 @@ function calculateOverviewMetrics(data, regions) {
   // Identify alerts
   const alerts = [];
   regionStats.forEach(r => {
-    if (r.bounceRate > 0.05) {
-      alerts.push({ region: r.info.name, type: 'bounce', value: r.bounceRate });
+    // High bounce rate
+    if (r.bounceRate > ALERT_THRESHOLDS.bounceRate) {
+      alerts.push({ region: r.info.name, type: 'bounce', value: r.bounceRate, severity: 'high' });
     }
-    if (r.unsubRate > 0.01) {
-      alerts.push({ region: r.info.name, type: 'unsub', value: r.unsubRate });
+    // High unsub rate
+    if (r.unsubRate > ALERT_THRESHOLDS.unsubRate) {
+      alerts.push({ region: r.info.name, type: 'unsub', value: r.unsubRate, severity: 'high' });
     }
+    // Low activity (< 2 campaigns in last 30 days)
+    if (r.campaignsLast30Days < ALERT_THRESHOLDS.lowActivityCampaigns) {
+      alerts.push({ region: r.info.name, type: 'lowActivity', value: r.campaignsLast30Days, severity: 'medium' });
+    }
+    // Low engagement (open < 15% OR click < 1%)
+    if (r.avgOpenRate < ALERT_THRESHOLDS.lowOpenRate || r.avgClickRate < ALERT_THRESHOLDS.lowClickRate) {
+      const reason = r.avgOpenRate < ALERT_THRESHOLDS.lowOpenRate ? 'open' : 'click';
+      const value = reason === 'open' ? r.avgOpenRate : r.avgClickRate;
+      alerts.push({ region: r.info.name, type: 'lowEngagement', reason, value, severity: 'medium' });
+    }
+  });
+
+  // Sort alerts by severity (high first)
+  alerts.sort((a, b) => {
+    if (a.severity === 'high' && b.severity !== 'high') return -1;
+    if (a.severity !== 'high' && b.severity === 'high') return 1;
+    return 0;
   });
 
   // Find inactive regions (>30 days since last campaign)
@@ -469,16 +504,40 @@ function OverviewContent({ metrics }) {
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-red-400" />
                 <span className="text-sm font-medium text-red-300">Alerts</span>
+                <span className="text-xs text-red-400/60 ml-1">({metrics.alerts.length})</span>
               </div>
               <div className="space-y-2">
-                {metrics.alerts.slice(0, 5).map((alert, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                    <span className="text-sm text-white">{alert.region}</span>
-                    <span className="text-xs text-red-300">
-                      {alert.type === 'bounce' ? 'High bounce' : 'High unsub'} ({(alert.value * 100).toFixed(1)}%)
-                    </span>
-                  </div>
-                ))}
+                {metrics.alerts.slice(0, 6).map((alert, i) => {
+                  // Format alert message based on type
+                  let message = '';
+                  let colorClass = alert.severity === 'high' ? 'text-red-300' : 'text-orange-300';
+
+                  switch (alert.type) {
+                    case 'bounce':
+                      message = `High bounce (${(alert.value * 100).toFixed(1)}%)`;
+                      break;
+                    case 'unsub':
+                      message = `High unsub (${(alert.value * 100).toFixed(1)}%)`;
+                      break;
+                    case 'lowActivity':
+                      message = `Low activity (${alert.value} campaigns/30d)`;
+                      break;
+                    case 'lowEngagement':
+                      message = alert.reason === 'open'
+                        ? `Low open (${(alert.value * 100).toFixed(1)}%)`
+                        : `Low click (${(alert.value * 100).toFixed(1)}%)`;
+                      break;
+                    default:
+                      message = 'Unknown alert';
+                  }
+
+                  return (
+                    <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                      <span className="text-sm text-white">{alert.region}</span>
+                      <span className={`text-xs ${colorClass}`}>{message}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
