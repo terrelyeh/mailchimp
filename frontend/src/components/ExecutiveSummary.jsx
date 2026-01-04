@@ -431,49 +431,57 @@ function OverviewContent({ metrics }) {
         )}
       </div>
 
-      {/* Inactive Regions - Full Width */}
-      {metrics.inactiveRegions && metrics.inactiveRegions.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="w-4 h-4 text-amber-400" />
-            <span className="text-sm font-medium text-amber-300">Inactive Regions</span>
-            <span className="text-xs text-amber-400/60 ml-1">(&gt;30 days since last campaign)</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {metrics.inactiveRegions.map((region, i) => (
-              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{region.info.flag}</span>
-                  <span className="text-sm text-white">{region.info.name}</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-amber-400 font-medium">
-                    {region.daysSinceLastCampaign} days ago
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    {format(region.lastCampaignDate, 'MMM d')}
-                  </div>
-                </div>
+      {/* Inactive Regions & Alerts - Side by Side */}
+      {(metrics.inactiveRegions?.length > 0 || metrics.alerts.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Inactive Regions */}
+          {metrics.inactiveRegions && metrics.inactiveRegions.length > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span className="text-sm font-medium text-amber-300">Inactive Regions</span>
+                <span className="text-xs text-amber-400/60 ml-1">(&gt;30 days)</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <div className="space-y-2">
+                {metrics.inactiveRegions.map((region, i) => (
+                  <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{region.info.flag}</span>
+                      <span className="text-sm text-white">{region.info.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-amber-400 font-medium">
+                        {region.daysSinceLastCampaign} days ago
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {format(region.lastCampaignDate, 'MMM d')}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Alerts Section - Full Width */}
-      {metrics.alerts.length > 0 && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="text-sm font-medium text-red-300">Alerts</span>
-          </div>
-          <div className="flex flex-wrap gap-3 text-sm">
-            {metrics.alerts.slice(0, 3).map((alert, i) => (
-              <span key={i} className="text-red-200">
-                {alert.region}: {alert.type === 'bounce' ? 'High bounce' : 'High unsub'} ({(alert.value * 100).toFixed(1)}%)
-              </span>
-            ))}
-          </div>
+          {/* Alerts */}
+          {metrics.alerts.length > 0 && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-medium text-red-300">Alerts</span>
+              </div>
+              <div className="space-y-2">
+                {metrics.alerts.slice(0, 5).map((alert, i) => (
+                  <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                    <span className="text-sm text-white">{alert.region}</span>
+                    <span className="text-xs text-red-300">
+                      {alert.type === 'bounce' ? 'High bounce' : 'High unsub'} ({(alert.value * 100).toFixed(1)}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -585,6 +593,9 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
                 </div>
               </div>
             </div>
+            <div className="text-xs text-slate-400 pt-2 mt-2 border-t border-green-500/20">
+              {(metrics.topCampaign.emails_sent || 0).toLocaleString()} emails sent
+            </div>
           </div>
         ) : (
           <div className="bg-green-500/5 border border-green-500/10 rounded-lg p-4 opacity-70 shadow-lg">
@@ -623,6 +634,7 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
               <div className="flex items-center gap-2 mb-2">
                 <ThumbsDown className="w-4 h-4 text-orange-400" />
                 <span className="text-xs text-orange-300 uppercase tracking-wide">Needs Review</span>
+                <span className="text-xs text-slate-500 ml-auto">Open &lt;20% / Click &lt;2% / Delivery &lt;90%</span>
               </div>
               <div className="font-semibold text-sm line-clamp-1 mb-2">
                 {metrics.bottomCampaign.title || metrics.bottomCampaign.subject_line || 'Untitled Campaign'}
@@ -646,6 +658,9 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
                     {((metrics.bottomCampaign.emails_sent - (metrics.bottomCampaign.bounces || 0)) / metrics.bottomCampaign.emails_sent * 100).toFixed(1)}%
                   </div>
                 </div>
+              </div>
+              <div className="text-xs text-slate-400 pt-2 mt-2 border-t border-orange-500/20">
+                {(metrics.bottomCampaign.emails_sent || 0).toLocaleString()} emails sent
               </div>
             </div>
           ) : (
