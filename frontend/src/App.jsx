@@ -11,6 +11,7 @@ import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import ExportButton from './components/ExportButton';
 import ExecutiveSummary from './components/ExecutiveSummary';
 import SettingsModal from './components/SettingsModal';
+import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
 import { RefreshCw, ArrowLeft, Activity, Settings } from 'lucide-react';
@@ -184,7 +185,7 @@ function App() {
   }, [audienceList, selectedAudience]);
 
   return (
-    <div className="min-h-screen bg-[#F6F6F4] p-4 md:p-8">
+    <div className="min-h-screen bg-[#F6F6F4] p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 md:mb-8">
@@ -298,7 +299,7 @@ function App() {
         )}
 
         {loading ? (
-          <div className="h-64 flex items-center justify-center text-gray-400">Loading dashboard...</div>
+          <DashboardSkeleton />
         ) : (
           <div ref={exportContentRef} data-export-content>
             {/* Date Range Display */}
