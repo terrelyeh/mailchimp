@@ -2,11 +2,16 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 // Default threshold values
 const DEFAULT_THRESHOLDS = {
+  // Alert thresholds (Home Dashboard)
   bounceRate: 5,              // > 5% bounce rate
   unsubRate: 1,               // > 1% unsub rate
   lowActivityCampaigns: 2,    // < 2 campaigns in last 30 days
   lowOpenRate: 15,            // < 15% open rate
-  lowClickRate: 1             // < 1% click rate
+  lowClickRate: 1,            // < 1% click rate
+  // Campaign review thresholds (Second Level Dashboard)
+  reviewOpenRate: 20,         // < 20% open rate needs review
+  reviewClickRate: 2,         // < 2% click rate needs review
+  reviewDeliveryRate: 90      // < 90% delivery rate needs review
 };
 
 const STORAGE_KEY = 'edm_dashboard_thresholds';
@@ -49,11 +54,16 @@ export function ThresholdProvider({ children }) {
 
   // Convert percentage values to decimals for calculations
   const getThresholdsForCalculation = () => ({
+    // Alert thresholds
     bounceRate: thresholds.bounceRate / 100,
     unsubRate: thresholds.unsubRate / 100,
     lowActivityCampaigns: thresholds.lowActivityCampaigns,
     lowOpenRate: thresholds.lowOpenRate / 100,
-    lowClickRate: thresholds.lowClickRate / 100
+    lowClickRate: thresholds.lowClickRate / 100,
+    // Campaign review thresholds
+    reviewOpenRate: thresholds.reviewOpenRate / 100,
+    reviewClickRate: thresholds.reviewClickRate / 100,
+    reviewDeliveryRate: thresholds.reviewDeliveryRate / 100
   });
 
   return (

@@ -14,13 +14,6 @@ const MIN_CAMPAIGNS_THRESHOLD = 3;
 // Second Level: Individual campaign comparison (lower threshold)
 const MIN_CAMPAIGN_SENT_THRESHOLD = 50;
 
-// Absolute thresholds for "Needs Review" criteria
-const NEEDS_REVIEW_THRESHOLDS = {
-  openRate: 0.20,      // < 20% open rate
-  clickRate: 0.02,     // < 2% click rate
-  deliveryRate: 0.90   // < 90% delivery rate
-};
-
 /**
  * ExecutiveSummary - Management-level insights
  * Works for both Overview (all regions) and Region Detail views
@@ -46,7 +39,7 @@ export default function ExecutiveSummary({
       return calculateOverviewMetrics(data, regions, alertThresholds);
     } else {
       // Region detail mode - analyze single region
-      return calculateRegionMetrics(data, currentRegion);
+      return calculateRegionMetrics(data, currentRegion, alertThresholds);
     }
   }, [data, isOverview, regions, currentRegion, alertThresholds]);
 
@@ -72,7 +65,7 @@ export default function ExecutiveSummary({
       {isOverview ? (
         <OverviewContent metrics={metrics} />
       ) : (
-        <RegionContent metrics={metrics} currentRegion={currentRegion} audienceName={audienceName} />
+        <RegionContent metrics={metrics} currentRegion={currentRegion} audienceName={audienceName} reviewThresholds={alertThresholds} />
       )}
     </div>
   );
@@ -213,7 +206,7 @@ function calculateOverviewMetrics(data, regions, alertThresholds) {
 }
 
 // Calculate metrics for single region detail
-function calculateRegionMetrics(data, currentRegion) {
+function calculateRegionMetrics(data, currentRegion, thresholds) {
   if (!Array.isArray(data) || data.length === 0) return null;
 
   const campaigns = data;
@@ -236,16 +229,15 @@ function calculateRegionMetrics(data, currentRegion) {
   const lastCampaignDate = new Date(sortedByDate[0].send_time);
   const daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Find "Needs Review" campaign using absolute thresholds
-  // Criteria: Open < 20% OR Click < 2% OR Delivery < 90%
+  // Find "Needs Review" campaign using configurable thresholds
   const campaignsNeedingReview = campaigns.filter(c => {
     const deliveryRate = c.emails_sent > 0
       ? (c.emails_sent - (c.bounces || 0)) / c.emails_sent
       : 1;
     return (
-      (c.open_rate || 0) < NEEDS_REVIEW_THRESHOLDS.openRate ||
-      (c.click_rate || 0) < NEEDS_REVIEW_THRESHOLDS.clickRate ||
-      deliveryRate < NEEDS_REVIEW_THRESHOLDS.deliveryRate
+      (c.open_rate || 0) < thresholds.reviewOpenRate ||
+      (c.click_rate || 0) < thresholds.reviewClickRate ||
+      deliveryRate < thresholds.reviewDeliveryRate
     );
   });
 
@@ -544,7 +536,7 @@ function OverviewContent({ metrics }) {
 }
 
 // Region detail content component
-function RegionContent({ metrics, currentRegion, audienceName }) {
+function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds }) {
   // Check if region has sufficient data (uses region-level threshold)
   const regionHasData = metrics.totalSent >= MIN_SENT_THRESHOLD || metrics.campaignCount >= MIN_CAMPAIGNS_THRESHOLD;
   // Individual campaign comparison uses lower threshold (50 vs 100)
@@ -681,7 +673,7 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
                 No campaigns below threshold
               </div>
               <div className="text-xs text-slate-400 mt-2">
-                Open ≥20%, Click ≥2%, Delivery ≥90%
+                Open ≥{(reviewThresholds.reviewOpenRate * 100).toFixed(0)}%, Click ≥{(reviewThresholds.reviewClickRate * 100).toFixed(0)}%, Delivery ≥{(reviewThresholds.reviewDeliveryRate * 100).toFixed(0)}%
               </div>
             </div>
           ) : bottomCampaignHasData ? (
@@ -689,7 +681,7 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
               <div className="flex items-center gap-2 mb-2">
                 <ThumbsDown className="w-4 h-4 text-orange-400" />
                 <span className="text-xs text-orange-300 uppercase tracking-wide">Needs Review</span>
-                <span className="text-xs text-slate-500 ml-auto">Open &lt;20% / Click &lt;2% / Delivery &lt;90%</span>
+                <span className="text-xs text-slate-500 ml-auto">Open &lt;{(reviewThresholds.reviewOpenRate * 100).toFixed(0)}% / Click &lt;{(reviewThresholds.reviewClickRate * 100).toFixed(0)}% / Delivery &lt;{(reviewThresholds.reviewDeliveryRate * 100).toFixed(0)}%</span>
               </div>
               <div className="font-semibold text-sm line-clamp-1 mb-2">
                 {metrics.bottomCampaign.title || metrics.bottomCampaign.subject_line || 'Untitled Campaign'}
@@ -697,19 +689,19 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <span className="text-slate-400 text-xs">Open</span>
-                  <div className={`font-semibold ${(metrics.bottomCampaign.open_rate || 0) < NEEDS_REVIEW_THRESHOLDS.openRate ? 'text-red-400' : 'text-orange-400'}`}>
+                  <div className={`font-semibold ${(metrics.bottomCampaign.open_rate || 0) < reviewThresholds.reviewOpenRate ? 'text-red-400' : 'text-orange-400'}`}>
                     {((metrics.bottomCampaign.open_rate || 0) * 100).toFixed(1)}%
                   </div>
                 </div>
                 <div>
                   <span className="text-slate-400 text-xs">Click</span>
-                  <div className={`font-semibold ${(metrics.bottomCampaign.click_rate || 0) < NEEDS_REVIEW_THRESHOLDS.clickRate ? 'text-red-400' : 'text-orange-400'}`}>
+                  <div className={`font-semibold ${(metrics.bottomCampaign.click_rate || 0) < reviewThresholds.reviewClickRate ? 'text-red-400' : 'text-orange-400'}`}>
                     {((metrics.bottomCampaign.click_rate || 0) * 100).toFixed(1)}%
                   </div>
                 </div>
                 <div>
                   <span className="text-slate-400 text-xs">Delivery</span>
-                  <div className={`font-semibold ${((metrics.bottomCampaign.emails_sent - (metrics.bottomCampaign.bounces || 0)) / metrics.bottomCampaign.emails_sent) < NEEDS_REVIEW_THRESHOLDS.deliveryRate ? 'text-red-400' : 'text-orange-400'}`}>
+                  <div className={`font-semibold ${((metrics.bottomCampaign.emails_sent - (metrics.bottomCampaign.bounces || 0)) / metrics.bottomCampaign.emails_sent) < reviewThresholds.reviewDeliveryRate ? 'text-red-400' : 'text-orange-400'}`}>
                     {((metrics.bottomCampaign.emails_sent - (metrics.bottomCampaign.bounces || 0)) / metrics.bottomCampaign.emails_sent * 100).toFixed(1)}%
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity } from 'lucide-react';
+import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList } from 'lucide-react';
 import { useThresholds } from '../contexts/ThresholdContext';
 
 export default function SettingsModal({ isOpen, onClose }) {
@@ -85,6 +85,43 @@ export default function SettingsModal({ isOpen, onClose }) {
           step: 0.1
         }
       ]
+    },
+    {
+      title: 'Campaign Review Thresholds',
+      subtitle: 'Second Level Dashboard',
+      icon: ClipboardList,
+      iconColor: 'text-purple-500',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-100',
+      items: [
+        {
+          key: 'reviewOpenRate',
+          label: 'Min Open Rate',
+          description: 'Campaign needs review if open rate below this value',
+          unit: '%',
+          min: 10,
+          max: 40,
+          step: 1
+        },
+        {
+          key: 'reviewClickRate',
+          label: 'Min Click Rate',
+          description: 'Campaign needs review if click rate below this value',
+          unit: '%',
+          min: 0.5,
+          max: 10,
+          step: 0.5
+        },
+        {
+          key: 'reviewDeliveryRate',
+          label: 'Min Delivery Rate',
+          description: 'Campaign needs review if delivery rate below this value',
+          unit: '%',
+          min: 80,
+          max: 99,
+          step: 1
+        }
+      ]
     }
   ];
 
@@ -121,7 +158,12 @@ export default function SettingsModal({ isOpen, onClose }) {
             <div key={group.title} className={`rounded-lg p-4 ${group.bgColor} border ${group.borderColor}`}>
               <div className="flex items-center gap-2 mb-4">
                 <group.icon className={`w-4 h-4 ${group.iconColor}`} />
-                <span className="text-sm font-semibold text-gray-700">{group.title}</span>
+                <div>
+                  <span className="text-sm font-semibold text-gray-700">{group.title}</span>
+                  {group.subtitle && (
+                    <span className="text-xs text-gray-500 ml-2">({group.subtitle})</span>
+                  )}
+                </div>
               </div>
               <div className="space-y-4">
                 {group.items.map((item) => (
