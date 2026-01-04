@@ -1,7 +1,30 @@
 import React from 'react';
-import { TrendingUp, Mail, MousePointer, ArrowRight, AlertTriangle, UserMinus, FileText } from 'lucide-react';
+import { TrendingUp, Mail, MousePointer, ArrowRight, AlertTriangle, UserMinus, FileText, Clock } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
+
+// Helper to get last campaign info
+const getLastCampaignInfo = (data) => {
+  if (!data || data.length === 0) return null;
+
+  // Sort by send_time descending and get the most recent
+  const sorted = [...data].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
+  const lastCampaign = sorted[0];
+  const lastDate = new Date(lastCampaign.send_time);
+  const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  return {
+    date: lastDate,
+    daysSince,
+    isInactive: daysSince > 30,
+    formatted: daysSince <= 7
+      ? formatDistanceToNow(lastDate, { addSuffix: true })
+      : format(lastDate, 'MMM d')
+  };
+};
 
 const RegionCard = ({ region, data, onClick }) => {
+  const lastCampaign = getLastCampaignInfo(data);
+
   if (!data || data.length === 0) {
     return (
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100/80 ring-1 ring-gray-900/5 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
@@ -102,6 +125,20 @@ const RegionCard = ({ region, data, onClick }) => {
             {totalUnsubscribes.toLocaleString()}
           </span>
         </div>
+
+        {/* Last Campaign */}
+        {lastCampaign && (
+          <div className={`flex items-center justify-between pt-3 mt-3 border-t border-gray-100 ${lastCampaign.isInactive ? 'text-red-600' : 'text-gray-500'}`}>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              <span className="text-xs">Last Campaign</span>
+            </div>
+            <span className={`text-xs font-medium ${lastCampaign.isInactive ? 'text-red-600' : 'text-gray-600'}`}>
+              {lastCampaign.formatted}
+              {lastCampaign.isInactive && ' ⚠️'}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
