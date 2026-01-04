@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import {
   TrendingUp, Award, AlertTriangle,
-  Target, Crown, ThumbsDown, BarChart3, Info
+  Target, Crown, ThumbsDown, BarChart3, Info, Clock
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { getRegionInfo } from '../mockData';
 
 // Minimum thresholds for statistical significance
@@ -95,6 +96,11 @@ function calculateOverviewMetrics(data, regions) {
       (curr.open_rate || 0) > (best.open_rate || 0) ? curr : best
     , campaigns[0]);
 
+    // Find last campaign date
+    const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
+    const lastCampaignDate = new Date(sortedByDate[0].send_time);
+    const daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
+
     regionStats.push({
       code: regionCode,
       info: getRegionInfo(regionCode),
@@ -106,6 +112,8 @@ function calculateOverviewMetrics(data, regions) {
       bounceRate: totalSent > 0 ? totalBounces / totalSent : 0,
       unsubRate: totalSent > 0 ? totalUnsubs / totalSent : 0,
       bestCampaign,
+      lastCampaignDate,
+      daysSinceLastCampaign,
       // Composite score for ranking (weighted)
       score: avgOpenRate * 0.4 + avgClickRate * 0.3 + deliveryRate * 0.3
     });
@@ -153,6 +161,11 @@ function calculateOverviewMetrics(data, regions) {
     }
   });
 
+  // Find inactive regions (>30 days since last campaign)
+  const inactiveRegions = regionStats
+    .filter(r => r.daysSinceLastCampaign > 30)
+    .sort((a, b) => b.daysSinceLastCampaign - a.daysSinceLastCampaign);
+
   return {
     bestRegion,
     worstRegion,
@@ -162,6 +175,7 @@ function calculateOverviewMetrics(data, regions) {
     overallAvgOpenRate,
     overallAvgClickRate,
     alerts,
+    inactiveRegions,
     totalCampaigns: allCampaigns.length,
     totalSent: allCampaigns.reduce((acc, c) => acc + (c.emails_sent || 0), 0)
   };
@@ -185,6 +199,11 @@ function calculateRegionMetrics(data, currentRegion) {
   // Find top performer (highest open rate)
   const sortedByOpenRate = [...campaigns].sort((a, b) => (b.open_rate || 0) - (a.open_rate || 0));
   const topCampaign = sortedByOpenRate[0];
+
+  // Find last campaign date
+  const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
+  const lastCampaignDate = new Date(sortedByDate[0].send_time);
+  const daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
 
   // Find "Needs Review" campaign using absolute thresholds
   // Criteria: Open < 20% OR Click < 2% OR Delivery < 90%
@@ -229,7 +248,9 @@ function calculateRegionMetrics(data, currentRegion) {
     bottomCampaign,
     issues,
     campaignCount: campaigns.length,
-    totalSent
+    totalSent,
+    lastCampaignDate,
+    daysSinceLastCampaign
   };
 }
 
@@ -410,6 +431,35 @@ function OverviewContent({ metrics }) {
         )}
       </div>
 
+      {/* Inactive Regions - Full Width */}
+      {metrics.inactiveRegions && metrics.inactiveRegions.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-medium text-amber-300">Inactive Regions</span>
+            <span className="text-xs text-amber-400/60 ml-1">(&gt;30 days since last campaign)</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {metrics.inactiveRegions.map((region, i) => (
+              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{region.info.flag}</span>
+                  <span className="text-sm text-white">{region.info.name}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-amber-400 font-medium">
+                    {region.daysSinceLastCampaign} days ago
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {format(region.lastCampaignDate, 'MMM d')}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Alerts Section - Full Width */}
       {metrics.alerts.length > 0 && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
@@ -453,6 +503,16 @@ function RegionContent({ metrics, currentRegion, audienceName }) {
         <div>
           <span className="text-slate-400">Audience:</span>{' '}
           <span className="font-semibold text-white">{audienceName}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Clock className="w-3 h-3 text-slate-400" />
+          <span className="text-slate-400">Last Campaign:</span>{' '}
+          <span className={`font-semibold ${metrics.daysSinceLastCampaign > 30 ? 'text-amber-400' : 'text-white'}`}>
+            {metrics.daysSinceLastCampaign <= 7
+              ? `${metrics.daysSinceLastCampaign} day${metrics.daysSinceLastCampaign !== 1 ? 's' : ''} ago`
+              : format(metrics.lastCampaignDate, 'MMM d')}
+            {metrics.daysSinceLastCampaign > 30 && ' ⚠️'}
+          </span>
         </div>
       </div>
 
