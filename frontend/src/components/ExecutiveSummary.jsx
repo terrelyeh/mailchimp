@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getRegionInfo } from '../mockData';
+import { useThresholds } from '../contexts/ThresholdContext';
 
 // Minimum thresholds for statistical significance
 // Home Dashboard: Region-level comparison (higher threshold)
@@ -32,18 +33,22 @@ export default function ExecutiveSummary({
   selectedAudience = null,
   audienceList = []
 }) {
+  // Get thresholds from context
+  const { getThresholdsForCalculation } = useThresholds();
+  const alertThresholds = getThresholdsForCalculation();
+
   // Calculate metrics for all views
   const metrics = useMemo(() => {
     if (!data) return null;
 
     if (isOverview) {
       // Overview mode - compare regions
-      return calculateOverviewMetrics(data, regions);
+      return calculateOverviewMetrics(data, regions, alertThresholds);
     } else {
       // Region detail mode - analyze single region
       return calculateRegionMetrics(data, currentRegion);
     }
-  }, [data, isOverview, regions, currentRegion]);
+  }, [data, isOverview, regions, currentRegion, alertThresholds]);
 
   if (!metrics) {
     return null;
@@ -73,17 +78,8 @@ export default function ExecutiveSummary({
   );
 }
 
-// Alert thresholds
-const ALERT_THRESHOLDS = {
-  bounceRate: 0.05,         // > 5% bounce rate
-  unsubRate: 0.01,          // > 1% unsub rate
-  lowActivityCampaigns: 2,  // < 2 campaigns in last 30 days
-  lowOpenRate: 0.15,        // < 15% open rate
-  lowClickRate: 0.01        // < 1% click rate
-};
-
 // Calculate metrics for overview (all regions)
-function calculateOverviewMetrics(data, regions) {
+function calculateOverviewMetrics(data, regions, alertThresholds) {
   const regionStats = [];
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -170,20 +166,20 @@ function calculateOverviewMetrics(data, regions) {
   const alerts = [];
   regionStats.forEach(r => {
     // High bounce rate
-    if (r.bounceRate > ALERT_THRESHOLDS.bounceRate) {
+    if (r.bounceRate > alertThresholds.bounceRate) {
       alerts.push({ region: r.info.name, type: 'bounce', value: r.bounceRate, severity: 'high' });
     }
     // High unsub rate
-    if (r.unsubRate > ALERT_THRESHOLDS.unsubRate) {
+    if (r.unsubRate > alertThresholds.unsubRate) {
       alerts.push({ region: r.info.name, type: 'unsub', value: r.unsubRate, severity: 'high' });
     }
-    // Low activity (< 2 campaigns in last 30 days)
-    if (r.campaignsLast30Days < ALERT_THRESHOLDS.lowActivityCampaigns) {
+    // Low activity (< X campaigns in last 30 days)
+    if (r.campaignsLast30Days < alertThresholds.lowActivityCampaigns) {
       alerts.push({ region: r.info.name, type: 'lowActivity', value: r.campaignsLast30Days, severity: 'medium' });
     }
-    // Low engagement (open < 15% OR click < 1%)
-    if (r.avgOpenRate < ALERT_THRESHOLDS.lowOpenRate || r.avgClickRate < ALERT_THRESHOLDS.lowClickRate) {
-      const reason = r.avgOpenRate < ALERT_THRESHOLDS.lowOpenRate ? 'open' : 'click';
+    // Low engagement (open < X% OR click < X%)
+    if (r.avgOpenRate < alertThresholds.lowOpenRate || r.avgClickRate < alertThresholds.lowClickRate) {
+      const reason = r.avgOpenRate < alertThresholds.lowOpenRate ? 'open' : 'click';
       const value = reason === 'open' ? r.avgOpenRate : r.avgClickRate;
       alerts.push({ region: r.info.name, type: 'lowEngagement', reason, value, severity: 'medium' });
     }
