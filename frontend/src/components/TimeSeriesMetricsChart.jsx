@@ -68,8 +68,10 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
             dateObj: date,
             dateFormatted: formatDate(date),
             campaigns: {},
+            emailsSent: {},
             openRate: {},
             clickRate: {},
+            deliveryRate: {},
             unsubscribes: {},
             totalCampaigns: 0
           });
@@ -79,19 +81,30 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
 
         if (!dayData.campaigns[region.code]) {
           dayData.campaigns[region.code] = 0;
+          dayData.emailsSent[region.code] = 0;
           dayData.openRate[region.code] = [];
           dayData.clickRate[region.code] = [];
+          dayData.deliveryRate[region.code] = [];
           dayData.unsubscribes[region.code] = 0;
         }
 
         dayData.campaigns[region.code]++;
         dayData.totalCampaigns++;
 
+        if (campaign.emails_sent !== undefined) {
+          dayData.emailsSent[region.code] += campaign.emails_sent || 0;
+        }
         if (campaign.open_rate !== undefined) {
           dayData.openRate[region.code].push(campaign.open_rate * 100);
         }
         if (campaign.click_rate !== undefined) {
           dayData.clickRate[region.code].push(campaign.click_rate * 100);
+        }
+        // Calculate delivery rate for this campaign
+        if (campaign.emails_sent > 0) {
+          const delivered = campaign.emails_sent - (campaign.bounces || 0);
+          const deliveryRate = (delivered / campaign.emails_sent) * 100;
+          dayData.deliveryRate[region.code].push(deliveryRate);
         }
         if (campaign.unsubscribed !== undefined) {
           dayData.unsubscribes[region.code] += campaign.unsubscribed || 0;
@@ -111,6 +124,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
         regions.forEach(region => {
           const code = region.code;
           processed[`${code}_campaigns`] = day.campaigns[code] || 0;
+          processed[`${code}_emailsSent`] = day.emailsSent[code] || 0;
 
           const openRates = day.openRate[code] || [];
           processed[`${code}_openRate`] = openRates.length > 0
@@ -120,6 +134,11 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
           const clickRates = day.clickRate[code] || [];
           processed[`${code}_clickRate`] = clickRates.length > 0
             ? (clickRates.reduce((a, b) => a + b, 0) / clickRates.length).toFixed(1)
+            : 0;
+
+          const deliveryRates = day.deliveryRate[code] || [];
+          processed[`${code}_deliveryRate`] = deliveryRates.length > 0
+            ? (deliveryRates.reduce((a, b) => a + b, 0) / deliveryRates.length).toFixed(1)
             : 0;
 
           processed[`${code}_unsubscribes`] = day.unsubscribes[code] || 0;
@@ -169,8 +188,10 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
 
   const metrics = [
     { key: 'campaigns', label: 'Campaigns', type: 'bar' },
+    { key: 'emailsSent', label: 'Emails Sent', type: 'bar' },
     { key: 'openRate', label: 'Open Rate', type: 'line', unit: '%' },
     { key: 'clickRate', label: 'Click Rate', type: 'line', unit: '%' },
+    { key: 'deliveryRate', label: 'Delivery Rate', type: 'line', unit: '%' },
     { key: 'unsubscribes', label: 'Unsubscribes', type: 'line' }
   ];
 
@@ -221,6 +242,12 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                       <span className="font-medium text-gray-900">{metricsData.campaigns.value}</span>
                     </div>
                   )}
+                  {metricsData.emailsSent !== undefined && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Emails Sent:</span>
+                      <span className="font-medium text-gray-900">{Number(metricsData.emailsSent.value).toLocaleString()}</span>
+                    </div>
+                  )}
                   {metricsData.openRate !== undefined && (
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Open Rate:</span>
@@ -231,6 +258,12 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Click Rate:</span>
                       <span className="font-medium text-gray-900">{metricsData.clickRate.value}%</span>
+                    </div>
+                  )}
+                  {metricsData.deliveryRate !== undefined && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Delivery Rate:</span>
+                      <span className="font-medium text-gray-900">{metricsData.deliveryRate.value}%</span>
                     </div>
                   )}
                   {metricsData.unsubscribes !== undefined && (
@@ -306,8 +339,8 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
         <div>
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Metric</span>
-            <span className="text-xs text-gray-400">
-              {isMultiRegionMode ? '(single)' : '(multi)'}
+            <span className={`text-xs px-2 py-0.5 rounded-full ${isMultiRegionMode ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+              {isMultiRegionMode ? 'single' : 'multi'}
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5 md:gap-2">
@@ -332,6 +365,17 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
             })}
           </div>
         </div>
+
+        {/* Selection Mode Hint */}
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isMultiRegionMode ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+          <span className="text-base">{isMultiRegionMode ? '🌍' : '📊'}</span>
+          <span>
+            {isMultiRegionMode
+              ? 'Multi-region mode: Compare one metric across regions'
+              : 'Single-region mode: Analyze multiple metrics for one region'
+            }
+          </span>
+        </div>
       </div>
 
       {/* Chart */}
@@ -347,20 +391,25 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
               axisLine={false}
             />
 
-            {/* Left Y-axis for campaigns */}
-            {selectedMetrics.includes('campaigns') && (
+            {/* Left Y-axis for volume metrics (campaigns, emails sent) */}
+            {(selectedMetrics.includes('campaigns') || selectedMetrics.includes('emailsSent')) && (
               <YAxis
                 yAxisId="left"
                 stroke="#9CA3AF"
                 tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
-                label={{ value: 'Campaigns', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
+                label={{
+                  value: selectedMetrics.includes('emailsSent') ? 'Volume' : 'Campaigns',
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: { fontSize: 12 }
+                }}
               />
             )}
 
             {/* Right Y-axis for rates */}
-            {(selectedMetrics.includes('openRate') || selectedMetrics.includes('clickRate') || selectedMetrics.includes('unsubscribes')) && (
+            {(selectedMetrics.includes('openRate') || selectedMetrics.includes('clickRate') || selectedMetrics.includes('deliveryRate') || selectedMetrics.includes('unsubscribes')) && (
               <YAxis
                 yAxisId="right"
                 orientation="right"
@@ -389,6 +438,19 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
               <Bar
                 key={`${region.code}_campaigns`}
                 dataKey={`${region.code}_campaigns`}
+                fill={region.color}
+                yAxisId="left"
+                name={`${region.flag} ${region.code}`}
+                radius={[4, 4, 0, 0]}
+                opacity={0.85}
+              />
+            ))}
+
+            {/* Bars for Emails Sent - 使用各區域顏色 */}
+            {selectedMetrics.includes('emailsSent') && displayRegions.map((region) => (
+              <Bar
+                key={`${region.code}_emailsSent`}
+                dataKey={`${region.code}_emailsSent`}
                 fill={region.color}
                 yAxisId="left"
                 name={`${region.flag} ${region.code}`}
@@ -429,6 +491,22 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
               />
             ))}
 
+            {/* Lines for Delivery Rate - 使用各區域顏色，統一實線，無圓點 */}
+            {selectedMetrics.includes('deliveryRate') && displayRegions.map((region) => (
+              <Line
+                key={`${region.code}_deliveryRate`}
+                type="monotone"
+                dataKey={`${region.code}_deliveryRate`}
+                stroke={region.color}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
+                yAxisId="right"
+                name={`${region.flag} ${region.code}`}
+                unit="%"
+              />
+            ))}
+
             {/* Lines for Unsubscribes - 使用各區域顏色，統一實線，無圓點 */}
             {selectedMetrics.includes('unsubscribes') && displayRegions.map((region) => (
               <Line
@@ -447,15 +525,6 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Footer hint */}
-      <div className="mt-4 pt-4 border-t border-gray-100">
-        <p className="text-xs text-gray-400">
-          {isMultiRegionMode
-            ? '💡 Compare regions: Select one metric to compare across multiple regions'
-            : '💡 Analyze region: Select multiple metrics to analyze one region in detail'
-          }
-        </p>
-      </div>
     </div>
   );
 }
