@@ -186,14 +186,25 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
     }
   };
 
+  // Metric definitions with distinct colors for single-region multi-metric mode
   const metrics = [
-    { key: 'campaigns', label: 'Campaigns', type: 'bar' },
-    { key: 'emailsSent', label: 'Emails Sent', type: 'bar' },
-    { key: 'openRate', label: 'Open Rate', type: 'line', unit: '%' },
-    { key: 'clickRate', label: 'Click Rate', type: 'line', unit: '%' },
-    { key: 'deliveryRate', label: 'Delivery Rate', type: 'line', unit: '%' },
-    { key: 'unsubscribes', label: 'Unsubscribes', type: 'line' }
+    { key: 'campaigns', label: 'Campaigns', type: 'bar', color: '#6366F1' },        // Indigo
+    { key: 'emailsSent', label: 'Emails Sent', type: 'bar', color: '#8B5CF6' },     // Purple
+    { key: 'openRate', label: 'Open Rate', type: 'line', unit: '%', color: '#FFE01B' },    // Yellow (Mailchimp)
+    { key: 'clickRate', label: 'Click Rate', type: 'line', unit: '%', color: '#007C89' },  // Teal (Mailchimp)
+    { key: 'deliveryRate', label: 'Delivery Rate', type: 'line', unit: '%', color: '#10B981' }, // Emerald
+    { key: 'unsubscribes', label: 'Unsubscribes', type: 'line', color: '#EF4444' }  // Red
   ];
+
+  // Helper to get color based on mode
+  const getColor = (metricKey, regionColor) => {
+    if (isMultiRegionMode) {
+      return regionColor; // Multi-region: use region color
+    }
+    // Single-region: use metric color
+    const metric = metrics.find(m => m.key === metricKey);
+    return metric?.color || regionColor;
+  };
 
   // 獲取選中的區域物件
   const displayRegions = activeRegions.filter(r => selectedRegions.includes(r.code));
@@ -425,6 +436,14 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
             <Legend
               wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
               formatter={(value, entry) => {
+                // In single-region mode, show metric name with metric color
+                if (!isMultiRegionMode) {
+                  const metric = metrics.find(m => value.includes(m.label));
+                  if (metric) {
+                    return <span style={{ color: metric.color }}>{metric.label}</span>;
+                  }
+                }
+                // In multi-region mode, show region with region color
                 const region = displayRegions.find(r => value.includes(r.code) || value.includes(r.flag));
                 if (region) {
                   return <span style={{ color: region.color }}>{value}</span>;
@@ -433,94 +452,112 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
               }}
             />
 
-            {/* Bars for Campaigns - 使用各區域顏色 */}
-            {selectedMetrics.includes('campaigns') && displayRegions.map((region) => (
-              <Bar
-                key={`${region.code}_campaigns`}
-                dataKey={`${region.code}_campaigns`}
-                fill={region.color}
-                yAxisId="left"
-                name={`${region.flag} ${region.code}`}
-                radius={[4, 4, 0, 0]}
-                opacity={0.85}
-              />
-            ))}
+            {/* Bars for Campaigns */}
+            {selectedMetrics.includes('campaigns') && displayRegions.map((region) => {
+              const color = getColor('campaigns', region.color);
+              return (
+                <Bar
+                  key={`${region.code}_campaigns`}
+                  dataKey={`${region.code}_campaigns`}
+                  fill={color}
+                  yAxisId="left"
+                  name={isMultiRegionMode ? `${region.flag} ${region.code}` : 'Campaigns'}
+                  radius={[4, 4, 0, 0]}
+                  opacity={0.85}
+                />
+              );
+            })}
 
-            {/* Bars for Emails Sent - 使用各區域顏色 */}
-            {selectedMetrics.includes('emailsSent') && displayRegions.map((region) => (
-              <Bar
-                key={`${region.code}_emailsSent`}
-                dataKey={`${region.code}_emailsSent`}
-                fill={region.color}
-                yAxisId="left"
-                name={`${region.flag} ${region.code}`}
-                radius={[4, 4, 0, 0]}
-                opacity={0.85}
-              />
-            ))}
+            {/* Bars for Emails Sent */}
+            {selectedMetrics.includes('emailsSent') && displayRegions.map((region) => {
+              const color = getColor('emailsSent', region.color);
+              return (
+                <Bar
+                  key={`${region.code}_emailsSent`}
+                  dataKey={`${region.code}_emailsSent`}
+                  fill={color}
+                  yAxisId="left"
+                  name={isMultiRegionMode ? `${region.flag} ${region.code}` : 'Emails Sent'}
+                  radius={[4, 4, 0, 0]}
+                  opacity={0.85}
+                />
+              );
+            })}
 
-            {/* Lines for Open Rate - 使用各區域顏色，統一實線，無圓點 */}
-            {selectedMetrics.includes('openRate') && displayRegions.map((region) => (
-              <Line
-                key={`${region.code}_openRate`}
-                type="monotone"
-                dataKey={`${region.code}_openRate`}
-                stroke={region.color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
-                yAxisId="right"
-                name={`${region.flag} ${region.code}`}
-                unit="%"
-              />
-            ))}
+            {/* Lines for Open Rate */}
+            {selectedMetrics.includes('openRate') && displayRegions.map((region) => {
+              const color = getColor('openRate', region.color);
+              return (
+                <Line
+                  key={`${region.code}_openRate`}
+                  type="monotone"
+                  dataKey={`${region.code}_openRate`}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                  yAxisId="right"
+                  name={isMultiRegionMode ? `${region.flag} ${region.code}` : 'Open Rate'}
+                  unit="%"
+                />
+              );
+            })}
 
-            {/* Lines for Click Rate - 使用各區域顏色，統一實線，無圓點 */}
-            {selectedMetrics.includes('clickRate') && displayRegions.map((region) => (
-              <Line
-                key={`${region.code}_clickRate`}
-                type="monotone"
-                dataKey={`${region.code}_clickRate`}
-                stroke={region.color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
-                yAxisId="right"
-                name={`${region.flag} ${region.code}`}
-                unit="%"
-              />
-            ))}
+            {/* Lines for Click Rate */}
+            {selectedMetrics.includes('clickRate') && displayRegions.map((region) => {
+              const color = getColor('clickRate', region.color);
+              return (
+                <Line
+                  key={`${region.code}_clickRate`}
+                  type="monotone"
+                  dataKey={`${region.code}_clickRate`}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                  yAxisId="right"
+                  name={isMultiRegionMode ? `${region.flag} ${region.code}` : 'Click Rate'}
+                  unit="%"
+                />
+              );
+            })}
 
-            {/* Lines for Delivery Rate - 使用各區域顏色，統一實線，無圓點 */}
-            {selectedMetrics.includes('deliveryRate') && displayRegions.map((region) => (
-              <Line
-                key={`${region.code}_deliveryRate`}
-                type="monotone"
-                dataKey={`${region.code}_deliveryRate`}
-                stroke={region.color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
-                yAxisId="right"
-                name={`${region.flag} ${region.code}`}
-                unit="%"
-              />
-            ))}
+            {/* Lines for Delivery Rate */}
+            {selectedMetrics.includes('deliveryRate') && displayRegions.map((region) => {
+              const color = getColor('deliveryRate', region.color);
+              return (
+                <Line
+                  key={`${region.code}_deliveryRate`}
+                  type="monotone"
+                  dataKey={`${region.code}_deliveryRate`}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                  yAxisId="right"
+                  name={isMultiRegionMode ? `${region.flag} ${region.code}` : 'Delivery Rate'}
+                  unit="%"
+                />
+              );
+            })}
 
-            {/* Lines for Unsubscribes - 使用各區域顏色，統一實線，無圓點 */}
-            {selectedMetrics.includes('unsubscribes') && displayRegions.map((region) => (
-              <Line
-                key={`${region.code}_unsubscribes`}
-                type="monotone"
-                dataKey={`${region.code}_unsubscribes`}
-                stroke={region.color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 5, fill: region.color, strokeWidth: 2, stroke: '#fff' }}
-                yAxisId="right"
-                name={`${region.flag} ${region.code}`}
-              />
-            ))}
+            {/* Lines for Unsubscribes */}
+            {selectedMetrics.includes('unsubscribes') && displayRegions.map((region) => {
+              const color = getColor('unsubscribes', region.color);
+              return (
+                <Line
+                  key={`${region.code}_unsubscribes`}
+                  type="monotone"
+                  dataKey={`${region.code}_unsubscribes`}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                  yAxisId="right"
+                  name={isMultiRegionMode ? `${region.flag} ${region.code}` : 'Unsubscribes'}
+                />
+              );
+            })}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
