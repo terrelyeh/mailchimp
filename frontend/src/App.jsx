@@ -208,7 +208,7 @@ function App() {
               ) : (
                 <div>
                   <h1 className="text-xl md:text-3xl font-bold text-[#241C15] tracking-tight">
-                    EnGenius EDM 儀表板
+                    EnGenius EDM Analytic Dashboard
                   </h1>
                   <p className="text-gray-500 mt-1 text-sm md:text-base">Multi-Region Campaign Analytics</p>
                 </div>
