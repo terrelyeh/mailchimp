@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail } from 'lucide-react';
 
 // Sortable column header component
 const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) => {
@@ -11,14 +11,26 @@ const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) =
 
     return (
         <th
-            className={`px-2 md:px-4 py-2 cursor-pointer hover:bg-gray-100 transition-colors select-none whitespace-nowrap text-xs font-semibold text-gray-600 uppercase tracking-wide ${align === 'right' ? 'text-right' : ''}`}
+            className={`px-3 md:px-4 py-3 cursor-pointer hover:bg-gray-100/80 transition-colors select-none whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider ${align === 'right' ? 'text-right' : ''}`}
             onClick={() => onSort(field)}
         >
-            <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+            <div className={`flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : ''}`}>
                 <span>{label}</span>
-                <Icon className={`w-3 h-3 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#007C89]' : 'text-gray-300'}`} />
             </div>
         </th>
+    );
+};
+
+// Rate badge component for visual consistency
+const RateBadge = ({ value, threshold, invertWarning = false, suffix = '%' }) => {
+    const numValue = parseFloat(value);
+    const isWarning = invertWarning ? numValue < threshold : numValue > threshold;
+
+    return (
+        <span className={`font-semibold tabular-nums ${isWarning ? 'text-red-600' : 'text-gray-900'}`}>
+            {value}{suffix}
+        </span>
     );
 };
 
@@ -38,7 +50,7 @@ export default function CampaignList({ data }) {
             field,
             direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
         }));
-        setCurrentPage(1); // Reset to first page when sorting
+        setCurrentPage(1);
     };
 
     // Sort data
@@ -101,35 +113,53 @@ export default function CampaignList({ data }) {
         setCurrentPage(Math.max(1, Math.min(page, totalPages)));
     };
 
-    return (
-        <div className="bg-white rounded-xl shadow-md border border-gray-100/80 overflow-hidden ring-1 ring-gray-900/5">
-            <div className="px-4 md:px-5 py-3 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-white to-gray-50/50">
-                <div className="flex items-baseline gap-3">
-                    <h3 className="font-bold text-gray-900 text-base md:text-lg">Recent Campaigns</h3>
-                    <span className="text-xs text-gray-400">
-                        {totalItems} campaign{totalItems !== 1 ? 's' : ''}
-                        {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
-                    </span>
-                </div>
-                <span className="text-xs text-gray-400 md:hidden">← Scroll →</span>
+    if (!data || data.length === 0) {
+        return (
+            <div className="bg-white rounded-xl shadow-layered border border-gray-100/50 p-8 text-center">
+                <Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">No campaigns found</p>
+                <p className="text-gray-400 text-sm mt-1">Try adjusting your filters or date range</p>
             </div>
+        );
+    }
+
+    return (
+        <div className="bg-white rounded-xl shadow-layered border border-gray-100/50 overflow-hidden">
+            {/* Header */}
+            <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
+                        <Mail className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-900 text-base md:text-lg tracking-tight">Recent Campaigns</h3>
+                        <span className="text-xs text-gray-400 tabular-nums">
+                            {totalItems} campaign{totalItems !== 1 ? 's' : ''}
+                            {totalPages > 1 && ` · Page ${currentPage} of ${totalPages}`}
+                        </span>
+                    </div>
+                </div>
+                <span className="text-xs text-gray-400 md:hidden bg-gray-100 px-2 py-1 rounded">← Scroll →</span>
+            </div>
+
+            {/* Table */}
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-gray-500 min-w-[800px]">
-                    <thead className="bg-gray-50 border-b border-gray-100">
+                <table className="w-full text-left text-sm min-w-[900px]">
+                    <thead className="bg-gray-50/80 border-b border-gray-100">
                         <tr>
                             <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
-                            <th className="px-2 md:px-4 py-2 whitespace-nowrap text-xs font-semibold text-gray-600 uppercase tracking-wide">Audience</th>
-                            <SortableHeader label="Sent Time" field="send_time" currentSort={sort} onSort={handleSort} />
-                            <SortableHeader label="Total Sent" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Delivery Rate" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Open Rate" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Click Rate" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Bounce Rate" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
+                            <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>
+                            <SortableHeader label="Sent" field="send_time" currentSort={sort} onSort={handleSort} />
+                            <SortableHeader label="Emails" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Delivery" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Opens" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
+                            <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
                         </tr>
                     </thead>
-                    <tbody>
-                        {currentData.map((campaign) => {
+                    <tbody className="divide-y divide-gray-50">
+                        {currentData.map((campaign, idx) => {
                             const bounceRate = campaign.emails_sent > 0
                                 ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
                                 : 0;
@@ -138,86 +168,122 @@ export default function CampaignList({ data }) {
                                 ? (delivered / campaign.emails_sent * 100)
                                 : 0;
 
-                            // Filter out HTML content from segment_text
                             const segmentName = campaign.segment_text && !campaign.segment_text.startsWith('<')
                                 ? campaign.segment_text
                                 : null;
 
                             return (
-                            <tr key={campaign.id} className="hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
-                                <td className="px-2 md:px-4 py-2.5 md:py-3">
-                                    <div className="flex items-center group cursor-pointer">
-                                        <span className="font-semibold text-gray-900 text-sm">{campaign.title}</span>
-                                        <a href={campaign.archive_url} target="_blank" rel="noreferrer" className="ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <ExternalLink className="w-3 h-3 text-gray-400" />
-                                        </a>
-                                    </div>
-                                    <div className="text-xs text-gray-400 truncate max-w-[220px]">{campaign.subject_line}</div>
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
-                                        {campaign.audience_name || 'N/A'}
-                                    </span>
-                                    {segmentName && (
-                                        <div className="flex items-center gap-1 text-xs text-purple-600 mt-0.5">
-                                            <Users className="w-3 h-3" />
-                                            <span className="truncate max-w-[120px]" title={segmentName}>{segmentName}</span>
+                                <tr
+                                    key={campaign.id}
+                                    className={`hover:bg-blue-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                                >
+                                    {/* Campaign Title */}
+                                    <td className="px-3 md:px-4 py-3">
+                                        <div className="flex items-center group">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-semibold text-gray-900 text-sm truncate max-w-[200px]" title={campaign.title}>
+                                                        {campaign.title}
+                                                    </span>
+                                                    <a
+                                                        href={campaign.archive_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-1 hover:bg-gray-100 rounded"
+                                                        title="View campaign"
+                                                    >
+                                                        <ExternalLink className="w-3 h-3 text-gray-400" />
+                                                    </a>
+                                                </div>
+                                                <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
+                                                    {campaign.subject_line}
+                                                </div>
+                                            </div>
                                         </div>
-                                    )}
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-gray-600">
-                                    {format(new Date(campaign.send_time), 'MMM dd, HH:mm')}
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
-                                    <span className="font-semibold text-gray-900">{campaign.emails_sent?.toLocaleString() || 0}</span>
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
-                                    <span className="font-semibold text-gray-900">{deliveryRate.toFixed(1)}%</span>
-                                    <div className="text-xs text-gray-400">{delivered.toLocaleString()}</div>
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
-                                    <span className="font-semibold text-gray-900">{(campaign.open_rate * 100).toFixed(1)}%</span>
-                                    <div className="text-xs text-gray-400">{campaign.opens?.toLocaleString()}</div>
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
-                                    <span className="font-semibold text-gray-900">{(campaign.click_rate * 100).toFixed(1)}%</span>
-                                    <div className="text-xs text-gray-400">{campaign.clicks?.toLocaleString()}</div>
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
-                                    <span className={`font-semibold ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
-                                        {bounceRate.toFixed(1)}%
-                                    </span>
-                                </td>
-                                <td className="px-2 md:px-4 py-2.5 md:py-3 text-right">
-                                    <span className={`font-semibold ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-900'}`}>
-                                        {campaign.unsubscribed?.toLocaleString() || 0}
-                                    </span>
-                                </td>
-                            </tr>
-                        )})}
+                                    </td>
+
+                                    {/* Audience */}
+                                    <td className="px-3 md:px-4 py-3">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                            {campaign.audience_name || 'N/A'}
+                                        </span>
+                                        {segmentName && (
+                                            <div className="flex items-center gap-1 text-xs text-purple-600 mt-1">
+                                                <Users className="w-3 h-3 flex-shrink-0" />
+                                                <span className="truncate max-w-[100px]" title={segmentName}>{segmentName}</span>
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    {/* Send Time */}
+                                    <td className="px-3 md:px-4 py-3 text-gray-600 tabular-nums text-sm">
+                                        <div>{format(new Date(campaign.send_time), 'MMM dd')}</div>
+                                        <div className="text-xs text-gray-400">{format(new Date(campaign.send_time), 'HH:mm')}</div>
+                                    </td>
+
+                                    {/* Emails Sent */}
+                                    <td className="px-3 md:px-4 py-3 text-right">
+                                        <span className="font-semibold text-gray-900 tabular-nums">
+                                            {campaign.emails_sent?.toLocaleString() || 0}
+                                        </span>
+                                    </td>
+
+                                    {/* Delivery Rate */}
+                                    <td className="px-3 md:px-4 py-3 text-right">
+                                        <div className="font-semibold text-gray-900 tabular-nums">{deliveryRate.toFixed(1)}%</div>
+                                        <div className="text-xs text-gray-400 tabular-nums">{delivered.toLocaleString()}</div>
+                                    </td>
+
+                                    {/* Open Rate */}
+                                    <td className="px-3 md:px-4 py-3 text-right">
+                                        <div className="font-semibold text-gray-900 tabular-nums">{(campaign.open_rate * 100).toFixed(1)}%</div>
+                                        <div className="text-xs text-gray-400 tabular-nums">{campaign.opens?.toLocaleString()}</div>
+                                    </td>
+
+                                    {/* Click Rate */}
+                                    <td className="px-3 md:px-4 py-3 text-right">
+                                        <div className="font-semibold text-gray-900 tabular-nums">{(campaign.click_rate * 100).toFixed(1)}%</div>
+                                        <div className="text-xs text-gray-400 tabular-nums">{campaign.clicks?.toLocaleString()}</div>
+                                    </td>
+
+                                    {/* Bounce Rate */}
+                                    <td className="px-3 md:px-4 py-3 text-right">
+                                        <span className={`font-semibold tabular-nums ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
+                                            {bounceRate.toFixed(1)}%
+                                        </span>
+                                    </td>
+
+                                    {/* Unsubscribes */}
+                                    <td className="px-3 md:px-4 py-3 text-right">
+                                        <span className={`font-semibold tabular-nums ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                                            {campaign.unsubscribed?.toLocaleString() || 0}
+                                        </span>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
 
-            {/* Pagination Controls */}
+            {/* Pagination */}
             {totalPages > 1 && (
-                <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-                    <div className="text-xs text-gray-500">
-                        {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems}
+                <div className="px-4 md:px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+                    <div className="text-sm text-gray-500 tabular-nums">
+                        Showing <span className="font-medium text-gray-700">{startIndex + 1}-{Math.min(endIndex, totalItems)}</span> of <span className="font-medium text-gray-700">{totalItems}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                         <button
                             onClick={() => goToPage(currentPage - 1)}
                             disabled={currentPage === 1}
-                            className="px-3 py-1 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Previous page"
                         >
                             <ChevronLeft className="w-4 h-4" />
-                            Previous
                         </button>
 
                         <div className="flex items-center gap-1">
                             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                                // Show first page, last page, current page, and pages around current
                                 if (
                                     page === 1 ||
                                     page === totalPages ||
@@ -227,10 +293,10 @@ export default function CampaignList({ data }) {
                                         <button
                                             key={page}
                                             onClick={() => goToPage(page)}
-                                            className={`px-3 py-1 rounded-md text-sm font-medium ${
+                                            className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${
                                                 page === currentPage
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                    ? 'bg-[#007C89] text-white shadow-sm'
+                                                    : 'text-gray-600 hover:bg-white border border-transparent hover:border-gray-200'
                                             }`}
                                         >
                                             {page}
@@ -240,7 +306,7 @@ export default function CampaignList({ data }) {
                                     page === currentPage - 2 ||
                                     page === currentPage + 2
                                 ) {
-                                    return <span key={page} className="px-2 text-gray-400">...</span>;
+                                    return <span key={page} className="px-1 text-gray-300">···</span>;
                                 }
                                 return null;
                             })}
@@ -249,9 +315,9 @@ export default function CampaignList({ data }) {
                         <button
                             onClick={() => goToPage(currentPage + 1)}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Next page"
                         >
-                            Next
                             <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
