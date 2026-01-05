@@ -194,7 +194,7 @@ function App() {
             <div>
               {view === 'region-detail' && currentRegion ? (
                 <div className="flex items-center gap-4 md:gap-5">
-                  <img src="/logo.svg" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                  <img src="/logo.png" alt="EnGenius" className="h-10 md:h-12 w-auto" />
                   <div className="w-px h-10 bg-gray-200 hidden md:block" />
                   <div>
                     <button
@@ -212,7 +212,7 @@ function App() {
                 </div>
               ) : (
                 <div className="flex items-center gap-4 md:gap-5">
-                  <img src="/logo.svg" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                  <img src="/logo.png" alt="EnGenius" className="h-10 md:h-12 w-auto" />
                   <div className="w-px h-10 bg-gray-200 hidden md:block" />
                   <div>
                     <h1 className="text-xl md:text-2xl font-bold text-[#241C15] tracking-tight">

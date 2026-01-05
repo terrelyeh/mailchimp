@@ -109,7 +109,7 @@ export default function ExportButton({
           const titleLeft = clonedDoc.createElement('div');
           // Logo
           const logo = clonedDoc.createElement('img');
-          logo.src = '/logo.svg';
+          logo.src = '/logo.png';
           logo.alt = 'EnGenius';
           logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: brightness(0) invert(1);';
           titleLeft.appendChild(logo);
