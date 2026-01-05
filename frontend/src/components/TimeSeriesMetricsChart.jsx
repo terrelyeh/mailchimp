@@ -16,7 +16,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
   if (!regionsData || !regions || regions.length === 0) {
     return (
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Campaign Metrics Over Time</h2>
+        <h2 className="section-title mb-4">Campaign Metrics Over Time</h2>
         <div className="h-[400px] flex items-center justify-center text-gray-400">
           Loading data...
         </div>
@@ -295,7 +295,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
   if (timeSeriesData.length === 0) {
     return (
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Campaign Metrics Over Time</h2>
+        <h2 className="section-title mb-4">Campaign Metrics Over Time</h2>
         <div className="h-[400px] flex items-center justify-center text-gray-400">
           No campaign data available for the selected period
         </div>
@@ -307,7 +307,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
     <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 mb-6 md:mb-8">
       {/* Header */}
       <div className="mb-4 md:mb-6">
-        <h2 className="text-base md:text-lg font-bold text-gray-900">Campaign Metrics Over Time</h2>
+        <h2 className="section-title">Campaign Metrics Over Time</h2>
       </div>
 
       {/* Selectors */}

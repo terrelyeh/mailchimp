@@ -132,7 +132,7 @@ export default function CampaignList({ data }) {
                         <Mail className="w-4 h-4 text-gray-500" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-gray-900 text-base md:text-lg tracking-tight">Recent Campaigns</h3>
+                        <h3 className="section-title">Recent Campaigns</h3>
                         <span className="text-xs text-gray-400 tabular-nums">
                             {totalItems} campaign{totalItems !== 1 ? 's' : ''}
                             {totalPages > 1 && ` · Page ${currentPage} of ${totalPages}`}

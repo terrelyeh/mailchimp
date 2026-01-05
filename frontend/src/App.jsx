@@ -204,7 +204,7 @@ function App() {
                       <ArrowLeft className="w-4 h-4 mr-1" />
                       Back to Overview
                     </button>
-                    <h1 className="text-lg md:text-2xl font-bold text-[#241C15] tracking-tight">
+                    <h1 className="page-title">
                       {currentRegion.flag} {currentRegion.name}
                     </h1>
                     <p className="text-gray-500 text-xs md:text-sm">EDM Campaign Analytics</p>
@@ -215,7 +215,7 @@ function App() {
                   <img src="/logo.png" alt="EnGenius" className="h-10 md:h-12 w-auto" />
                   <div className="w-px h-10 bg-gray-200 hidden md:block" />
                   <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-[#241C15] tracking-tight">
+                    <h1 className="page-title">
                       EDM Analytic Dashboard
                     </h1>
                     <p className="text-gray-500 text-xs md:text-sm">Multi-Region Campaign Analytics</p>
