@@ -185,7 +185,7 @@ function App() {
   }, [audienceList, selectedAudience]);
 
   return (
-    <div className="min-h-screen bg-[#F6F6F4] p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#F6F6F4] bg-textured p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 md:mb-8">
