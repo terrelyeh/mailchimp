@@ -88,11 +88,15 @@ export default function ExportButton({
       onclone: (clonedDoc) => {
         const clonedElement = clonedDoc.querySelector('[data-export-content]');
         if (clonedElement) {
+          // 添加整體 padding，讓內容不會太靠近邊緣
+          clonedElement.style.padding = '24px';
+          clonedElement.style.boxSizing = 'border-box';
+
           // 建立報告標頭
           const header = clonedDoc.createElement('div');
           header.style.cssText = `
-            padding: 24px;
-            margin-bottom: 16px;
+            padding: 28px 32px;
+            margin-bottom: 24px;
             background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             border-radius: 12px;
             color: white;
@@ -100,12 +104,19 @@ export default function ExportButton({
 
           // 標題區塊
           const titleSection = clonedDoc.createElement('div');
-          titleSection.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;';
+          titleSection.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;';
 
           const titleLeft = clonedDoc.createElement('div');
+          // Logo
+          const logo = clonedDoc.createElement('img');
+          logo.src = '/logo.svg';
+          logo.alt = 'EnGenius';
+          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: brightness(0) invert(1);';
+          titleLeft.appendChild(logo);
+
           const title = clonedDoc.createElement('h1');
-          title.textContent = 'EnGenius EDM Dashboard';
-          title.style.cssText = 'font-size: 24px; font-weight: bold; margin: 0 0 4px 0;';
+          title.textContent = 'EDM Analytic Dashboard';
+          title.style.cssText = 'font-size: 28px; font-weight: bold; margin: 0 0 6px 0; letter-spacing: -0.5px;';
 
           const subtitle = clonedDoc.createElement('p');
           subtitle.textContent = view === 'overview' ? 'Multi-Region Campaign Analytics' : `${selectedRegion} Region Report`;
@@ -125,7 +136,7 @@ export default function ExportButton({
 
           // 篩選條件區塊
           const filterSection = clonedDoc.createElement('div');
-          filterSection.style.cssText = 'display: flex; gap: 24px; flex-wrap: wrap;';
+          filterSection.style.cssText = 'display: flex; gap: 32px; flex-wrap: wrap;';
 
           const filters = [
             { label: 'Date Range', value: formatDateRange() },
@@ -142,11 +153,11 @@ export default function ExportButton({
 
             const label = clonedDoc.createElement('div');
             label.textContent = filter.label;
-            label.style.cssText = 'font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6; margin-bottom: 2px;';
+            label.style.cssText = 'font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6; margin-bottom: 4px;';
 
             const value = clonedDoc.createElement('div');
             value.textContent = filter.value;
-            value.style.cssText = 'font-size: 14px; font-weight: 600;';
+            value.style.cssText = 'font-size: 15px; font-weight: 600;';
 
             filterItem.appendChild(label);
             filterItem.appendChild(value);
@@ -162,8 +173,8 @@ export default function ExportButton({
           // 建立頁尾
           const footer = clonedDoc.createElement('div');
           footer.style.cssText = `
-            margin-top: 16px;
-            padding: 12px 16px;
+            margin-top: 24px;
+            padding: 16px 20px;
             background: #f8fafc;
             border-radius: 8px;
             display: flex;
@@ -171,6 +182,7 @@ export default function ExportButton({
             align-items: center;
             font-size: 11px;
             color: #64748b;
+            border: 1px solid #e2e8f0;
           `;
           footer.innerHTML = `
             <span>© ${new Date().getFullYear()} EnGenius Technologies</span>
@@ -240,13 +252,17 @@ export default function ExportButton({
     try {
       const canvas = await prepareCanvas();
 
-      // 計算 PDF 尺寸 (A4 比例，但根據內容寬度調整)
-      const imgWidth = 210; // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // PDF 邊距設定 (mm)
+      const margin = {
+        top: 15,
+        bottom: 15,
+        left: 15,
+        right: 15
+      };
 
       // 建立 PDF
       const pdf = new jsPDF({
-        orientation: imgHeight > imgWidth * 1.5 ? 'portrait' : 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
@@ -254,23 +270,27 @@ export default function ExportButton({
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
 
-      // 計算縮放比例以適應頁面
-      const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-      const scaledWidth = imgWidth * ratio;
-      const scaledHeight = imgHeight * ratio;
+      // 可用內容區域
+      const contentWidth = pageWidth - margin.left - margin.right;
+      const contentHeight = pageHeight - margin.top - margin.bottom;
 
-      // 置中
-      const x = (pageWidth - scaledWidth) / 2;
-      const y = 10; // 上邊距
+      // 計算圖片尺寸以適應內容區域
+      const imgAspectRatio = canvas.width / canvas.height;
+      let scaledWidth = contentWidth;
+      let scaledHeight = scaledWidth / imgAspectRatio;
 
       // 如果內容超過一頁，需要分頁處理
-      if (scaledHeight > pageHeight - 20) {
+      if (scaledHeight > contentHeight) {
         // 長內容：分頁處理
-        const totalPages = Math.ceil(scaledHeight / (pageHeight - 20));
-        const sliceHeight = canvas.height / totalPages;
+        const pixelsPerPage = (contentHeight / scaledHeight) * canvas.height;
+        const totalPages = Math.ceil(canvas.height / pixelsPerPage);
 
         for (let i = 0; i < totalPages; i++) {
           if (i > 0) pdf.addPage();
+
+          // 計算這一頁要裁切的高度
+          const startY = i * pixelsPerPage;
+          const sliceHeight = Math.min(pixelsPerPage, canvas.height - startY);
 
           // 裁切 canvas
           const sliceCanvas = document.createElement('canvas');
@@ -279,17 +299,19 @@ export default function ExportButton({
           const ctx = sliceCanvas.getContext('2d');
           ctx.drawImage(
             canvas,
-            0, i * sliceHeight, canvas.width, sliceHeight,
+            0, startY, canvas.width, sliceHeight,
             0, 0, canvas.width, sliceHeight
           );
 
           const sliceImgData = sliceCanvas.toDataURL('image/png');
-          const sliceImgHeight = (sliceHeight * pageWidth) / canvas.width;
+          const sliceImgHeight = (sliceHeight / canvas.width) * contentWidth;
 
-          pdf.addImage(sliceImgData, 'PNG', 0, 0, pageWidth, sliceImgHeight);
+          pdf.addImage(sliceImgData, 'PNG', margin.left, margin.top, contentWidth, sliceImgHeight);
         }
       } else {
-        // 單頁
+        // 單頁 - 置中顯示
+        const x = margin.left;
+        const y = margin.top;
         const imgData = canvas.toDataURL('image/png');
         pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
       }
