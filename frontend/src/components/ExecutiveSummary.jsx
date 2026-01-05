@@ -56,7 +56,7 @@ export default function ExecutiveSummary({
     <div className="bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 rounded-xl p-4 md:p-6 mb-6 text-white shadow-xl ring-1 ring-white/10">
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <BarChart3 className="w-5 h-5 text-yellow-400" />
-        <h2 className="font-bold text-base md:text-lg">Executive Summary</h2>
+        <h2 className="section-title-light">Executive Summary</h2>
         <span className="text-xs text-slate-400 ml-auto">
           {isOverview ? 'Multi-Region Overview' : `${currentRegion?.name || 'Region'} Analysis`}
         </span>

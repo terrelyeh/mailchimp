@@ -152,7 +152,7 @@ export default function RegionCards({ regionsData, regions, onRegionClick }) {
 
   return (
     <div className="mb-8">
-      <h2 className="text-lg font-bold text-gray-900 mb-4">Regional Performance</h2>
+      <h2 className="section-title mb-4">Regional Performance</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {regions.map((region) => (
           <RegionCard

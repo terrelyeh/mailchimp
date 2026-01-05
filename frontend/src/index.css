@@ -39,6 +39,72 @@ body {
   background-attachment: fixed;
 }
 
+/* Enhanced Page Title */
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #241C15;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+@media (min-width: 768px) {
+  .page-title {
+    font-size: 1.75rem;
+  }
+}
+
+/* Section Title with decorative accent */
+.section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.01em;
+  position: relative;
+}
+
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 1.1em;
+  background: linear-gradient(180deg, #007C89 0%, #00a5b5 100%);
+  border-radius: 2px;
+}
+
+@media (min-width: 768px) {
+  .section-title {
+    font-size: 1.125rem;
+  }
+}
+
+/* Section Title - Light variant for dark backgrounds */
+.section-title-light {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -0.01em;
+}
+
+.section-title-light::before {
+  content: '';
+  width: 3px;
+  height: 1.1em;
+  background: linear-gradient(180deg, #FFE01B 0%, #fbbf24 100%);
+  border-radius: 2px;
+}
+
+@media (min-width: 768px) {
+  .section-title-light {
+    font-size: 1.125rem;
+  }
+}
+
 /* Tabular numbers for data */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
