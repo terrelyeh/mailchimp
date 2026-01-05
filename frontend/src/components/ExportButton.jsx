@@ -107,8 +107,15 @@ export default function ExportButton({
           titleSection.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;';
 
           const titleLeft = clonedDoc.createElement('div');
+          // Logo
+          const logo = clonedDoc.createElement('img');
+          logo.src = '/logo.svg';
+          logo.alt = 'EnGenius';
+          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: brightness(0) invert(1);';
+          titleLeft.appendChild(logo);
+
           const title = clonedDoc.createElement('h1');
-          title.textContent = 'EnGenius EDM Dashboard';
+          title.textContent = 'EDM Analytic Dashboard';
           title.style.cssText = 'font-size: 28px; font-weight: bold; margin: 0 0 6px 0; letter-spacing: -0.5px;';
 
           const subtitle = clonedDoc.createElement('p');

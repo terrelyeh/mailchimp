@@ -193,25 +193,31 @@ function App() {
           <div className="flex items-start justify-between">
             <div>
               {view === 'region-detail' && currentRegion ? (
-                <div>
-                  <button
-                    onClick={handleBackToOverview}
-                    className="flex items-center text-gray-600 hover:text-gray-900 mb-2 text-sm"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-1" />
-                    Back to Overview
-                  </button>
-                  <h1 className="text-xl md:text-3xl font-bold text-[#241C15] tracking-tight">
-                    {currentRegion.flag} {currentRegion.name}
-                  </h1>
-                  <p className="text-gray-500 mt-1 text-sm md:text-base">EDM Campaign Analytics</p>
+                <div className="flex items-center gap-4">
+                  <img src="/logo.svg" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                  <div>
+                    <button
+                      onClick={handleBackToOverview}
+                      className="flex items-center text-gray-600 hover:text-gray-900 mb-1 text-sm"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-1" />
+                      Back to Overview
+                    </button>
+                    <h1 className="text-lg md:text-2xl font-bold text-[#241C15] tracking-tight">
+                      {currentRegion.flag} {currentRegion.name}
+                    </h1>
+                    <p className="text-gray-500 text-xs md:text-sm">EDM Campaign Analytics</p>
+                  </div>
                 </div>
               ) : (
-                <div>
-                  <h1 className="text-xl md:text-3xl font-bold text-[#241C15] tracking-tight">
-                    EnGenius EDM Analytic Dashboard
-                  </h1>
-                  <p className="text-gray-500 mt-1 text-sm md:text-base">Multi-Region Campaign Analytics</p>
+                <div className="flex items-center gap-4">
+                  <img src="/logo.svg" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                  <div>
+                    <h1 className="text-xl md:text-2xl font-bold text-[#241C15] tracking-tight">
+                      EDM Analytic Dashboard
+                    </h1>
+                    <p className="text-gray-500 text-xs md:text-sm">Multi-Region Campaign Analytics</p>
+                  </div>
                 </div>
               )}
             </div>
