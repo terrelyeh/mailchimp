@@ -185,16 +185,17 @@ function App() {
   }, [audienceList, selectedAudience]);
 
   return (
-    <div className="min-h-screen bg-[#F6F6F4] p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#F6F6F4] bg-textured p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col gap-4 mb-6 md:mb-8">
+        <div className="flex flex-col gap-4 mb-6 md:mb-8 pb-4 md:pb-6 border-b border-gray-200/60">
           {/* Title Row */}
           <div className="flex items-start justify-between">
             <div>
               {view === 'region-detail' && currentRegion ? (
-                <div className="flex items-center gap-4">
-                  <img src="/logo.svg" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                <div className="flex items-center gap-4 md:gap-5">
+                  <img src="/logo.png" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                  <div className="w-px h-10 bg-gray-200 hidden md:block" />
                   <div>
                     <button
                       onClick={handleBackToOverview}
@@ -210,8 +211,9 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-4">
-                  <img src="/logo.svg" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                <div className="flex items-center gap-4 md:gap-5">
+                  <img src="/logo.png" alt="EnGenius" className="h-10 md:h-12 w-auto" />
+                  <div className="w-px h-10 bg-gray-200 hidden md:block" />
                   <div>
                     <h1 className="text-xl md:text-2xl font-bold text-[#241C15] tracking-tight">
                       EDM Analytic Dashboard
