@@ -188,7 +188,7 @@ function App() {
     <div className="min-h-screen bg-[#F6F6F4] bg-textured p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col gap-4 mb-6 md:mb-8">
+        <div className="flex flex-col gap-4 mb-6 md:mb-8 pb-4 md:pb-6 border-b border-gray-200/60">
           {/* Title Row */}
           <div className="flex items-start justify-between">
             <div>
