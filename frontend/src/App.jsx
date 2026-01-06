@@ -336,7 +336,7 @@ function App() {
                   isOverview={true}
                   regions={availableRegions}
                 />
-                <KPICards data={displayData} isMultiRegion={true} totalSubscribers={totalSubscribers} />
+                <KPICards data={displayData} isMultiRegion={true} totalSubscribers={totalSubscribers} selectedDays={selectedDays} />
                 <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
                 <RegionCards
                   regionsData={displayData}
@@ -358,6 +358,7 @@ function App() {
                   data={displayData}
                   isMultiRegion={false}
                   totalSubscribers={totalSubscribers}
+                  selectedDays={selectedDays}
                 />
 
                 {/* Performance Chart */}

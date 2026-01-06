@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import {
-  TrendingUp, Award, AlertTriangle,
+  TrendingUp, Award, AlertTriangle, Send, Users,
   Target, Crown, ThumbsDown, BarChart3, Info, Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -545,29 +545,50 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
 
   return (
     <div className="space-y-4">
-      {/* Sample Size Bar */}
-      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300 pb-3 border-b border-slate-600">
-        <div>
-          <span className="text-slate-400">Campaigns Analyzed:</span>{' '}
-          <span className="font-semibold text-white">{metrics.campaignCount}</span>
+      {/* Key Summary Stats - Prominent Display */}
+      <div className="grid grid-cols-3 gap-3 md:gap-4">
+        {/* Total Emails Sent */}
+        <div className="bg-white/10 rounded-lg p-3 md:p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Send className="w-4 h-4 text-blue-400" />
+            <span className="text-xs text-slate-400 uppercase tracking-wide">Total Sent</span>
+          </div>
+          <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
+            {metrics.totalSent.toLocaleString()}
+          </div>
+          <div className="text-xs text-slate-400 mt-1">
+            {metrics.campaignCount} campaign{metrics.campaignCount !== 1 ? 's' : ''}
+          </div>
         </div>
-        <div>
-          <span className="text-slate-400">Total Emails Sent:</span>{' '}
-          <span className="font-semibold text-white">{metrics.totalSent.toLocaleString()}</span>
+
+        {/* Audience */}
+        <div className="bg-white/10 rounded-lg p-3 md:p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-4 h-4 text-purple-400" />
+            <span className="text-xs text-slate-400 uppercase tracking-wide">Audience</span>
+          </div>
+          <div className="text-sm md:text-base font-bold text-white line-clamp-2" title={audienceName}>
+            {audienceName}
+          </div>
         </div>
-        <div>
-          <span className="text-slate-400">Audience:</span>{' '}
-          <span className="font-semibold text-white">{audienceName}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Clock className="w-3 h-3 text-slate-400" />
-          <span className="text-slate-400">Last Campaign:</span>{' '}
-          <span className={`font-semibold ${metrics.daysSinceLastCampaign > 30 ? 'text-amber-400' : 'text-white'}`}>
+
+        {/* Last Campaign */}
+        <div className="bg-white/10 rounded-lg p-3 md:p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-4 h-4 text-amber-400" />
+            <span className="text-xs text-slate-400 uppercase tracking-wide">Last Campaign</span>
+          </div>
+          <div className={`text-xl md:text-2xl font-bold ${metrics.daysSinceLastCampaign > 30 ? 'text-amber-400' : 'text-white'}`}>
             {metrics.daysSinceLastCampaign <= 7
-              ? `${metrics.daysSinceLastCampaign} day${metrics.daysSinceLastCampaign !== 1 ? 's' : ''} ago`
+              ? `${metrics.daysSinceLastCampaign}d ago`
               : format(metrics.lastCampaignDate, 'MMM d')}
-            {metrics.daysSinceLastCampaign > 30 && ' ⚠️'}
-          </span>
+          </div>
+          {metrics.daysSinceLastCampaign > 30 && (
+            <div className="text-xs text-amber-400 mt-1 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              Over 30 days
+            </div>
+          )}
         </div>
       </div>
 
@@ -580,33 +601,6 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           </span>
         </div>
       )}
-
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <SimpleMetricCard
-          label="Open Rate"
-          value={`${(metrics.avgOpenRate * 100).toFixed(1)}%`}
-          dimmed={!regionHasData}
-        />
-        <SimpleMetricCard
-          label="Click Rate"
-          value={`${(metrics.avgClickRate * 100).toFixed(1)}%`}
-          dimmed={!regionHasData}
-        />
-        <SimpleMetricCard
-          label="Delivery Rate"
-          value={`${(metrics.deliveryRate * 100).toFixed(1)}%`}
-          dimmed={!regionHasData}
-        />
-        <SimpleMetricCard
-          label="Avg per Campaign"
-          value={metrics.campaignCount > 0
-            ? Math.round(metrics.totalSent / metrics.campaignCount).toLocaleString()
-            : '0'}
-          subLabel="emails"
-          dimmed={!regionHasData}
-        />
-      </div>
 
       {/* Top & Bottom Campaigns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
