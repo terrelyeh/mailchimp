@@ -191,12 +191,12 @@ function App() {
         <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-300">
           {/* Title Row */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3 md:gap-5 min-w-0">
-              {/* Logo - hidden on mobile for region detail, always show on overview */}
+            <div className="flex items-center gap-3 md:gap-5 min-w-0 flex-1">
+              {/* Logo - hidden on mobile */}
               <img
                 src="/logo.png"
                 alt="EnGenius"
-                className={`h-8 md:h-12 w-auto flex-shrink-0 ${view === 'region-detail' ? 'hidden md:block' : ''}`}
+                className="h-8 md:h-12 w-auto flex-shrink-0 hidden md:block"
               />
               <div className="w-px h-8 md:h-10 bg-gray-200 hidden md:block flex-shrink-0" />
 
@@ -210,22 +210,22 @@ function App() {
                     <span className="hidden sm:inline">Back to Overview</span>
                     <span className="sm:hidden">Back</span>
                   </button>
-                  <h1 className="page-title truncate">
+                  <h1 className="page-title">
                     {currentRegion.flag} {currentRegion.name}
                   </h1>
                 </div>
               ) : (
                 <div className="min-w-0">
-                  <h1 className="page-title truncate">
-                    EDM Analytic Dashboard
+                  <h1 className="page-title">
+                    EDM Dashboard
                   </h1>
-                  <p className="text-gray-500 text-xs md:text-sm truncate">Campaign Analytics</p>
+                  <p className="text-gray-500 text-xs md:text-sm hidden sm:block">Campaign Analytics</p>
                 </div>
               )}
             </div>
 
             {/* Action Buttons - Always visible */}
-            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
               {/* Last Sync Time */}
               {lastFetchTime && !useMock && (
                 <span
