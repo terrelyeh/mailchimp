@@ -188,48 +188,48 @@ function App() {
     <div className="min-h-screen bg-[#F6F6F4] bg-textured p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col gap-4 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-300">
+        <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-300">
           {/* Title Row */}
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 md:gap-5 min-w-0">
+              {/* Logo - hidden on mobile for region detail, always show on overview */}
+              <img
+                src="/logo.png"
+                alt="EnGenius"
+                className={`h-8 md:h-12 w-auto flex-shrink-0 ${view === 'region-detail' ? 'hidden md:block' : ''}`}
+              />
+              <div className="w-px h-8 md:h-10 bg-gray-200 hidden md:block flex-shrink-0" />
+
               {view === 'region-detail' && currentRegion ? (
-                <div className="flex items-center gap-4 md:gap-5">
-                  <img src="/logo.png" alt="EnGenius" className="h-10 md:h-12 w-auto" />
-                  <div className="w-px h-10 bg-gray-200 hidden md:block" />
-                  <div>
-                    <button
-                      onClick={handleBackToOverview}
-                      className="flex items-center text-gray-600 hover:text-gray-900 mb-1 text-sm"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-1" />
-                      Back to Overview
-                    </button>
-                    <h1 className="page-title">
-                      {currentRegion.flag} {currentRegion.name}
-                    </h1>
-                    <p className="text-gray-500 text-xs md:text-sm">EDM Campaign Analytics</p>
-                  </div>
+                <div className="min-w-0">
+                  <button
+                    onClick={handleBackToOverview}
+                    className="flex items-center text-gray-500 hover:text-gray-900 text-xs md:text-sm mb-0.5"
+                  >
+                    <ArrowLeft className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
+                    <span className="hidden sm:inline">Back to Overview</span>
+                    <span className="sm:hidden">Back</span>
+                  </button>
+                  <h1 className="page-title truncate">
+                    {currentRegion.flag} {currentRegion.name}
+                  </h1>
                 </div>
               ) : (
-                <div className="flex items-center gap-4 md:gap-5">
-                  <img src="/logo.png" alt="EnGenius" className="h-10 md:h-12 w-auto" />
-                  <div className="w-px h-10 bg-gray-200 hidden md:block" />
-                  <div>
-                    <h1 className="page-title">
-                      EDM Analytic Dashboard
-                    </h1>
-                    <p className="text-gray-500 text-xs md:text-sm">Multi-Region Campaign Analytics</p>
-                  </div>
+                <div className="min-w-0">
+                  <h1 className="page-title truncate">
+                    EDM Analytic Dashboard
+                  </h1>
+                  <p className="text-gray-500 text-xs md:text-sm truncate">Campaign Analytics</p>
                 </div>
               )}
             </div>
 
             {/* Action Buttons - Always visible */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
               {/* Last Sync Time */}
               {lastFetchTime && !useMock && (
                 <span
-                  className="text-xs text-gray-400 hidden md:block"
+                  className="text-xs text-gray-400 hidden lg:block"
                   title={lastFetchTime.toLocaleString()}
                 >
                   {lastFetchTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -238,7 +238,7 @@ function App() {
               <button
                 onClick={handleSync}
                 disabled={isSyncing}
-                className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-3 md:px-4 py-2 rounded-lg font-bold shadow-sm transition-colors text-xs md:text-sm"
+                className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-bold shadow-sm transition-colors text-xs md:text-sm"
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''} md:mr-2`} />
                 <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>

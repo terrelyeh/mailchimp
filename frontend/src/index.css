@@ -59,7 +59,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #1f2937;
   letter-spacing: -0.01em;
@@ -68,7 +68,7 @@ body {
 
 .section-title::before {
   content: '';
-  width: 3px;
+  width: 4px;
   height: 1.1em;
   background: linear-gradient(180deg, #007C89 0%, #00a5b5 100%);
   border-radius: 2px;
@@ -76,7 +76,7 @@ body {
 
 @media (min-width: 768px) {
   .section-title {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
   }
 }
 
@@ -85,7 +85,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: white;
   letter-spacing: -0.01em;
@@ -93,7 +93,7 @@ body {
 
 .section-title-light::before {
   content: '';
-  width: 3px;
+  width: 4px;
   height: 1.1em;
   background: linear-gradient(180deg, #FFE01B 0%, #fbbf24 100%);
   border-radius: 2px;
@@ -101,7 +101,7 @@ body {
 
 @media (min-width: 768px) {
   .section-title-light {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
   }
 }
 
