@@ -126,26 +126,26 @@ export default function CampaignList({ data }) {
     return (
         <div className="bg-white rounded-xl shadow-layered border border-gray-100/50 overflow-hidden">
             {/* Header */}
-            <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div className="px-4 md:px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
                         <Mail className="w-4 h-4 text-gray-500" />
                     </div>
-                    <div>
-                        <h3 className="section-title">Recent Campaigns</h3>
-                        <span className="text-xs text-gray-400 tabular-nums">
-                            {totalItems} campaign{totalItems !== 1 ? 's' : ''}
-                            {totalPages > 1 && ` · Page ${currentPage} of ${totalPages}`}
-                        </span>
-                    </div>
+                    <h3 className="section-title">Recent Campaigns</h3>
                 </div>
-                <span className="text-xs text-gray-400 md:hidden bg-gray-100 px-2 py-1 rounded">← Scroll →</span>
+                <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-400 md:hidden bg-gray-100 px-2 py-1 rounded">← Scroll →</span>
+                    <span className="text-sm text-gray-500 tabular-nums">
+                        {totalItems} campaign{totalItems !== 1 ? 's' : ''}
+                        {totalPages > 1 && <span className="text-gray-400"> · Page {currentPage} of {totalPages}</span>}
+                    </span>
+                </div>
             </div>
 
             {/* Table */}
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[900px]">
-                    <thead className="bg-gray-50/80 border-b border-gray-100">
+                    <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
                             <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
                             <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>
@@ -158,7 +158,7 @@ export default function CampaignList({ data }) {
                             <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-200">
                         {currentData.map((campaign, idx) => {
                             const bounceRate = campaign.emails_sent > 0
                                 ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
@@ -175,7 +175,7 @@ export default function CampaignList({ data }) {
                             return (
                                 <tr
                                     key={campaign.id}
-                                    className={`hover:bg-blue-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                                    className="hover:bg-blue-50/50 transition-colors bg-white"
                                 >
                                     {/* Campaign Title */}
                                     <td className="px-3 md:px-4 py-3">
