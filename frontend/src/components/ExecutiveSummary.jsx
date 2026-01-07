@@ -286,16 +286,16 @@ function hasInsufficientData(region) {
 // type: 'region' for region-level (uses both thresholds), 'campaign' for single campaign (only sent threshold)
 function InsufficientDataCard({ title, icon: Icon, iconColor, type = 'region' }) {
   return (
-    <div className="bg-white/10 rounded-lg p-4 opacity-70 shadow-lg ring-1 ring-white/10">
+    <div className="bg-white/5 rounded-lg p-4 opacity-50 shadow-lg ring-1 ring-white/5">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className={`w-4 h-4 ${iconColor}`} />
-        <span className="text-xs text-slate-300 uppercase tracking-wide">{title}</span>
+        <Icon className={`w-4 h-4 ${iconColor} opacity-60`} />
+        <span className="text-xs text-slate-400 uppercase tracking-wide">{title}</span>
       </div>
       <div className="flex items-center gap-2 mb-2">
-        <Info className="w-5 h-5 text-slate-300" />
-        <span className="font-semibold text-slate-300">Insufficient Data</span>
+        <Info className="w-5 h-5 text-slate-400" />
+        <span className="font-semibold text-slate-400">Insufficient Data</span>
       </div>
-      <div className="text-xs text-slate-400 mt-2">
+      <div className="text-xs text-slate-500 mt-2">
         {type === 'region'
           ? `Requires ≥${MIN_SENT_THRESHOLD} sent or ≥${MIN_CAMPAIGNS_THRESHOLD} campaigns`
           : `Requires ≥${MIN_SENT_THRESHOLD} emails sent`
@@ -376,6 +376,14 @@ function OverviewContent({ metrics }) {
               <div className="flex items-center gap-2 mb-3">
                 <Target className="w-4 h-4 text-orange-400" />
                 <span className="text-xs text-slate-300 uppercase tracking-wide">Needs Attention</span>
+                <div className="relative group ml-auto">
+                  <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+                  <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-slate-900 rounded-lg shadow-xl text-xs text-slate-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                    <div className="font-medium text-white mb-1">Why this region?</div>
+                    Lowest composite score based on Open Rate, Click Rate, and Delivery Rate.
+                    <div className="absolute bottom-0 right-3 translate-y-1/2 rotate-45 w-2 h-2 bg-slate-900"></div>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
