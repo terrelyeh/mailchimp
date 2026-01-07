@@ -220,17 +220,18 @@ function calculateRegionMetrics(data, currentRegion, thresholds) {
   const bounceRate = totalSent > 0 ? totalBounces / totalSent : 0;
   const unsubRate = totalSent > 0 ? totalUnsubs / totalSent : 0;
 
-  // Find top performer (highest open rate)
-  const sortedByOpenRate = [...campaigns].sort((a, b) => (b.open_rate || 0) - (a.open_rate || 0));
-  const topCampaign = sortedByOpenRate[0];
+  // Find top performer (highest open rate) - only from campaigns with sufficient data
+  const qualifiedCampaigns = campaigns.filter(c => (c.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD);
+  const sortedByOpenRate = [...qualifiedCampaigns].sort((a, b) => (b.open_rate || 0) - (a.open_rate || 0));
+  const topCampaign = sortedByOpenRate.length > 0 ? sortedByOpenRate[0] : null;
 
   // Find last campaign date
   const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
   const lastCampaignDate = new Date(sortedByDate[0].send_time);
   const daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Find "Needs Review" campaign using configurable thresholds
-  const campaignsNeedingReview = campaigns.filter(c => {
+  // Find "Needs Review" campaign using configurable thresholds - only from qualified campaigns
+  const campaignsNeedingReview = qualifiedCampaigns.filter(c => {
     const deliveryRate = c.emails_sent > 0
       ? (c.emails_sent - (c.bounces || 0)) / c.emails_sent
       : 1;
@@ -329,7 +330,7 @@ function OverviewContent({ metrics }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* Best Performing Region */}
         {bestHasData ? (
           <div className="bg-white/10 rounded-lg p-4 shadow-lg ring-1 ring-white/10 hover:bg-white/15 transition-colors">
@@ -416,49 +417,6 @@ function OverviewContent({ metrics }) {
           ) : (
             <InsufficientDataCard title="Needs Attention" icon={Target} iconColor="text-orange-400" />
           )
-        )}
-
-        {/* Top Campaign */}
-        {metrics.topCampaign && (metrics.topCampaign.emails_sent || 0) >= MIN_SENT_THRESHOLD ? (
-          <div className="bg-white/10 rounded-lg p-4 shadow-lg ring-1 ring-white/10 hover:bg-white/15 transition-colors">
-            <div className="flex items-center gap-2 mb-3">
-              <Award className="w-4 h-4 text-blue-400" />
-              <span className="text-xs text-slate-300 uppercase tracking-wide">Best Campaign</span>
-            </div>
-            <div className="mb-2">
-              <div className="font-semibold text-sm line-clamp-1">
-                {metrics.topCampaign.title || metrics.topCampaign.subject_line || 'Untitled Campaign'}
-              </div>
-              <div className="text-xs text-slate-400 mt-1">
-                {metrics.topCampaignRegion?.flag} {metrics.topCampaignRegion?.name}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-sm mb-2">
-              <div>
-                <span className="text-slate-400 text-xs">Open</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-400 text-xs">Click</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.click_rate || 0) * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-400 text-xs">Delivery</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.emails_sent - (metrics.topCampaign.bounces || 0)) / metrics.topCampaign.emails_sent * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-            <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
-              {(metrics.topCampaign.emails_sent || 0).toLocaleString()} emails sent
-            </div>
-          </div>
-        ) : (
-          <InsufficientDataCard title="Best Campaign" icon={Award} iconColor="text-blue-400" type="campaign" />
         )}
       </div>
 
@@ -547,9 +505,8 @@ function OverviewContent({ metrics }) {
 function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds }) {
   // Check if region has sufficient data (uses region-level threshold)
   const regionHasData = metrics.totalSent >= MIN_SENT_THRESHOLD || metrics.campaignCount >= MIN_CAMPAIGNS_THRESHOLD;
-  // Individual campaign comparison uses lower threshold (50 vs 100)
-  const topCampaignHasData = metrics.topCampaign && (metrics.topCampaign.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD;
-  const bottomCampaignHasData = metrics.bottomCampaign && (metrics.bottomCampaign.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD;
+  // bottomCampaign is already filtered by MIN_CAMPAIGN_SENT_THRESHOLD in calculateRegionMetrics
+  const bottomCampaignHasData = !!metrics.bottomCampaign;
 
   return (
     <div className="space-y-4">
@@ -610,75 +567,23 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
         </div>
       )}
 
-      {/* Top & Bottom Campaigns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Best Campaign */}
-        {topCampaignHasData ? (
-          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 shadow-lg ring-1 ring-green-500/20 hover:bg-green-500/15 transition-colors">
+      {/* Needs Review Campaign */}
+      {metrics.campaignCount > 1 && (
+        !metrics.bottomCampaign ? (
+          // All campaigns performing well - no one needs review!
+          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 shadow-lg">
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-4 h-4 text-green-400" />
-              <span className="text-xs text-green-300 uppercase tracking-wide">Top Performer</span>
+              <span className="text-xs text-green-300 uppercase tracking-wide">All Performing Well</span>
             </div>
-            <div className="font-semibold text-sm line-clamp-1 mb-2">
-              {metrics.topCampaign.title || metrics.topCampaign.subject_line || 'Untitled Campaign'}
+            <div className="text-sm text-green-300">
+              No campaigns below threshold
             </div>
-            <div className="grid grid-cols-3 gap-2 text-sm">
-              <div>
-                <span className="text-slate-400 text-xs">Open</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-400 text-xs">Click</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.click_rate || 0) * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-400 text-xs">Delivery</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.emails_sent - (metrics.topCampaign.bounces || 0)) / metrics.topCampaign.emails_sent * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-            <div className="text-xs text-slate-400 pt-2 mt-2 border-t border-green-500/20">
-              {(metrics.topCampaign.emails_sent || 0).toLocaleString()} emails sent
+            <div className="text-xs text-slate-400 mt-2">
+              Open ≥{(reviewThresholds.reviewOpenRate * 100).toFixed(0)}%, Click ≥{(reviewThresholds.reviewClickRate * 100).toFixed(0)}%, Delivery ≥{(reviewThresholds.reviewDeliveryRate * 100).toFixed(0)}%
             </div>
           </div>
-        ) : (
-          <div className="bg-green-500/5 border border-green-500/10 rounded-lg p-4 opacity-70 shadow-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Crown className="w-4 h-4 text-green-400/60" />
-              <span className="text-xs text-green-300/60 uppercase tracking-wide">Top Performer</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-slate-300" />
-              <span className="text-sm text-slate-300">Insufficient Data</span>
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Requires ≥{MIN_CAMPAIGN_SENT_THRESHOLD} emails sent
-            </div>
-          </div>
-        )}
-
-        {/* Needs Review Campaign */}
-        {metrics.campaignCount > 1 && (
-          !metrics.bottomCampaign ? (
-            // All campaigns performing well - no one needs review!
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 shadow-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Crown className="w-4 h-4 text-green-400" />
-                <span className="text-xs text-green-300 uppercase tracking-wide">All Performing Well</span>
-              </div>
-              <div className="text-sm text-green-300">
-                No campaigns below threshold
-              </div>
-              <div className="text-xs text-slate-400 mt-2">
-                Open ≥{(reviewThresholds.reviewOpenRate * 100).toFixed(0)}%, Click ≥{(reviewThresholds.reviewClickRate * 100).toFixed(0)}%, Delivery ≥{(reviewThresholds.reviewDeliveryRate * 100).toFixed(0)}%
-              </div>
-            </div>
-          ) : bottomCampaignHasData ? (
+        ) : bottomCampaignHasData ? (
             <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 shadow-lg ring-1 ring-orange-500/20 hover:bg-orange-500/15 transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <ThumbsDown className="w-4 h-4 text-orange-400" />
@@ -728,7 +633,6 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
             </div>
           )
         )}
-      </div>
 
       {/* Issues Alert */}
       {metrics.issues.length > 0 && (
