@@ -330,7 +330,7 @@ function OverviewContent({ metrics }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* Best Performing Region */}
         {bestHasData ? (
           <div className="bg-white/10 rounded-lg p-4 shadow-lg ring-1 ring-white/10 hover:bg-white/15 transition-colors">
@@ -417,49 +417,6 @@ function OverviewContent({ metrics }) {
           ) : (
             <InsufficientDataCard title="Needs Attention" icon={Target} iconColor="text-orange-400" />
           )
-        )}
-
-        {/* Top Campaign */}
-        {metrics.topCampaign && (metrics.topCampaign.emails_sent || 0) >= MIN_SENT_THRESHOLD ? (
-          <div className="bg-white/10 rounded-lg p-4 shadow-lg ring-1 ring-white/10 hover:bg-white/15 transition-colors">
-            <div className="flex items-center gap-2 mb-3">
-              <Award className="w-4 h-4 text-blue-400" />
-              <span className="text-xs text-slate-300 uppercase tracking-wide">Best Campaign</span>
-            </div>
-            <div className="mb-2">
-              <div className="font-semibold text-sm line-clamp-1">
-                {metrics.topCampaign.title || metrics.topCampaign.subject_line || 'Untitled Campaign'}
-              </div>
-              <div className="text-xs text-slate-400 mt-1">
-                {metrics.topCampaignRegion?.flag} {metrics.topCampaignRegion?.name}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-sm mb-2">
-              <div>
-                <span className="text-slate-400 text-xs">Open</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.open_rate || 0) * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-400 text-xs">Click</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.click_rate || 0) * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-400 text-xs">Delivery</span>
-                <div className="font-semibold text-green-400">
-                  {((metrics.topCampaign.emails_sent - (metrics.topCampaign.bounces || 0)) / metrics.topCampaign.emails_sent * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-            <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
-              {(metrics.topCampaign.emails_sent || 0).toLocaleString()} emails sent
-            </div>
-          </div>
-        ) : (
-          <InsufficientDataCard title="Best Campaign" icon={Award} iconColor="text-blue-400" type="campaign" />
         )}
       </div>
 
