@@ -220,17 +220,18 @@ function calculateRegionMetrics(data, currentRegion, thresholds) {
   const bounceRate = totalSent > 0 ? totalBounces / totalSent : 0;
   const unsubRate = totalSent > 0 ? totalUnsubs / totalSent : 0;
 
-  // Find top performer (highest open rate)
-  const sortedByOpenRate = [...campaigns].sort((a, b) => (b.open_rate || 0) - (a.open_rate || 0));
-  const topCampaign = sortedByOpenRate[0];
+  // Find top performer (highest open rate) - only from campaigns with sufficient data
+  const qualifiedCampaigns = campaigns.filter(c => (c.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD);
+  const sortedByOpenRate = [...qualifiedCampaigns].sort((a, b) => (b.open_rate || 0) - (a.open_rate || 0));
+  const topCampaign = sortedByOpenRate.length > 0 ? sortedByOpenRate[0] : null;
 
   // Find last campaign date
   const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
   const lastCampaignDate = new Date(sortedByDate[0].send_time);
   const daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Find "Needs Review" campaign using configurable thresholds
-  const campaignsNeedingReview = campaigns.filter(c => {
+  // Find "Needs Review" campaign using configurable thresholds - only from qualified campaigns
+  const campaignsNeedingReview = qualifiedCampaigns.filter(c => {
     const deliveryRate = c.emails_sent > 0
       ? (c.emails_sent - (c.bounces || 0)) / c.emails_sent
       : 1;
@@ -547,9 +548,9 @@ function OverviewContent({ metrics }) {
 function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds }) {
   // Check if region has sufficient data (uses region-level threshold)
   const regionHasData = metrics.totalSent >= MIN_SENT_THRESHOLD || metrics.campaignCount >= MIN_CAMPAIGNS_THRESHOLD;
-  // Individual campaign comparison uses lower threshold (50 vs 100)
-  const topCampaignHasData = metrics.topCampaign && (metrics.topCampaign.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD;
-  const bottomCampaignHasData = metrics.bottomCampaign && (metrics.bottomCampaign.emails_sent || 0) >= MIN_CAMPAIGN_SENT_THRESHOLD;
+  // topCampaign and bottomCampaign are already filtered by MIN_CAMPAIGN_SENT_THRESHOLD in calculateRegionMetrics
+  const topCampaignHasData = !!metrics.topCampaign;
+  const bottomCampaignHasData = !!metrics.bottomCampaign;
 
   return (
     <div className="space-y-4">
