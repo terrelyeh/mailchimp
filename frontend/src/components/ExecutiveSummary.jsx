@@ -253,14 +253,31 @@ function calculateRegionMetrics(data, currentRegion, thresholds) {
       })[0]
     : null; // No campaign needs review - all performing well!
 
-  // Identify issues (based on absolute thresholds, not industry benchmarks)
-  const issues = [];
-  if (bounceRate > 0.05) {
-    issues.push({ type: 'bounce', message: `High bounce rate (${(bounceRate * 100).toFixed(1)}%)` });
-  }
-  if (unsubRate > 0.01) {
-    issues.push({ type: 'unsub', message: `Elevated unsubscribe rate (${(unsubRate * 100).toFixed(1)}%)` });
-  }
+  // Find campaigns with high bounce rate (>5%) - only from qualified campaigns
+  const highBounceCampaigns = qualifiedCampaigns
+    .filter(c => {
+      const campaignBounceRate = c.emails_sent > 0 ? (c.bounces || 0) / c.emails_sent : 0;
+      return campaignBounceRate > 0.05;
+    })
+    .map(c => ({
+      ...c,
+      bounceRate: c.emails_sent > 0 ? (c.bounces || 0) / c.emails_sent : 0
+    }))
+    .sort((a, b) => b.bounceRate - a.bounceRate) // highest bounce rate first
+    .slice(0, 3); // limit to top 3
+
+  // Find campaigns with high unsub rate (>1%) - only from qualified campaigns
+  const highUnsubCampaigns = qualifiedCampaigns
+    .filter(c => {
+      const campaignUnsubRate = c.emails_sent > 0 ? (c.unsubscribed || 0) / c.emails_sent : 0;
+      return campaignUnsubRate > 0.01;
+    })
+    .map(c => ({
+      ...c,
+      unsubRate: c.emails_sent > 0 ? (c.unsubscribed || 0) / c.emails_sent : 0
+    }))
+    .sort((a, b) => b.unsubRate - a.unsubRate) // highest unsub rate first
+    .slice(0, 3); // limit to top 3
 
   return {
     avgOpenRate,
@@ -270,7 +287,8 @@ function calculateRegionMetrics(data, currentRegion, thresholds) {
     unsubRate,
     topCampaign,
     bottomCampaign,
-    issues,
+    highBounceCampaigns,
+    highUnsubCampaigns,
     campaignCount: campaigns.length,
     totalSent,
     lastCampaignDate,
@@ -634,18 +652,47 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           )
         )}
 
-      {/* Issues Alert */}
-      {metrics.issues.length > 0 && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-          <div className="flex items-center gap-2 mb-2">
+      {/* High Bounce Rate Campaigns */}
+      {metrics.highBounceCampaigns?.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-red-300 uppercase tracking-wide">Attention Required</span>
+            <span className="text-xs text-red-300 uppercase tracking-wide">High Bounce Rate</span>
+            <span className="text-xs text-red-400/60">(&gt;5%)</span>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {metrics.issues.map((issue, i) => (
-              <span key={i} className="text-sm text-red-200">
-                {issue.message}
-              </span>
+          <div className="space-y-2">
+            {metrics.highBounceCampaigns.map((campaign, i) => (
+              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                <span className="text-sm text-white truncate flex-1 mr-3">
+                  {campaign.title || campaign.subject_line || 'Untitled'}
+                </span>
+                <span className="text-sm text-red-400 font-medium whitespace-nowrap">
+                  {(campaign.bounceRate * 100).toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* High Unsubscribe Rate Campaigns */}
+      {metrics.highUnsubCampaigns?.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <span className="text-xs text-amber-300 uppercase tracking-wide">High Unsubscribe Rate</span>
+            <span className="text-xs text-amber-400/60">(&gt;1%)</span>
+          </div>
+          <div className="space-y-2">
+            {metrics.highUnsubCampaigns.map((campaign, i) => (
+              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                <span className="text-sm text-white truncate flex-1 mr-3">
+                  {campaign.title || campaign.subject_line || 'Untitled'}
+                </span>
+                <span className="text-sm text-amber-400 font-medium whitespace-nowrap">
+                  {(campaign.unsubRate * 100).toFixed(1)}%
+                </span>
+              </div>
             ))}
           </div>
         </div>
