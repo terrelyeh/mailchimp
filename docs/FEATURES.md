@@ -19,10 +19,11 @@ Provide the EnGenius marketing team with a unified analytics platform to monitor
 The main landing page providing a global view of all regional campaign performance.
 
 #### 1.1 Executive Summary
-- **Total Emails Sent** - Aggregate count across all regions
-- **Active Regions** - Number of regions with campaign data
-- **Best Performing Region** - Region with highest open rate (with metric display)
-- **Needs Attention** - Region with lowest open rate flagged for review
+- **Total Campaigns / Total Sent / Regions** - Overview stats bar
+- **Top Region** - Region with highest composite score (Open + Click + Delivery rates)
+- **Needs Attention** - Region with lowest composite score, with info tooltip explaining selection criteria
+- **Inactive Regions** - Regions with no campaigns in >30 days
+- **Alerts** - Region-level warnings (high bounce, high unsub, low activity, low engagement)
 
 #### 1.2 KPI Cards
 Global aggregated metrics displayed in card format:
@@ -58,11 +59,12 @@ Visual cards for each region displaying:
 Detailed view for individual region performance analysis.
 
 #### 2.1 Executive Summary (Region-specific)
-- **Total Emails Sent** - Region total with prominent display
-- **Audience Size** - Subscriber count for selected audience
-- **Last Campaign** - Most recent campaign date
-- **Best Performing Campaign** - Highest open rate campaign
-- **Lowest Performing Campaign** - Campaign needing attention
+- **Total Emails Sent** - Region total with campaign count
+- **Audience** - Currently selected audience name
+- **Last Campaign** - Most recent campaign date (warning if >30 days)
+- **Needs Review** - Campaign with lowest composite score (below Open/Click/Delivery thresholds)
+- **High Bounce Rate Campaigns** - Lists specific campaigns with >5% bounce rate
+- **High Unsubscribe Rate Campaigns** - Lists specific campaigns with >1% unsub rate
 
 #### 2.2 KPI Cards
 Same metrics as Home Dashboard, filtered to selected region.
