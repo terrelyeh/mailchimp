@@ -1,9 +1,11 @@
-import React from 'react';
-import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList, Link2 } from 'lucide-react';
 import { useThresholds } from '../contexts/ThresholdContext';
+import ShareLinksManager from './ShareLinksManager';
 
 export default function SettingsModal({ isOpen, onClose }) {
   const { thresholds, updateThreshold, resetToDefaults, DEFAULT_THRESHOLDS } = useThresholds();
+  const [activeTab, setActiveTab] = useState('alerts'); // 'alerts' or 'shares'
 
   if (!isOpen) return null;
 
@@ -127,6 +129,11 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   const hasChanges = JSON.stringify(thresholds) !== JSON.stringify(DEFAULT_THRESHOLDS);
 
+  const tabs = [
+    { id: 'alerts', label: 'Alert Settings', icon: AlertTriangle },
+    { id: 'shares', label: 'Share Links', icon: Link2 }
+  ];
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -140,8 +147,8 @@ export default function SettingsModal({ isOpen, onClose }) {
               <Settings className="w-5 h-5 text-gray-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Alert Settings</h2>
-              <p className="text-xs text-gray-500">Configure alert thresholds</p>
+              <h2 className="text-lg font-bold text-gray-900">Settings</h2>
+              <p className="text-xs text-gray-500">Configure dashboard settings</p>
             </div>
           </div>
           <button
@@ -152,90 +159,127 @@ export default function SettingsModal({ isOpen, onClose }) {
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100 px-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-[#007C89] text-[#007C89]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto max-h-[60vh] space-y-6">
-          {thresholdGroups.map((group) => (
-            <div key={group.title} className={`rounded-lg p-4 ${group.bgColor} border ${group.borderColor}`}>
-              <div className="flex items-center gap-2 mb-4">
-                <group.icon className={`w-4 h-4 ${group.iconColor}`} />
-                <div>
-                  <span className="text-sm font-semibold text-gray-700">{group.title}</span>
-                  {group.subtitle && (
-                    <span className="text-xs text-gray-500 ml-2">({group.subtitle})</span>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-4">
-                {group.items.map((item) => (
-                  <div key={item.key} className="bg-white rounded-lg p-3 shadow-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-sm font-medium text-gray-700">
-                        {item.label}
-                      </label>
-                      <div className="flex items-center gap-1">
+        <div className="px-6 py-4 overflow-y-auto max-h-[55vh]">
+          {activeTab === 'alerts' ? (
+            <div className="space-y-6">
+              {thresholdGroups.map((group) => (
+                <div key={group.title} className={`rounded-lg p-4 ${group.bgColor} border ${group.borderColor}`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <group.icon className={`w-4 h-4 ${group.iconColor}`} />
+                    <div>
+                      <span className="text-sm font-semibold text-gray-700">{group.title}</span>
+                      {group.subtitle && (
+                        <span className="text-xs text-gray-500 ml-2">({group.subtitle})</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {group.items.map((item) => (
+                      <div key={item.key} className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-sm font-medium text-gray-700">
+                            {item.label}
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={thresholds[item.key]}
+                              onChange={(e) => updateThreshold(item.key, parseFloat(e.target.value) || 0)}
+                              min={item.min}
+                              max={item.max}
+                              step={item.step}
+                              className="w-20 px-2 py-1 text-right text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            {item.unit && (
+                              <span className="text-sm text-gray-500 w-4">{item.unit}</span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500">{item.description}</p>
+                        {/* Range slider */}
                         <input
-                          type="number"
+                          type="range"
                           value={thresholds[item.key]}
-                          onChange={(e) => updateThreshold(item.key, parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateThreshold(item.key, parseFloat(e.target.value))}
                           min={item.min}
                           max={item.max}
                           step={item.step}
-                          className="w-20 px-2 py-1 text-right text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full h-1.5 mt-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
                         />
-                        {item.unit && (
-                          <span className="text-sm text-gray-500 w-4">{item.unit}</span>
-                        )}
+                        <div className="flex justify-between text-xs text-gray-400 mt-1">
+                          <span>{item.min}{item.unit}</span>
+                          <span>{item.max}{item.unit}</span>
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-xs text-gray-500">{item.description}</p>
-                    {/* Range slider */}
-                    <input
-                      type="range"
-                      value={thresholds[item.key]}
-                      onChange={(e) => updateThreshold(item.key, parseFloat(e.target.value))}
-                      min={item.min}
-                      max={item.max}
-                      step={item.step}
-                      className="w-full h-1.5 mt-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                    />
-                    <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>{item.min}{item.unit}</span>
-                      <span>{item.max}{item.unit}</span>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <ShareLinksManager />
+          )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50">
-          <button
-            onClick={resetToDefaults}
-            disabled={!hasChanges}
-            className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
-              hasChanges
-                ? 'text-gray-600 hover:bg-gray-200'
-                : 'text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset to Defaults
-          </button>
-          <div className="flex items-center gap-2">
-            {hasChanges && (
-              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                Changes saved automatically
-              </span>
-            )}
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-[#007C89] hover:bg-[#006670] text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              Done
-            </button>
-          </div>
+          {activeTab === 'alerts' ? (
+            <>
+              <button
+                onClick={resetToDefaults}
+                disabled={!hasChanges}
+                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
+                  hasChanges
+                    ? 'text-gray-600 hover:bg-gray-200'
+                    : 'text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset to Defaults
+              </button>
+              <div className="flex items-center gap-2">
+                {hasChanges && (
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                    Changes saved automatically
+                  </span>
+                )}
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 bg-[#007C89] hover:bg-[#006670] text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-[#007C89] hover:bg-[#006670] text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
