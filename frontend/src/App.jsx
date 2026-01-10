@@ -229,9 +229,10 @@ function App() {
               {/* Last Sync Time */}
               {lastFetchTime && !useMock && (
                 <span
-                  className="text-xs text-gray-400 hidden lg:block"
+                  className="text-xs text-gray-400 hidden lg:flex items-center gap-1.5 mr-2"
                   title={lastFetchTime.toLocaleString()}
                 >
+                  <span className="text-gray-500">Synced</span>
                   {lastFetchTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}

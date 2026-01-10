@@ -356,31 +356,31 @@ function OverviewContent({ metrics }) {
               <Crown className="w-4 h-4 text-yellow-400" />
               <span className="text-xs text-slate-300 uppercase tracking-wide">Top Region</span>
             </div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-3">
               <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
-              <span className="font-bold text-lg">{metrics.bestRegion.info.name}</span>
+              <span className="font-bold text-xl">{metrics.bestRegion.info.name}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-sm mb-2">
+            <div className="grid grid-cols-3 gap-2 mb-3">
               <div>
-                <span className="text-slate-400 text-xs">Open</span>
-                <div className="font-semibold text-green-400">
+                <span className="text-slate-400 text-sm">Open</span>
+                <div className="font-bold text-lg text-green-400">
                   {(metrics.bestRegion.avgOpenRate * 100).toFixed(1)}%
                 </div>
               </div>
               <div>
-                <span className="text-slate-400 text-xs">Click</span>
-                <div className="font-semibold text-green-400">
+                <span className="text-slate-400 text-sm">Click</span>
+                <div className="font-bold text-lg text-green-400">
                   {(metrics.bestRegion.avgClickRate * 100).toFixed(1)}%
                 </div>
               </div>
               <div>
-                <span className="text-slate-400 text-xs">Delivery</span>
-                <div className="font-semibold text-green-400">
+                <span className="text-slate-400 text-sm">Delivery</span>
+                <div className="font-bold text-lg text-green-400">
                   {(metrics.bestRegion.deliveryRate * 100).toFixed(1)}%
                 </div>
               </div>
             </div>
-            <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
+            <div className="text-sm text-slate-400 pt-2 border-t border-slate-600">
               {metrics.bestRegion.campaigns} campaigns · {metrics.bestRegion.totalSent.toLocaleString()} sent
             </div>
           </div>
@@ -404,31 +404,31 @@ function OverviewContent({ metrics }) {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
-                <span className="font-bold text-lg">{metrics.worstRegion.info.name}</span>
+                <span className="font-bold text-xl">{metrics.worstRegion.info.name}</span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-sm mb-2">
+              <div className="grid grid-cols-3 gap-2 mb-3">
                 <div>
-                  <span className="text-slate-400 text-xs">Open</span>
-                  <div className="font-semibold text-orange-400">
+                  <span className="text-slate-400 text-sm">Open</span>
+                  <div className="font-bold text-lg text-orange-400">
                     {(metrics.worstRegion.avgOpenRate * 100).toFixed(1)}%
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-xs">Click</span>
-                  <div className="font-semibold text-orange-400">
+                  <span className="text-slate-400 text-sm">Click</span>
+                  <div className="font-bold text-lg text-orange-400">
                     {(metrics.worstRegion.avgClickRate * 100).toFixed(1)}%
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-xs">Delivery</span>
-                  <div className="font-semibold text-orange-400">
+                  <span className="text-slate-400 text-sm">Delivery</span>
+                  <div className="font-bold text-lg text-orange-400">
                     {(metrics.worstRegion.deliveryRate * 100).toFixed(1)}%
                   </div>
                 </div>
               </div>
-              <div className="text-xs text-slate-400 pt-2 border-t border-slate-600">
+              <div className="text-sm text-slate-400 pt-2 border-t border-slate-600">
                 {metrics.worstRegion.campaigns} campaigns · {metrics.worstRegion.totalSent.toLocaleString()} sent
               </div>
             </div>
@@ -445,22 +445,22 @@ function OverviewContent({ metrics }) {
           {metrics.inactiveRegions && metrics.inactiveRegions.length > 0 && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-medium text-amber-300">Inactive Regions</span>
-                <span className="text-xs text-amber-400/60 ml-1">(&gt;30 days)</span>
+                <Clock className="w-5 h-5 text-amber-400" />
+                <span className="text-base font-medium text-amber-300">Inactive Regions</span>
+                <span className="text-sm text-amber-400/60 ml-1">(&gt;30 days)</span>
               </div>
               <div className="space-y-2">
                 {metrics.inactiveRegions.map((region, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                  <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{region.info.flag}</span>
-                      <span className="text-sm text-white">{region.info.name}</span>
+                      <span className="text-xl">{region.info.flag}</span>
+                      <span className="text-base text-white font-medium">{region.info.name}</span>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-amber-400 font-medium">
+                      <div className="text-sm text-amber-400 font-semibold">
                         {region.daysSinceLastCampaign} days ago
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-sm text-slate-500">
                         {format(region.lastCampaignDate, 'MMM d')}
                       </div>
                     </div>
@@ -474,9 +474,9 @@ function OverviewContent({ metrics }) {
           {metrics.alerts.length > 0 && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-medium text-red-300">Alerts</span>
-                <span className="text-xs text-red-400/60 ml-1">({metrics.alerts.length})</span>
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <span className="text-base font-medium text-red-300">Alerts</span>
+                <span className="text-sm text-red-400/60 ml-1">({metrics.alerts.length})</span>
               </div>
               <div className="space-y-2">
                 {metrics.alerts.slice(0, 6).map((alert, i) => {
@@ -504,9 +504,9 @@ function OverviewContent({ metrics }) {
                   }
 
                   return (
-                    <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                      <span className="text-sm text-white">{alert.region}</span>
-                      <span className={`text-xs ${colorClass}`}>{message}</span>
+                    <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2.5">
+                      <span className="text-base text-white font-medium">{alert.region}</span>
+                      <span className={`text-sm font-medium ${colorClass}`}>{message}</span>
                     </div>
                   );
                 })}
