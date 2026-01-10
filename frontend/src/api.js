@@ -116,3 +116,60 @@ export const populateCache = async (days = 30) => {
         return null;
     }
 };
+
+// ============================================
+// Share Link API Functions
+// ============================================
+
+/**
+ * Create a new shared link with optional password and expiration
+ * @param {Object} filterState - Current filter settings
+ * @param {string|null} password - Optional password
+ * @param {number|null} expiresDays - Expiration in days (1, 7, 30, or null for never)
+ */
+export const createShareLink = async (filterState, password = null, expiresDays = null) => {
+    try {
+        const response = await api.post('/share', {
+            filter_state: filterState,
+            password: password,
+            expires_days: expiresDays
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Failed to create share link:', error);
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * Get shared link info and filter state (if no password required)
+ * @param {string} token - The share link token
+ */
+export const getShareLink = async (token) => {
+    try {
+        const response = await api.get(`/share/${token}`);
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            return { status: 'error', error: 'not_found' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * Verify password for a password-protected shared link
+ * @param {string} token - The share link token
+ * @param {string} password - The password to verify
+ */
+export const verifyShareLinkPassword = async (token, password) => {
+    try {
+        const response = await api.post(`/share/${token}/verify`, { password });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            return { status: 'error', error: 'not_found' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};

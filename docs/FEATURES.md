@@ -3,8 +3,8 @@
 ## Project Overview
 
 **Project Name:** EnGenius EDM Analytic Dashboard
-**Version:** 1.0
-**Last Updated:** January 2026 (v1.1)
+**Version:** 1.2
+**Last Updated:** January 2026
 **Data Source:** Mailchimp Marketing API
 
 ### Purpose
@@ -145,14 +145,28 @@ Export dashboard content for reporting and sharing.
 - Footer with copyright and data source
 
 ### 6. Share Link Function
-Share dashboard views with preserved filter settings.
+Share dashboard views with preserved filter settings, with optional password protection and expiration.
 
 #### Features
 - **URL State Persistence** - Filter selections automatically saved to URL
-- **Share Button** - One-click copy of current URL to clipboard
-- **Visual Feedback** - Green checkmark confirms link copied
+- **Quick Share** - One-click copy of current URL to clipboard
+- **Protected Links** - Create share links with optional password and expiration
+- **Visual Feedback** - Confirmation when link is copied
 
-#### Supported URL Parameters
+#### Share Dialog Options
+| Option | Description |
+|--------|-------------|
+| Quick Copy | Copy current URL directly (no protection) |
+| Password | Optional password protection for sensitive data |
+| Expiration | Link validity: 1 day, 7 days, 30 days, or never |
+
+#### Protected Link Features
+- **Password Protection** - Recipients must enter password to view
+- **Auto Expiration** - Links automatically become invalid after set period
+- **Access Count** - Track how many times a link has been accessed
+- **Token-based URLs** - Short URLs like `/s/abc123` for protected links
+
+#### Supported URL Parameters (Direct Links)
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `days` | Time range preset | 7, 30, 60, 90, 180, 365 |
@@ -165,8 +179,11 @@ Share dashboard views with preserved filter settings.
 #### Usage
 1. Configure desired filters
 2. Click "Share" button
-3. Paste URL to share with colleagues
-4. Recipients see exact same filtered view
+3. Choose:
+   - **Quick Share**: Copy URL directly for internal use
+   - **Protected Link**: Set password/expiration for external sharing
+4. Share the generated link with colleagues
+5. Recipients see exact same filtered view (after password verification if required)
 
 ### 7. Alert Settings
 Configurable threshold alerts for key metrics:
@@ -312,3 +329,4 @@ Dashboard is configured to prevent search engine indexing:
 |---------|------|---------|
 | 1.0 | Jan 2026 | Initial feature documentation |
 | 1.1 | Jan 2026 | Added URL state persistence & share link feature, clickable campaign titles, simplified export to PNG only, improved chart legend styling |
+| 1.2 | Jan 2026 | Enhanced share link with password protection and expiration options, share link database storage |

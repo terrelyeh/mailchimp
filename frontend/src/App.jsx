@@ -11,10 +11,11 @@ import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import ExportButton from './components/ExportButton';
 import ExecutiveSummary from './components/ExecutiveSummary';
 import SettingsModal from './components/SettingsModal';
+import ShareDialog from './components/ShareDialog';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
-import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
-import { RefreshCw, ArrowLeft, Activity, Settings, Link2, Check } from 'lucide-react';
+import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences, createShareLink, getShareLink, verifyShareLinkPassword } from './api';
+import { RefreshCw, ArrowLeft, Activity, Settings, Share2, Lock, AlertTriangle } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
@@ -31,10 +32,17 @@ function App() {
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
   const [settingsOpen, setSettingsOpen] = useState(false); // Settings modal state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false); // Share dialog state
   const [lastFetchTime, setLastFetchTime] = useState(null); // Last data fetch timestamp
   const [isExporting, setIsExporting] = useState(false); // Export mode state
-  const [linkCopied, setLinkCopied] = useState(false); // Share link copied state
   const [initialUrlParsed, setInitialUrlParsed] = useState(false); // Track if URL was parsed
+
+  // Share link access states
+  const [shareToken, setShareToken] = useState(null); // Current share token being accessed
+  const [sharePasswordRequired, setSharePasswordRequired] = useState(false); // Password prompt state
+  const [sharePassword, setSharePassword] = useState(''); // Password input value
+  const [shareError, setShareError] = useState(null); // Share link error
+  const [shareVerifying, setShareVerifying] = useState(false); // Verifying password state
 
   // Ref for export functionality
   const exportContentRef = useRef(null);
@@ -42,6 +50,19 @@ function App() {
   // Read URL parameters on initial mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    // Check for share token first (format: /s/TOKEN or ?token=TOKEN)
+    const pathParts = window.location.pathname.split('/');
+    const tokenFromPath = pathParts[1] === 's' ? pathParts[2] : null;
+    const tokenFromQuery = params.get('token');
+    const token = tokenFromPath || tokenFromQuery;
+
+    if (token) {
+      // Handle share link access
+      setShareToken(token);
+      handleShareLinkAccess(token);
+      return; // Don't parse other params, they'll come from the share link
+    }
 
     // Parse days
     const daysParam = params.get('days');
@@ -121,24 +142,118 @@ function App() {
     window.history.replaceState({}, '', newUrl);
   }, [selectedDays, customDateRange, selectedRegion, selectedAudience, view, initialUrlParsed]);
 
-  // Copy share link to clipboard
-  const handleCopyShareLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy link:', err);
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = window.location.href;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
+  // Handle share link access (called on mount if token present)
+  const handleShareLinkAccess = async (token) => {
+    setLoading(true);
+    setShareError(null);
+
+    const result = await getShareLink(token);
+
+    if (result.status === 'error') {
+      if (result.error === 'not_found') {
+        setShareError('This share link does not exist or has been removed.');
+      } else {
+        setShareError('Failed to load share link.');
+      }
+      setLoading(false);
+      setInitialUrlParsed(true);
+      return;
     }
+
+    if (result.status === 'password_required') {
+      setSharePasswordRequired(true);
+      setLoading(false);
+      return;
+    }
+
+    if (result.error === 'expired') {
+      setShareError('This share link has expired.');
+      setLoading(false);
+      setInitialUrlParsed(true);
+      return;
+    }
+
+    if (result.status === 'success' && result.filter_state) {
+      applyFilterState(result.filter_state);
+    }
+  };
+
+  // Verify password for protected share link
+  const handleVerifySharePassword = async () => {
+    if (!shareToken || !sharePassword) return;
+
+    setShareVerifying(true);
+    setShareError(null);
+
+    const result = await verifyShareLinkPassword(shareToken, sharePassword);
+
+    if (result.status === 'error') {
+      if (result.error === 'invalid_password') {
+        setShareError('Incorrect password. Please try again.');
+      } else if (result.error === 'expired') {
+        setShareError('This share link has expired.');
+        setSharePasswordRequired(false);
+      } else {
+        setShareError('Failed to verify password.');
+      }
+      setShareVerifying(false);
+      return;
+    }
+
+    if (result.status === 'success' && result.filter_state) {
+      setSharePasswordRequired(false);
+      applyFilterState(result.filter_state);
+    }
+
+    setShareVerifying(false);
+  };
+
+  // Apply filter state from share link
+  const applyFilterState = (filterState) => {
+    if (filterState.days) {
+      setSelectedDays(filterState.days);
+    }
+    if (filterState.customDateRange) {
+      setCustomDateRange(filterState.customDateRange);
+    }
+    if (filterState.region) {
+      setSelectedRegion(filterState.region);
+      setView('region-detail');
+    }
+    if (filterState.audience) {
+      setSelectedAudience(filterState.audience);
+    }
+    if (filterState.view) {
+      setView(filterState.view);
+    }
+
+    // Clear the share token from URL and show clean URL
+    const cleanUrl = window.location.origin + window.location.pathname.replace(/\/s\/[^/]+/, '');
+    window.history.replaceState({}, '', cleanUrl);
+
+    setShareToken(null);
+    setInitialUrlParsed(true);
+  };
+
+  // Create share link with options
+  const handleCreateShareLink = async ({ password, expiresDays }) => {
+    const filterState = {
+      days: selectedDays,
+      customDateRange: customDateRange,
+      region: selectedRegion,
+      audience: selectedAudience,
+      view: view
+    };
+
+    const result = await createShareLink(filterState, password, expiresDays);
+
+    if (result.status === 'success') {
+      // Build share URL
+      const shareUrl = `${window.location.origin}/s/${result.token}`;
+      return { success: true, url: shareUrl };
+    }
+
+    return { success: false, error: result.error || 'Failed to create share link' };
   };
 
   const loadData = async (force = false) => {
@@ -365,25 +480,12 @@ function App() {
 
               {/* Share Link Button */}
               <button
-                onClick={handleCopyShareLink}
-                className={`flex items-center gap-1 px-2 md:px-3 py-2 rounded-lg transition-colors text-xs ${
-                  linkCopied
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-                title="Copy shareable link with current filters"
+                onClick={() => setShareDialogOpen(true)}
+                className="flex items-center gap-1 px-2 md:px-3 py-2 rounded-lg transition-colors text-xs bg-gray-100 text-gray-700 hover:bg-gray-200"
+                title="Share dashboard with current filters"
               >
-                {linkCopied ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span className="hidden md:inline">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="w-4 h-4" />
-                    <span className="hidden md:inline">Share</span>
-                  </>
-                )}
+                <Share2 className="w-4 h-4" />
+                <span className="hidden md:inline">Share</span>
               </button>
 
               <button
@@ -556,6 +658,104 @@ function App() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {/* Share Dialog */}
+      <ShareDialog
+        isOpen={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        onCreateLink={handleCreateShareLink}
+        currentUrl={window.location.href}
+      />
+
+      {/* Password Prompt for Protected Share Links */}
+      {sharePasswordRequired && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Lock className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Password Required</h2>
+                <p className="text-xs text-gray-500">This share link is password protected</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <input
+                type="password"
+                value={sharePassword}
+                onChange={(e) => setSharePassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleVerifySharePassword()}
+                placeholder="Enter password"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#007C89] focus:border-transparent"
+                autoFocus
+              />
+
+              {shareError && (
+                <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
+                  {shareError}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSharePasswordRequired(false);
+                    setShareToken(null);
+                    setShareError(null);
+                    setInitialUrlParsed(true);
+                    window.history.replaceState({}, '', window.location.origin);
+                  }}
+                  className="flex-1 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleVerifySharePassword}
+                  disabled={shareVerifying || !sharePassword}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    shareVerifying || !sharePassword
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-[#007C89] text-white hover:bg-[#006670]'
+                  }`}
+                >
+                  {shareVerifying ? 'Verifying...' : 'Continue'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Link Error */}
+      {shareError && !sharePasswordRequired && shareToken && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Share Link Error</h2>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">{shareError}</p>
+
+            <button
+              onClick={() => {
+                setShareToken(null);
+                setShareError(null);
+                window.history.replaceState({}, '', window.location.origin);
+              }}
+              className="w-full px-4 py-2 bg-[#007C89] hover:bg-[#006670] text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

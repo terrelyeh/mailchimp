@@ -1,10 +1,22 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
 import os
 import logging
 from dotenv import load_dotenv
 from mailchimp_service import mailchimp_service
 import database
+
+
+# Pydantic models for share link API
+class CreateShareLinkRequest(BaseModel):
+    filter_state: Dict[str, Any]
+    password: Optional[str] = None
+    expires_days: Optional[int] = None  # None = never expires
+
+class VerifyPasswordRequest(BaseModel):
+    password: str
 
 load_dotenv()
 
@@ -475,3 +487,133 @@ def diagnose_api(days: int = 60, region: str = None):
     }
 
 
+# ============================================
+# Share Link API Endpoints
+# ============================================
+
+@app.post("/api/share")
+def create_share_link(request: CreateShareLinkRequest):
+    """
+    Create a new shared link with optional password and expiration
+
+    Request body:
+    - filter_state: dict of filter settings (days, region, audience, etc.)
+    - password: optional password string
+    - expires_days: optional expiration in days (1, 7, 30, or None for never)
+    """
+    try:
+        # Validate expires_days if provided
+        if request.expires_days is not None and request.expires_days not in [1, 7, 30]:
+            raise HTTPException(status_code=400, detail="expires_days must be 1, 7, 30, or null")
+
+        result = database.create_shared_link(
+            filter_state=request.filter_state,
+            password=request.password,
+            expires_days=request.expires_days
+        )
+
+        return {
+            "status": "success",
+            "token": result["token"],
+            "has_password": result["has_password"],
+            "expires_at": result["expires_at"]
+        }
+    except Exception as e:
+        logger.error(f"Error creating share link: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/share/{token}")
+def get_share_link(token: str):
+    """
+    Get shared link info and filter state (if no password required)
+
+    Returns:
+    - If no password: filter_state
+    - If password required: has_password=true, need to call verify endpoint
+    - If expired: error=expired
+    - If not found: 404
+    """
+    # First get link info
+    link_info = database.get_shared_link(token)
+
+    if link_info is None:
+        raise HTTPException(status_code=404, detail="Share link not found")
+
+    if link_info.get("error") == "expired":
+        return {
+            "status": "error",
+            "error": "expired",
+            "message": "This share link has expired",
+            "expired_at": link_info.get("expired_at")
+        }
+
+    # If password is required, don't return filter state yet
+    if link_info.get("has_password"):
+        return {
+            "status": "password_required",
+            "has_password": True,
+            "expires_at": link_info.get("expires_at")
+        }
+
+    # No password required, try to access
+    result = database.access_shared_link(token)
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Share link not found")
+
+    if result.get("error"):
+        return {
+            "status": "error",
+            "error": result["error"]
+        }
+
+    return {
+        "status": "success",
+        "filter_state": result["filter_state"],
+        "expires_at": link_info.get("expires_at"),
+        "access_count": link_info.get("access_count", 0) + 1
+    }
+
+
+@app.post("/api/share/{token}/verify")
+def verify_share_link_password(token: str, request: VerifyPasswordRequest):
+    """
+    Verify password for a password-protected shared link
+
+    Request body:
+    - password: the password to verify
+    """
+    result = database.verify_shared_link_password(token, request.password)
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Share link not found")
+
+    if result.get("error") == "expired":
+        return {
+            "status": "error",
+            "error": "expired",
+            "message": "This share link has expired"
+        }
+
+    if result.get("error") == "invalid_password":
+        return {
+            "status": "error",
+            "error": "invalid_password",
+            "message": "Incorrect password"
+        }
+
+    return {
+        "status": "success",
+        "filter_state": result["filter_state"]
+    }
+
+
+@app.delete("/api/share/cleanup")
+def cleanup_expired_share_links():
+    """Clean up expired shared links (can be called periodically)"""
+    deleted = database.cleanup_expired_links()
+    return {
+        "status": "success",
+        "deleted_count": deleted
+    }
