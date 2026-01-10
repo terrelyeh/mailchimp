@@ -80,7 +80,23 @@ export default function ExportButton({
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    return await html2canvas(targetRef.current, {
+    // 記錄圖表區塊的位置（用於智慧分頁）
+    const chartPositions = [];
+    const targetRect = targetRef.current.getBoundingClientRect();
+    const chartElements = targetRef.current.querySelectorAll('.recharts-responsive-container');
+    chartElements.forEach(chart => {
+      const parentCard = chart.closest('.bg-white');
+      if (parentCard) {
+        const rect = parentCard.getBoundingClientRect();
+        chartPositions.push({
+          top: (rect.top - targetRect.top) * 2, // scale: 2
+          bottom: (rect.bottom - targetRect.top) * 2,
+          height: rect.height * 2
+        });
+      }
+    });
+
+    const canvas = await html2canvas(targetRef.current, {
       scale: 2,
       useCORS: true,
       logging: false,
@@ -113,7 +129,8 @@ export default function ExportButton({
           const logo = clonedDoc.createElement('img');
           logo.src = '/logo.png';
           logo.alt = 'EnGenius';
-          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: invert(1) brightness(100);';
+          // brightness(0) makes it black, then invert(1) makes it white
+          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: brightness(0) invert(1);';
           logo.onerror = () => {
             // Fallback to text if logo fails to load
             logo.style.display = 'none';
@@ -229,13 +246,15 @@ export default function ExportButton({
             title.style.whiteSpace = 'normal';
           });
 
-          // 為圖表區塊添加 page-break 避免分頁
+          // 為圖表區塊添加視覺分隔，確保圖表在新的一頁開始
           const chartContainers = clonedElement.querySelectorAll('.recharts-responsive-container');
           chartContainers.forEach(chart => {
             const parentCard = chart.closest('.bg-white');
             if (parentCard) {
-              parentCard.style.pageBreakInside = 'avoid';
-              parentCard.style.breakInside = 'avoid';
+              // 添加 data attribute 標記這是圖表區塊
+              parentCard.setAttribute('data-pdf-chart-section', 'true');
+              // 添加頂部 margin 讓圖表更容易在新頁開始
+              parentCard.style.marginTop = '40px';
             }
           });
 
@@ -292,6 +311,8 @@ export default function ExportButton({
         }
       }
     });
+
+    return { canvas, chartPositions };
   };
 
   // 匯出 PNG
@@ -307,7 +328,7 @@ export default function ExportButton({
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
-      const canvas = await prepareCanvas();
+      const { canvas } = await prepareCanvas();
 
       canvas.toBlob((blob) => {
         if (blob) {
@@ -346,7 +367,7 @@ export default function ExportButton({
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
-      const canvas = await prepareCanvas();
+      const { canvas, chartPositions } = await prepareCanvas();
 
       // PDF 邊距設定 (mm)
       const margin = {
@@ -377,16 +398,57 @@ export default function ExportButton({
 
       // 如果內容超過一頁，需要分頁處理
       if (scaledHeight > contentHeight) {
-        // 長內容：分頁處理
+        // 長內容：智慧分頁處理
         const pixelsPerPage = (contentHeight / scaledHeight) * canvas.height;
-        const totalPages = Math.ceil(canvas.height / pixelsPerPage);
 
-        for (let i = 0; i < totalPages; i++) {
+        // 計算智慧分頁點（避免切開圖表）
+        const calculateSmartBreakPoints = () => {
+          const breakPoints = [0]; // 起始點
+          let currentY = 0;
+
+          while (currentY < canvas.height) {
+            let nextBreak = currentY + pixelsPerPage;
+
+            // 檢查這個切點是否會切開圖表
+            for (const chart of chartPositions) {
+              // 如果切點落在圖表區域內
+              if (nextBreak > chart.top && nextBreak < chart.bottom) {
+                // 調整切點到圖表開始之前（留 20px 邊距）
+                if (chart.top - currentY > pixelsPerPage * 0.3) {
+                  // 如果圖表前面有足夠內容，就在圖表前切
+                  nextBreak = chart.top - 20;
+                } else {
+                  // 否則把整個圖表放到下一頁
+                  nextBreak = chart.top - 20;
+                }
+                break;
+              }
+            }
+
+            // 確保不超過 canvas 高度
+            nextBreak = Math.min(nextBreak, canvas.height);
+
+            if (nextBreak > currentY) {
+              breakPoints.push(nextBreak);
+              currentY = nextBreak;
+            } else {
+              // 安全防護：避免無限迴圈
+              currentY += pixelsPerPage;
+              breakPoints.push(Math.min(currentY, canvas.height));
+            }
+          }
+
+          return breakPoints;
+        };
+
+        const breakPoints = calculateSmartBreakPoints();
+
+        for (let i = 0; i < breakPoints.length - 1; i++) {
           if (i > 0) pdf.addPage();
 
-          // 計算這一頁要裁切的高度
-          const startY = i * pixelsPerPage;
-          const sliceHeight = Math.min(pixelsPerPage, canvas.height - startY);
+          const startY = breakPoints[i];
+          const endY = breakPoints[i + 1];
+          const sliceHeight = endY - startY;
 
           // 裁切 canvas
           const sliceCanvas = document.createElement('canvas');
