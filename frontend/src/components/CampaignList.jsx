@@ -179,32 +179,37 @@ export default function CampaignList({ data, isExporting = false }) {
                                 >
                                     {/* Campaign Title */}
                                     <td className="px-3 md:px-4 py-3">
-                                        <div className="flex items-center group">
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-1.5">
-                                                    {campaign.archive_url ? (
-                                                        <a
-                                                            href={campaign.archive_url}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="font-semibold text-gray-900 hover:text-[#007C89] text-sm truncate max-w-[200px] transition-colors"
-                                                            title={`${campaign.title} - Click to view campaign`}
-                                                        >
+                                        <div className="min-w-0 flex-1">
+                                            {campaign.archive_url ? (
+                                                <a
+                                                    href={campaign.archive_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="group block"
+                                                    title={`${campaign.title} - Click to view campaign`}
+                                                >
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-semibold text-gray-900 group-hover:text-[#007C89] text-sm truncate max-w-[200px] transition-colors">
                                                             {campaign.title}
-                                                        </a>
-                                                    ) : (
+                                                        </span>
+                                                        <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-[#007C89] transition-colors flex-shrink-0" />
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
+                                                        {campaign.subject_line}
+                                                    </div>
+                                                </a>
+                                            ) : (
+                                                <div>
+                                                    <div className="flex items-center gap-1.5">
                                                         <span className="font-semibold text-gray-900 text-sm truncate max-w-[200px]" title={campaign.title}>
                                                             {campaign.title}
                                                         </span>
-                                                    )}
-                                                    {campaign.archive_url && (
-                                                        <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-[#007C89] transition-colors flex-shrink-0" />
-                                                    )}
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
+                                                        {campaign.subject_line}
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
-                                                    {campaign.subject_line}
-                                                </div>
-                                            </div>
+                                            )}
                                         </div>
                                     </td>
 
