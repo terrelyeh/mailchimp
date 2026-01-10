@@ -440,7 +440,7 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
                 paddingBottom: '8px'
               }}
               iconType="circle"
-              iconSize={10}
+              iconSize={12}
               formatter={(value, entry) => {
                 // In single-region mode, show metric name with metric color
                 if (!isMultiRegionMode) {
