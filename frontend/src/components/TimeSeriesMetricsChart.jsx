@@ -434,21 +434,35 @@ export default function TimeSeriesMetricsChart({ regionsData, regions }) {
 
             <RechartsTooltip content={<CustomTooltip />} />
             <Legend
-              wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
+              wrapperStyle={{
+                fontSize: '13px',
+                paddingTop: '24px',
+                paddingBottom: '8px'
+              }}
+              iconType="circle"
+              iconSize={12}
               formatter={(value, entry) => {
                 // In single-region mode, show metric name with metric color
                 if (!isMultiRegionMode) {
                   const metric = metrics.find(m => value.includes(m.label));
                   if (metric) {
-                    return <span style={{ color: metric.color }}>{metric.label}</span>;
+                    return (
+                      <span style={{ color: '#374151', marginRight: '16px', marginLeft: '4px' }}>
+                        {metric.label}
+                      </span>
+                    );
                   }
                 }
                 // In multi-region mode, show region with region color
                 const region = displayRegions.find(r => value.includes(r.code) || value.includes(r.flag));
                 if (region) {
-                  return <span style={{ color: region.color }}>{value}</span>;
+                  return (
+                    <span style={{ color: '#374151', marginRight: '16px', marginLeft: '4px' }}>
+                      {value}
+                    </span>
+                  );
                 }
-                return value;
+                return <span style={{ marginRight: '16px', marginLeft: '4px' }}>{value}</span>;
               }}
             />
 
