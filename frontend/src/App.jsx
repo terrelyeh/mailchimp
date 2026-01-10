@@ -14,7 +14,7 @@ import SettingsModal from './components/SettingsModal';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
 import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences } from './api';
-import { RefreshCw, ArrowLeft, Activity, Settings } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Activity, Settings, Link2, Check } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
@@ -33,9 +33,113 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false); // Settings modal state
   const [lastFetchTime, setLastFetchTime] = useState(null); // Last data fetch timestamp
   const [isExporting, setIsExporting] = useState(false); // Export mode state
+  const [linkCopied, setLinkCopied] = useState(false); // Share link copied state
+  const [initialUrlParsed, setInitialUrlParsed] = useState(false); // Track if URL was parsed
 
   // Ref for export functionality
   const exportContentRef = useRef(null);
+
+  // Read URL parameters on initial mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // Parse days
+    const daysParam = params.get('days');
+    if (daysParam) {
+      const days = parseInt(daysParam, 10);
+      if ([7, 30, 60, 90, 180, 365].includes(days)) {
+        setSelectedDays(days);
+      }
+    }
+
+    // Parse custom date range
+    const startDate = params.get('startDate');
+    const endDate = params.get('endDate');
+    if (startDate && endDate) {
+      setCustomDateRange({ start: startDate, end: endDate });
+    }
+
+    // Parse region
+    const regionParam = params.get('region');
+    if (regionParam) {
+      setSelectedRegion(regionParam);
+      setView('region-detail');
+    }
+
+    // Parse audience
+    const audienceParam = params.get('audience');
+    if (audienceParam) {
+      setSelectedAudience(audienceParam);
+    }
+
+    // Parse view
+    const viewParam = params.get('view');
+    if (viewParam === 'overview' || viewParam === 'region-detail') {
+      setView(viewParam);
+    }
+
+    setInitialUrlParsed(true);
+  }, []);
+
+  // Update URL when filters change (after initial parse)
+  useEffect(() => {
+    if (!initialUrlParsed) return;
+
+    const params = new URLSearchParams();
+
+    // Add days (only if not default)
+    if (selectedDays !== 90) {
+      params.set('days', selectedDays.toString());
+    }
+
+    // Add custom date range
+    if (customDateRange) {
+      params.set('startDate', customDateRange.start);
+      params.set('endDate', customDateRange.end);
+    }
+
+    // Add region
+    if (selectedRegion) {
+      params.set('region', selectedRegion);
+    }
+
+    // Add audience
+    if (selectedAudience) {
+      params.set('audience', selectedAudience);
+    }
+
+    // Add view (only if region-detail)
+    if (view === 'region-detail') {
+      params.set('view', view);
+    }
+
+    // Update URL without page reload
+    const newUrl = params.toString()
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+
+    window.history.replaceState({}, '', newUrl);
+  }, [selectedDays, customDateRange, selectedRegion, selectedAudience, view, initialUrlParsed]);
+
+  // Copy share link to clipboard
+  const handleCopyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = window.location.href;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
 
   const loadData = async (force = false) => {
     setLoading(true);
@@ -258,6 +362,29 @@ function App() {
                 onExportStart={() => setIsExporting(true)}
                 onExportEnd={() => setIsExporting(false)}
               />
+
+              {/* Share Link Button */}
+              <button
+                onClick={handleCopyShareLink}
+                className={`flex items-center gap-1 px-2 md:px-3 py-2 rounded-lg transition-colors text-xs ${
+                  linkCopied
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title="Copy shareable link with current filters"
+              >
+                {linkCopied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span className="hidden md:inline">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="w-4 h-4" />
+                    <span className="hidden md:inline">Share</span>
+                  </>
+                )}
+              </button>
 
               <button
                 onClick={() => setDiagnosticsOpen(true)}
