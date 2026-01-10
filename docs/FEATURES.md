@@ -4,7 +4,7 @@
 
 **Project Name:** EnGenius EDM Analytic Dashboard
 **Version:** 1.0
-**Last Updated:** January 2026
+**Last Updated:** January 2026 (v1.1)
 **Data Source:** Mailchimp Marketing API
 
 ### Purpose
@@ -79,7 +79,7 @@ Detailed table of all campaigns with the following columns:
 
 | Column | Description |
 |--------|-------------|
-| Campaign | Campaign title/subject line |
+| Campaign | Campaign title/subject line (clickable link to Mailchimp archive) |
 | Send Time | Date and time of campaign send |
 | Audience | Target audience/list name |
 | Emails Sent | Number of emails delivered |
@@ -91,6 +91,7 @@ Detailed table of all campaigns with the following columns:
 | Unsubscribes | Opt-outs from this campaign |
 
 **Table Features:**
+- **Clickable Campaign Titles** - Opens Mailchimp's public archive URL in new tab
 - Sortable columns (click header to sort)
 - Pagination (10/25/50/100 items per page)
 - Row dividers for improved readability
@@ -135,7 +136,6 @@ Export dashboard content for reporting and sharing.
 | Format | Description |
 |--------|-------------|
 | PNG | High-resolution image (2x scale) |
-| PDF | Multi-page document with pagination |
 
 #### Export Includes
 - Report header with EnGenius branding
@@ -144,14 +144,38 @@ Export dashboard content for reporting and sharing.
 - All visible dashboard content
 - Footer with copyright and data source
 
-### 6. Alert Settings
+### 6. Share Link Function
+Share dashboard views with preserved filter settings.
+
+#### Features
+- **URL State Persistence** - Filter selections automatically saved to URL
+- **Share Button** - One-click copy of current URL to clipboard
+- **Visual Feedback** - Green checkmark confirms link copied
+
+#### Supported URL Parameters
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `days` | Time range preset | 7, 30, 60, 90, 180, 365 |
+| `startDate` | Custom range start | 2024-01-01 |
+| `endDate` | Custom range end | 2024-03-31 |
+| `region` | Region filter | TW, US, EU, APAC |
+| `audience` | Audience ID filter | abc123xyz |
+| `view` | Dashboard view | overview, region-detail |
+
+#### Usage
+1. Configure desired filters
+2. Click "Share" button
+3. Paste URL to share with colleagues
+4. Recipients see exact same filtered view
+
+### 7. Alert Settings
 Configurable threshold alerts for key metrics:
 - Open Rate minimum threshold
 - Click Rate minimum threshold
 - Bounce Rate maximum threshold
 - Visual warnings when thresholds exceeded
 
-### 7. API Diagnostics
+### 8. API Diagnostics
 Developer tool for troubleshooting:
 - API endpoint status
 - Response times
@@ -217,8 +241,7 @@ Developer tool for troubleshooting:
 | Tailwind CSS | Styling |
 | Recharts | Data visualization |
 | Lucide React | Icon library |
-| html2canvas | Screenshot generation |
-| jsPDF | PDF generation |
+| html2canvas | PNG export generation |
 
 ### Backend Stack
 | Technology | Purpose |
@@ -288,3 +311,4 @@ Dashboard is configured to prevent search engine indexing:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | Jan 2026 | Initial feature documentation |
+| 1.1 | Jan 2026 | Added URL state persistence & share link feature, clickable campaign titles, simplified export to PNG only, improved chart legend styling |
