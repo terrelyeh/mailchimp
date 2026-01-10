@@ -173,3 +173,32 @@ export const verifyShareLinkPassword = async (token, password) => {
         return { status: 'error', error: error.message };
     }
 };
+
+/**
+ * List all shared links for management
+ */
+export const listShareLinks = async () => {
+    try {
+        const response = await api.get('/share');
+        return response.data;
+    } catch (error) {
+        console.error('Failed to list share links:', error);
+        return { status: 'error', error: error.message, links: [] };
+    }
+};
+
+/**
+ * Delete a shared link by token
+ * @param {string} token - The share link token to delete
+ */
+export const deleteShareLink = async (token) => {
+    try {
+        const response = await api.delete(`/share/${token}`);
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            return { status: 'error', error: 'not_found' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};

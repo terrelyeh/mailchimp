@@ -617,3 +617,36 @@ def cleanup_expired_share_links():
         "status": "success",
         "deleted_count": deleted
     }
+
+
+@app.get("/api/share")
+def list_share_links():
+    """
+    List all shared links for management
+
+    Returns list of share links with metadata
+    """
+    links = database.list_shared_links()
+    return {
+        "status": "success",
+        "count": len(links),
+        "links": links
+    }
+
+
+@app.delete("/api/share/{token}")
+def delete_share_link(token: str):
+    """
+    Delete a specific shared link
+
+    Returns success or 404 if not found
+    """
+    deleted = database.delete_shared_link(token)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Share link not found")
+
+    return {
+        "status": "success",
+        "message": f"Share link {token} deleted"
+    }

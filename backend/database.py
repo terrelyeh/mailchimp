@@ -372,5 +372,79 @@ def cleanup_expired_links():
 
     return deleted
 
+def list_shared_links():
+    """
+    List all shared links for management
+
+    Returns:
+        list of shared link info dicts
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute('''
+        SELECT token, filter_state, password_hash, expires_at, created_at, access_count
+        FROM shared_links
+        ORDER BY created_at DESC
+    ''')
+
+    rows = c.fetchall()
+    conn.close()
+
+    now = datetime.utcnow()
+    results = []
+
+    for row in rows:
+        # Check if expired
+        is_expired = False
+        if row['expires_at']:
+            expires_at = datetime.fromisoformat(row['expires_at'])
+            is_expired = now > expires_at
+
+        # Parse filter state to show summary
+        try:
+            filter_state = json.loads(row['filter_state'])
+        except:
+            filter_state = {}
+
+        results.append({
+            "token": row['token'],
+            "has_password": bool(row['password_hash']),
+            "expires_at": row['expires_at'],
+            "is_expired": is_expired,
+            "created_at": row['created_at'],
+            "access_count": row['access_count'],
+            "filter_summary": {
+                "days": filter_state.get('days'),
+                "region": filter_state.get('region'),
+                "audience": filter_state.get('audience'),
+                "view": filter_state.get('view')
+            }
+        })
+
+    return results
+
+def delete_shared_link(token):
+    """
+    Delete a shared link by token
+
+    Returns:
+        True if deleted, False if not found
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute('DELETE FROM shared_links WHERE token = ?', (token,))
+
+    deleted = c.rowcount > 0
+    conn.commit()
+    conn.close()
+
+    if deleted:
+        logger.info(f"Deleted shared link: {token}")
+
+    return deleted
+
 # Initialize on module load or explicitly
 init_db()
