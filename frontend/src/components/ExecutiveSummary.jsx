@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   TrendingUp, Award, AlertTriangle, Send, Users,
-  Target, Crown, ThumbsDown, BarChart3, Info, Clock
+  Target, Crown, ThumbsDown, BarChart3, Info, Clock, ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getRegionInfo } from '../mockData';
@@ -608,8 +608,8 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
                 <span className="text-xs text-orange-300 uppercase tracking-wide">Needs Review</span>
                 <span className="text-xs text-slate-500 ml-auto">Open &lt;{(reviewThresholds.reviewOpenRate * 100).toFixed(0)}% / Click &lt;{(reviewThresholds.reviewClickRate * 100).toFixed(0)}% / Delivery &lt;{(reviewThresholds.reviewDeliveryRate * 100).toFixed(0)}%</span>
               </div>
-              <div className="font-semibold text-sm line-clamp-1 mb-2">
-                {metrics.bottomCampaign.title || metrics.bottomCampaign.subject_line || 'Untitled Campaign'}
+              <div className="font-semibold text-sm mb-2">
+                <CampaignLink campaign={metrics.bottomCampaign} className="text-white" />
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
@@ -663,9 +663,7 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           <div className="space-y-2">
             {metrics.highBounceCampaigns.map((campaign, i) => (
               <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                <span className="text-sm text-white truncate flex-1 mr-3">
-                  {campaign.title || campaign.subject_line || 'Untitled'}
-                </span>
+                <CampaignLink campaign={campaign} className="text-sm text-white flex-1 mr-3" />
                 <span className="text-sm text-red-400 font-medium whitespace-nowrap">
                   {(campaign.bounceRate * 100).toFixed(1)}%
                 </span>
@@ -686,9 +684,7 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           <div className="space-y-2">
             {metrics.highUnsubCampaigns.map((campaign, i) => (
               <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                <span className="text-sm text-white truncate flex-1 mr-3">
-                  {campaign.title || campaign.subject_line || 'Untitled'}
-                </span>
+                <CampaignLink campaign={campaign} className="text-sm text-white flex-1 mr-3" />
                 <span className="text-sm text-amber-400 font-medium whitespace-nowrap">
                   {(campaign.unsubRate * 100).toFixed(1)}%
                 </span>
@@ -712,4 +708,25 @@ function SimpleMetricCard({ label, value, subLabel, dimmed = false }) {
       )}
     </div>
   );
+}
+
+// Clickable campaign link component
+function CampaignLink({ campaign, className = '', truncate = true }) {
+  const title = campaign.title || campaign.subject_line || 'Untitled Campaign';
+
+  if (campaign.archive_url) {
+    return (
+      <a
+        href={campaign.archive_url}
+        target="_blank"
+        rel="noreferrer"
+        className={`group inline-flex items-center gap-1.5 hover:text-[#007C89] transition-colors ${className}`}
+      >
+        <span className={truncate ? 'truncate' : ''}>{title}</span>
+        <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
+      </a>
+    );
+  }
+
+  return <span className={`${className} ${truncate ? 'truncate' : ''}`}>{title}</span>;
 }
