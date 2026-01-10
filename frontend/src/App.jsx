@@ -314,61 +314,94 @@ function App() {
           <DashboardSkeleton />
         ) : (
           <div ref={exportContentRef} data-export-content>
-            {/* Date Range Display */}
-            <div className="mb-4 text-sm text-gray-600">
-              <span className="font-medium">Data Range:</span>{' '}
-              {customDateRange ? (
-                <>
-                  {new Date(customDateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  {' - '}
-                  {new Date(customDateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </>
-              ) : (
-                <>
-                  {new Date(Date.now() - selectedDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  {' - '}
-                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </>
-              )}
-            </div>
-
             {view === 'overview' ? (
               <>
-                {/* Overview Page - All Regions */}
-                <ExecutiveSummary
-                  data={displayData}
-                  isOverview={true}
-                  regions={availableRegions}
-                />
-                <KPICards data={displayData} isMultiRegion={true} totalSubscribers={totalSubscribers} selectedDays={selectedDays} />
-                <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
-                <RegionCards
-                  regionsData={displayData}
-                  regions={availableRegions}
-                  onRegionClick={handleRegionClick}
-                />
+                {/* Section 1: Summary & KPIs */}
+                <div data-export-section="summary">
+                  {/* Date Range Display */}
+                  <div className="mb-4 text-sm text-gray-600">
+                    <span className="font-medium">Data Range:</span>{' '}
+                    {customDateRange ? (
+                      <>
+                        {new Date(customDateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {' - '}
+                        {new Date(customDateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </>
+                    ) : (
+                      <>
+                        {new Date(Date.now() - selectedDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {' - '}
+                        {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </>
+                    )}
+                  </div>
+                  <ExecutiveSummary
+                    data={displayData}
+                    isOverview={true}
+                    regions={availableRegions}
+                  />
+                  <KPICards data={displayData} isMultiRegion={true} totalSubscribers={totalSubscribers} selectedDays={selectedDays} />
+                </div>
+
+                {/* Section 2: Chart */}
+                <div data-export-section="chart">
+                  <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
+                </div>
+
+                {/* Section 3: Region Cards */}
+                <div data-export-section="details">
+                  <RegionCards
+                    regionsData={displayData}
+                    regions={availableRegions}
+                    onRegionClick={handleRegionClick}
+                  />
+                </div>
               </>
             ) : (
               <>
-                {/* Region Detail Page */}
-                <ExecutiveSummary
-                  data={displayData}
-                  isOverview={false}
-                  currentRegion={currentRegion}
-                  selectedAudience={selectedAudience}
-                  audienceList={audienceList}
-                />
-                <KPICards
-                  data={displayData}
-                  isMultiRegion={false}
-                  totalSubscribers={totalSubscribers}
-                  selectedDays={selectedDays}
-                />
+                {/* Section 1: Summary & KPIs */}
+                <div data-export-section="summary">
+                  {/* Date Range Display */}
+                  <div className="mb-4 text-sm text-gray-600">
+                    <span className="font-medium">Data Range:</span>{' '}
+                    {customDateRange ? (
+                      <>
+                        {new Date(customDateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {' - '}
+                        {new Date(customDateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </>
+                    ) : (
+                      <>
+                        {new Date(Date.now() - selectedDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {' - '}
+                        {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </>
+                    )}
+                  </div>
+                  <ExecutiveSummary
+                    data={displayData}
+                    isOverview={false}
+                    currentRegion={currentRegion}
+                    selectedAudience={selectedAudience}
+                    audienceList={audienceList}
+                  />
+                  <KPICards
+                    data={displayData}
+                    isMultiRegion={false}
+                    totalSubscribers={totalSubscribers}
+                    selectedDays={selectedDays}
+                  />
+                </div>
 
-                {/* Performance Chart */}
-                <DashboardCharts data={displayData} />
+                {/* Section 2: Chart */}
+                <div data-export-section="chart">
+                  <DashboardCharts data={displayData} />
+                </div>
 
-                <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} />
+                {/* Section 3: Campaign List */}
+                <div data-export-section="details">
+                  <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} />
+                </div>
               </>
             )}
           </div>
