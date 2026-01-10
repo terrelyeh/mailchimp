@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project Name:** EnGenius EDM Analytic Dashboard
-**Version:** 1.2
+**Version:** 1.3
 **Last Updated:** January 2026
 **Data Source:** Mailchimp Marketing API
 
@@ -185,6 +185,19 @@ Share dashboard views with preserved filter settings, with optional password pro
 4. Share the generated link with colleagues
 5. Recipients see exact same filtered view (after password verification if required)
 
+#### Share Links Management
+Manage all created share links from Settings > Share Links tab:
+
+| Feature | Description |
+|---------|-------------|
+| View All Links | List all created share links with metadata |
+| Token Display | Shows short token code for each link |
+| Status Indicators | Password icon, expiration status, expired badge |
+| Access Count | Number of times each link has been accessed |
+| Copy Link | One-click copy link URL to clipboard |
+| Delete Link | Remove/revoke individual share links |
+| Refresh | Reload the list to see latest data |
+
 ### 7. Alert Settings
 Configurable threshold alerts for key metrics:
 - Open Rate minimum threshold
@@ -330,3 +343,4 @@ Dashboard is configured to prevent search engine indexing:
 | 1.0 | Jan 2026 | Initial feature documentation |
 | 1.1 | Jan 2026 | Added URL state persistence & share link feature, clickable campaign titles, simplified export to PNG only, improved chart legend styling |
 | 1.2 | Jan 2026 | Enhanced share link with password protection and expiration options, share link database storage |
+| 1.3 | Jan 2026 | Added share links management interface in Settings modal with list, copy, and delete functionality |
