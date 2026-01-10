@@ -72,6 +72,27 @@ export default function ExportButton({
     return `${fileName}${regionPart}${daysPart}_${timestamp}.${extension}`;
   };
 
+  // 記錄各區塊位置（用於 PDF 分頁）
+  const getSectionPositions = () => {
+    if (!targetRef.current) return [];
+
+    const targetRect = targetRef.current.getBoundingClientRect();
+    const sections = targetRef.current.querySelectorAll('[data-export-section]');
+    const positions = [];
+
+    sections.forEach(section => {
+      const rect = section.getBoundingClientRect();
+      positions.push({
+        name: section.getAttribute('data-export-section'),
+        top: (rect.top - targetRect.top) * 2, // scale: 2
+        bottom: (rect.bottom - targetRect.top) * 2,
+        height: rect.height * 2
+      });
+    });
+
+    return positions;
+  };
+
   // 準備 canvas (共用邏輯)
   const prepareCanvas = async () => {
     if (!targetRef.current) {
@@ -80,7 +101,10 @@ export default function ExportButton({
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    return await html2canvas(targetRef.current, {
+    // 記錄區塊位置（用於 PDF 分頁）
+    const sectionPositions = getSectionPositions();
+
+    const canvas = await html2canvas(targetRef.current, {
       scale: 2,
       useCORS: true,
       logging: false,
@@ -113,7 +137,8 @@ export default function ExportButton({
           const logo = clonedDoc.createElement('img');
           logo.src = '/logo.png';
           logo.alt = 'EnGenius';
-          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: invert(1) brightness(100);';
+          // brightness(0) makes it black, then invert(1) makes it white
+          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: brightness(0) invert(1);';
           logo.onerror = () => {
             // Fallback to text if logo fails to load
             logo.style.display = 'none';
@@ -229,13 +254,12 @@ export default function ExportButton({
             title.style.whiteSpace = 'normal';
           });
 
-          // 為圖表區塊添加 page-break 避免分頁
+          // 確保圖表區塊正常顯示
           const chartContainers = clonedElement.querySelectorAll('.recharts-responsive-container');
           chartContainers.forEach(chart => {
             const parentCard = chart.closest('.bg-white');
             if (parentCard) {
-              parentCard.style.pageBreakInside = 'avoid';
-              parentCard.style.breakInside = 'avoid';
+              parentCard.setAttribute('data-pdf-chart-section', 'true');
             }
           });
 
@@ -292,6 +316,8 @@ export default function ExportButton({
         }
       }
     });
+
+    return { canvas, sectionPositions };
   };
 
   // 匯出 PNG
@@ -307,7 +333,7 @@ export default function ExportButton({
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
-      const canvas = await prepareCanvas();
+      const { canvas } = await prepareCanvas();
 
       canvas.toBlob((blob) => {
         if (blob) {
@@ -346,7 +372,7 @@ export default function ExportButton({
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
-      const canvas = await prepareCanvas();
+      const { canvas, sectionPositions } = await prepareCanvas();
 
       // PDF 邊距設定 (mm)
       const margin = {
@@ -370,46 +396,127 @@ export default function ExportButton({
       const contentWidth = pageWidth - margin.left - margin.right;
       const contentHeight = pageHeight - margin.top - margin.bottom;
 
-      // 計算圖片尺寸以適應內容區域
-      const imgAspectRatio = canvas.width / canvas.height;
-      let scaledWidth = contentWidth;
-      let scaledHeight = scaledWidth / imgAspectRatio;
+      // 輔助函數：將區塊裁切並添加到 PDF
+      const addSectionToPdf = (startY, endY, isFirstPage = false) => {
+        const sliceHeight = endY - startY;
+        if (sliceHeight <= 0) return;
 
-      // 如果內容超過一頁，需要分頁處理
-      if (scaledHeight > contentHeight) {
-        // 長內容：分頁處理
-        const pixelsPerPage = (contentHeight / scaledHeight) * canvas.height;
-        const totalPages = Math.ceil(canvas.height / pixelsPerPage);
+        // 裁切 canvas
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(
+          canvas,
+          0, startY, canvas.width, sliceHeight,
+          0, 0, canvas.width, sliceHeight
+        );
 
-        for (let i = 0; i < totalPages; i++) {
-          if (i > 0) pdf.addPage();
+        const sliceImgData = sliceCanvas.toDataURL('image/png');
+        const sliceImgHeight = (sliceHeight / canvas.width) * contentWidth;
 
-          // 計算這一頁要裁切的高度
-          const startY = i * pixelsPerPage;
-          const sliceHeight = Math.min(pixelsPerPage, canvas.height - startY);
+        // 如果區塊太高，需要分頁
+        if (sliceImgHeight > contentHeight) {
+          // 計算需要幾頁
+          const pixelsPerPage = (contentHeight / sliceImgHeight) * sliceHeight;
+          let currentSliceY = 0;
+          let isFirst = true;
 
-          // 裁切 canvas
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          sliceCanvas.height = sliceHeight;
-          const ctx = sliceCanvas.getContext('2d');
-          ctx.drawImage(
-            canvas,
-            0, startY, canvas.width, sliceHeight,
-            0, 0, canvas.width, sliceHeight
-          );
+          while (currentSliceY < sliceHeight) {
+            if (!isFirst || !isFirstPage) pdf.addPage();
+            isFirst = false;
 
-          const sliceImgData = sliceCanvas.toDataURL('image/png');
-          const sliceImgHeight = (sliceHeight / canvas.width) * contentWidth;
+            const pageSliceHeight = Math.min(pixelsPerPage, sliceHeight - currentSliceY);
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = canvas.width;
+            pageCanvas.height = pageSliceHeight;
+            const pageCtx = pageCanvas.getContext('2d');
+            pageCtx.drawImage(
+              sliceCanvas,
+              0, currentSliceY, canvas.width, pageSliceHeight,
+              0, 0, canvas.width, pageSliceHeight
+            );
 
+            const pageImgData = pageCanvas.toDataURL('image/png');
+            const pageImgHeight = (pageSliceHeight / canvas.width) * contentWidth;
+            pdf.addImage(pageImgData, 'PNG', margin.left, margin.top, contentWidth, pageImgHeight);
+
+            currentSliceY += pageSliceHeight;
+          }
+        } else {
+          if (!isFirstPage) pdf.addPage();
           pdf.addImage(sliceImgData, 'PNG', margin.left, margin.top, contentWidth, sliceImgHeight);
         }
+      };
+
+      // 使用區塊位置進行分頁
+      if (sectionPositions.length > 0) {
+        // 找到 header 的結束位置（第一個區塊的開始之前是 header）
+        const headerEnd = sectionPositions[0].top;
+
+        // 第一頁：Header + Summary 區塊
+        const summarySection = sectionPositions.find(s => s.name === 'summary');
+        const chartSection = sectionPositions.find(s => s.name === 'chart');
+        const detailsSection = sectionPositions.find(s => s.name === 'details');
+
+        // 計算每頁的像素高度限制
+        const pixelsPerPage = (contentHeight / contentWidth) * canvas.width;
+
+        // 第一頁：從開始到 chart 區塊之前
+        if (chartSection) {
+          // 檢查 summary 區塊是否能放在第一頁
+          const firstPageEnd = chartSection.top - 20; // chart 開始前留白
+          addSectionToPdf(0, firstPageEnd, true);
+
+          // 第二頁：Chart 區塊（獨立一頁）
+          addSectionToPdf(chartSection.top, chartSection.bottom, false);
+
+          // 第三頁起：Details 區塊
+          if (detailsSection) {
+            addSectionToPdf(detailsSection.top, canvas.height, false);
+          }
+        } else {
+          // 沒有 chart 區塊，使用舊的分頁邏輯
+          addSectionToPdf(0, canvas.height, true);
+        }
       } else {
-        // 單頁 - 置中顯示
-        const x = margin.left;
-        const y = margin.top;
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+        // 沒有區塊標記，直接輸出整個 canvas
+        const imgAspectRatio = canvas.width / canvas.height;
+        const scaledWidth = contentWidth;
+        const scaledHeight = scaledWidth / imgAspectRatio;
+
+        if (scaledHeight > contentHeight) {
+          // 長內容：分頁處理
+          const pixelsPerPage = (contentHeight / scaledHeight) * canvas.height;
+          let currentY = 0;
+          let isFirst = true;
+
+          while (currentY < canvas.height) {
+            if (!isFirst) pdf.addPage();
+            isFirst = false;
+
+            const sliceHeight = Math.min(pixelsPerPage, canvas.height - currentY);
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = sliceHeight;
+            const ctx = sliceCanvas.getContext('2d');
+            ctx.drawImage(
+              canvas,
+              0, currentY, canvas.width, sliceHeight,
+              0, 0, canvas.width, sliceHeight
+            );
+
+            const sliceImgData = sliceCanvas.toDataURL('image/png');
+            const sliceImgHeight = (sliceHeight / canvas.width) * contentWidth;
+            pdf.addImage(sliceImgData, 'PNG', margin.left, margin.top, contentWidth, sliceImgHeight);
+
+            currentY += sliceHeight;
+          }
+        } else {
+          // 單頁
+          const imgData = canvas.toDataURL('image/png');
+          pdf.addImage(imgData, 'PNG', margin.left, margin.top, scaledWidth, scaledHeight);
+        }
       }
 
       // 儲存 PDF
