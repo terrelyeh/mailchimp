@@ -15,7 +15,9 @@ export default function ExportButton({
   selectedDays = 30,
   customDateRange = null,
   selectedAudience = null,
-  audienceList = []
+  audienceList = [],
+  onExportStart = null,
+  onExportEnd = null
 }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState(null); // 'png' or 'pdf'
@@ -107,11 +109,15 @@ export default function ExportButton({
           titleSection.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;';
 
           const titleLeft = clonedDoc.createElement('div');
-          // Logo
+          // Logo - use filter to make it white on dark background
           const logo = clonedDoc.createElement('img');
           logo.src = '/logo.png';
           logo.alt = 'EnGenius';
-          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: brightness(0) invert(1);';
+          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: invert(1) brightness(100);';
+          logo.onerror = () => {
+            // Fallback to text if logo fails to load
+            logo.style.display = 'none';
+          };
           titleLeft.appendChild(logo);
 
           const title = clonedDoc.createElement('h1');
@@ -206,6 +212,83 @@ export default function ExportButton({
               el.className.baseVal = el.className.baseVal.replace(/hover:[^\s]+/g, '');
             }
           });
+
+          // 移除 KPI Card 標題的截斷 (truncate class)
+          const truncatedElements = clonedElement.querySelectorAll('.truncate');
+          truncatedElements.forEach(el => {
+            el.style.overflow = 'visible';
+            el.style.textOverflow = 'clip';
+            el.style.whiteSpace = 'normal';
+          });
+
+          // 確保 KPI card 標題完整顯示
+          const kpiTitles = clonedElement.querySelectorAll('h3.text-xs');
+          kpiTitles.forEach(title => {
+            title.style.overflow = 'visible';
+            title.style.textOverflow = 'clip';
+            title.style.whiteSpace = 'normal';
+          });
+
+          // 為圖表區塊添加 page-break 避免分頁
+          const chartContainers = clonedElement.querySelectorAll('.recharts-responsive-container');
+          chartContainers.forEach(chart => {
+            const parentCard = chart.closest('.bg-white');
+            if (parentCard) {
+              parentCard.style.pageBreakInside = 'avoid';
+              parentCard.style.breakInside = 'avoid';
+            }
+          });
+
+          // 替換圖表選擇器區塊為靜態顯示
+          const chartSelectorSection = clonedElement.querySelector('.border-b.border-gray-100');
+          if (chartSelectorSection && chartSelectorSection.closest('.bg-white')) {
+            // 獲取選中的 region buttons (有背景色的)
+            const selectedRegionBtns = chartSelectorSection.querySelectorAll('button[style*="background"]');
+            const selectedRegions = [];
+            selectedRegionBtns.forEach(btn => {
+              const text = btn.textContent.trim();
+              if (text) selectedRegions.push(text);
+            });
+
+            // 獲取選中的 metric buttons (深色背景)
+            const metricBtns = chartSelectorSection.querySelectorAll('button');
+            const selectedMetrics = [];
+            metricBtns.forEach(btn => {
+              if (btn.className.includes('bg-gray-900') ||
+                  (btn.style && btn.style.backgroundColor === 'rgb(17, 24, 39)')) {
+                const text = btn.textContent.trim();
+                if (text && !selectedRegions.includes(text)) {
+                  selectedMetrics.push(text);
+                }
+              }
+            });
+
+            // 建立靜態圖例
+            const legend = clonedDoc.createElement('div');
+            legend.style.cssText = `
+              padding: 12px 16px;
+              background: #f8fafc;
+              border-radius: 8px;
+              margin-bottom: 16px;
+              border: 1px solid #e2e8f0;
+            `;
+            legend.innerHTML = `
+              <div style="display: flex; flex-wrap: wrap; gap: 24px; font-size: 13px;">
+                <div>
+                  <span style="color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 11px;">Regions:</span>
+                  <span style="color: #1f2937; margin-left: 8px;">${selectedRegions.length > 0 ? selectedRegions.join(', ') : 'All'}</span>
+                </div>
+                <div>
+                  <span style="color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 11px;">Metrics:</span>
+                  <span style="color: #1f2937; margin-left: 8px;">${selectedMetrics.length > 0 ? selectedMetrics.join(', ') : 'Open Rate'}</span>
+                </div>
+              </div>
+            `;
+
+            // 隱藏原本的選擇器，插入靜態圖例
+            chartSelectorSection.style.display = 'none';
+            chartSelectorSection.parentNode.insertBefore(legend, chartSelectorSection);
+          }
         }
       }
     });
@@ -216,6 +299,12 @@ export default function ExportButton({
     setIsExporting(true);
     setExportType('png');
     setShowDropdown(false);
+
+    // Notify parent to expand CampaignList
+    if (onExportStart) onExportStart();
+
+    // Wait for React to re-render with all campaigns
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
       const canvas = await prepareCanvas();
@@ -240,6 +329,7 @@ export default function ExportButton({
     } finally {
       setIsExporting(false);
       setExportType(null);
+      if (onExportEnd) onExportEnd();
     }
   };
 
@@ -248,6 +338,12 @@ export default function ExportButton({
     setIsExporting(true);
     setExportType('pdf');
     setShowDropdown(false);
+
+    // Notify parent to expand CampaignList
+    if (onExportStart) onExportStart();
+
+    // Wait for React to re-render with all campaigns
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
       const canvas = await prepareCanvas();
@@ -326,6 +422,7 @@ export default function ExportButton({
     } finally {
       setIsExporting(false);
       setExportType(null);
+      if (onExportEnd) onExportEnd();
     }
   };
 
