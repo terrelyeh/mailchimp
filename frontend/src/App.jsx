@@ -316,7 +316,7 @@ function App() {
           <div ref={exportContentRef} data-export-content>
             {view === 'overview' ? (
               <>
-                {/* Section 1: Summary & KPIs */}
+                {/* Section 1: Summary (Executive Summary only) */}
                 <div data-export-section="summary">
                   {/* Date Range Display */}
                   <div className="mb-4 text-sm text-gray-600">
@@ -340,15 +340,19 @@ function App() {
                     isOverview={true}
                     regions={availableRegions}
                   />
+                </div>
+
+                {/* Section 2: KPI Cards (keep together, don't split) */}
+                <div data-export-section="kpi">
                   <KPICards data={displayData} isMultiRegion={true} totalSubscribers={totalSubscribers} selectedDays={selectedDays} />
                 </div>
 
-                {/* Section 2: Chart */}
+                {/* Section 3: Chart */}
                 <div data-export-section="chart">
                   <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
                 </div>
 
-                {/* Section 3: Region Cards */}
+                {/* Section 4: Region Cards */}
                 <div data-export-section="details">
                   <RegionCards
                     regionsData={displayData}
@@ -359,7 +363,7 @@ function App() {
               </>
             ) : (
               <>
-                {/* Section 1: Summary & KPIs */}
+                {/* Section 1: Summary (Executive Summary only) */}
                 <div data-export-section="summary">
                   {/* Date Range Display */}
                   <div className="mb-4 text-sm text-gray-600">
@@ -385,6 +389,10 @@ function App() {
                     selectedAudience={selectedAudience}
                     audienceList={audienceList}
                   />
+                </div>
+
+                {/* Section 2: KPI Cards (keep together, don't split) */}
+                <div data-export-section="kpi">
                   <KPICards
                     data={displayData}
                     isMultiRegion={false}
@@ -393,12 +401,12 @@ function App() {
                   />
                 </div>
 
-                {/* Section 2: Chart */}
+                {/* Section 3: Chart */}
                 <div data-export-section="chart">
                   <DashboardCharts data={displayData} />
                 </div>
 
-                {/* Section 3: Campaign List */}
+                {/* Section 4: Campaign List */}
                 <div data-export-section="details">
                   <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} />
                 </div>

@@ -451,33 +451,33 @@ export default function ExportButton({
 
       // 使用區塊位置進行分頁
       if (sectionPositions.length > 0) {
-        // 找到 header 的結束位置（第一個區塊的開始之前是 header）
-        const headerEnd = sectionPositions[0].top;
-
-        // 第一頁：Header + Summary 區塊
         const summarySection = sectionPositions.find(s => s.name === 'summary');
+        const kpiSection = sectionPositions.find(s => s.name === 'kpi');
         const chartSection = sectionPositions.find(s => s.name === 'chart');
         const detailsSection = sectionPositions.find(s => s.name === 'details');
 
         // 計算每頁的像素高度限制
         const pixelsPerPage = (contentHeight / contentWidth) * canvas.width;
 
-        // 第一頁：從開始到 chart 區塊之前
+        // 第一頁：Header + Summary
+        if (summarySection) {
+          const summaryEnd = kpiSection ? kpiSection.top - 10 : (chartSection ? chartSection.top - 10 : summarySection.bottom);
+          addSectionToPdf(0, summaryEnd, true);
+        }
+
+        // 第二頁：KPI Cards（獨立一頁，不分割）
+        if (kpiSection) {
+          addSectionToPdf(kpiSection.top, kpiSection.bottom, false);
+        }
+
+        // 第三頁：Chart 區塊（獨立一頁）
         if (chartSection) {
-          // 檢查 summary 區塊是否能放在第一頁
-          const firstPageEnd = chartSection.top - 20; // chart 開始前留白
-          addSectionToPdf(0, firstPageEnd, true);
-
-          // 第二頁：Chart 區塊（獨立一頁）
           addSectionToPdf(chartSection.top, chartSection.bottom, false);
+        }
 
-          // 第三頁起：Details 區塊
-          if (detailsSection) {
-            addSectionToPdf(detailsSection.top, canvas.height, false);
-          }
-        } else {
-          // 沒有 chart 區塊，使用舊的分頁邏輯
-          addSectionToPdf(0, canvas.height, true);
+        // 第四頁起：Details 區塊（Campaign List 或 Region Cards）
+        if (detailsSection) {
+          addSectionToPdf(detailsSection.top, canvas.height, false);
         }
       } else {
         // 沒有區塊標記，直接輸出整個 canvas
