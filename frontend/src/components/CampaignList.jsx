@@ -182,18 +182,24 @@ export default function CampaignList({ data, isExporting = false }) {
                                         <div className="flex items-center group">
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-semibold text-gray-900 text-sm truncate max-w-[200px]" title={campaign.title}>
-                                                        {campaign.title}
-                                                    </span>
-                                                    <a
-                                                        href={campaign.archive_url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-1 hover:bg-gray-100 rounded"
-                                                        title="View campaign"
-                                                    >
-                                                        <ExternalLink className="w-3 h-3 text-gray-400" />
-                                                    </a>
+                                                    {campaign.archive_url ? (
+                                                        <a
+                                                            href={campaign.archive_url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="font-semibold text-gray-900 hover:text-[#007C89] text-sm truncate max-w-[200px] transition-colors"
+                                                            title={`${campaign.title} - Click to view campaign`}
+                                                        >
+                                                            {campaign.title}
+                                                        </a>
+                                                    ) : (
+                                                        <span className="font-semibold text-gray-900 text-sm truncate max-w-[200px]" title={campaign.title}>
+                                                            {campaign.title}
+                                                        </span>
+                                                    )}
+                                                    {campaign.archive_url && (
+                                                        <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-[#007C89] transition-colors flex-shrink-0" />
+                                                    )}
                                                 </div>
                                                 <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
                                                     {campaign.subject_line}
