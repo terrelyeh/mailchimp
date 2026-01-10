@@ -15,7 +15,9 @@ export default function ExportButton({
   selectedDays = 30,
   customDateRange = null,
   selectedAudience = null,
-  audienceList = []
+  audienceList = [],
+  onExportStart = null,
+  onExportEnd = null
 }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState(null); // 'png' or 'pdf'
@@ -107,11 +109,15 @@ export default function ExportButton({
           titleSection.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;';
 
           const titleLeft = clonedDoc.createElement('div');
-          // Logo
+          // Logo - use filter to make it white on dark background
           const logo = clonedDoc.createElement('img');
           logo.src = '/logo.png';
           logo.alt = 'EnGenius';
-          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: brightness(0) invert(1);';
+          logo.style.cssText = 'height: 36px; width: auto; margin-bottom: 8px; filter: invert(1) brightness(100);';
+          logo.onerror = () => {
+            // Fallback to text if logo fails to load
+            logo.style.display = 'none';
+          };
           titleLeft.appendChild(logo);
 
           const title = clonedDoc.createElement('h1');
@@ -217,6 +223,12 @@ export default function ExportButton({
     setExportType('png');
     setShowDropdown(false);
 
+    // Notify parent to expand CampaignList
+    if (onExportStart) onExportStart();
+
+    // Wait for React to re-render with all campaigns
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     try {
       const canvas = await prepareCanvas();
 
@@ -240,6 +252,7 @@ export default function ExportButton({
     } finally {
       setIsExporting(false);
       setExportType(null);
+      if (onExportEnd) onExportEnd();
     }
   };
 
@@ -248,6 +261,12 @@ export default function ExportButton({
     setIsExporting(true);
     setExportType('pdf');
     setShowDropdown(false);
+
+    // Notify parent to expand CampaignList
+    if (onExportStart) onExportStart();
+
+    // Wait for React to re-render with all campaigns
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
       const canvas = await prepareCanvas();
@@ -326,6 +345,7 @@ export default function ExportButton({
     } finally {
       setIsExporting(false);
       setExportType(null);
+      if (onExportEnd) onExportEnd();
     }
   };
 

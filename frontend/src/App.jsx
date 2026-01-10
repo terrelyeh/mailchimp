@@ -32,6 +32,7 @@ function App() {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
   const [settingsOpen, setSettingsOpen] = useState(false); // Settings modal state
   const [lastFetchTime, setLastFetchTime] = useState(null); // Last data fetch timestamp
+  const [isExporting, setIsExporting] = useState(false); // Export mode state
 
   // Ref for export functionality
   const exportContentRef = useRef(null);
@@ -254,6 +255,8 @@ function App() {
                 customDateRange={customDateRange}
                 selectedAudience={selectedAudience}
                 audienceList={audienceList}
+                onExportStart={() => setIsExporting(true)}
+                onExportEnd={() => setIsExporting(false)}
               />
 
               <button
@@ -365,7 +368,7 @@ function App() {
                 {/* Performance Chart */}
                 <DashboardCharts data={displayData} />
 
-                <CampaignList data={Array.isArray(displayData) ? displayData : []} />
+                <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} />
               </>
             )}
           </div>

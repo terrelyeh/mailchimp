@@ -34,10 +34,10 @@ const RateBadge = ({ value, threshold, invertWarning = false, suffix = '%' }) =>
     );
 };
 
-export default function CampaignList({ data }) {
+export default function CampaignList({ data, isExporting = false }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sort, setSort] = useState({ field: 'send_time', direction: 'desc' });
-    const itemsPerPage = 10;
+    const itemsPerPage = isExporting ? data.length : 10; // Show all when exporting
 
     // Reset to page 1 when data changes
     useEffect(() => {
@@ -266,8 +266,8 @@ export default function CampaignList({ data }) {
                 </table>
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
+            {/* Pagination - hidden when exporting */}
+            {totalPages > 1 && !isExporting && (
                 <div className="px-4 md:px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <div className="text-sm text-gray-500 tabular-nums">
                         Showing <span className="font-medium text-gray-700">{startIndex + 1}-{Math.min(endIndex, totalItems)}</span> of <span className="font-medium text-gray-700">{totalItems}</span>
