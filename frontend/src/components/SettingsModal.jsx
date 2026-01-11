@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList, Link2 } from 'lucide-react';
+import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList, Link2, Users, Key } from 'lucide-react';
 import { useThresholds } from '../contexts/ThresholdContext';
 import ShareLinksManager from './ShareLinksManager';
+import UserManagement from './UserManagement';
 
-export default function SettingsModal({ isOpen, onClose }) {
+export default function SettingsModal({ isOpen, onClose, user, onChangePassword }) {
   const { thresholds, updateThreshold, resetToDefaults, DEFAULT_THRESHOLDS } = useThresholds();
-  const [activeTab, setActiveTab] = useState('alerts'); // 'alerts' or 'shares'
+  const [activeTab, setActiveTab] = useState('alerts'); // 'alerts', 'shares', or 'users'
+
+  const isAdmin = user?.role === 'admin';
 
   if (!isOpen) return null;
 
@@ -131,8 +134,9 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   const tabs = [
     { id: 'alerts', label: 'Alert Settings', icon: AlertTriangle },
-    { id: 'shares', label: 'Share Links', icon: Link2 }
-  ];
+    { id: 'shares', label: 'Share Links', icon: Link2, adminOnly: true },
+    { id: 'users', label: 'Users', icon: Users, adminOnly: true }
+  ].filter(tab => !tab.adminOnly || isAdmin);
 
   return (
     <div
@@ -179,8 +183,29 @@ export default function SettingsModal({ isOpen, onClose }) {
 
         {/* Content */}
         <div className="px-6 py-4 overflow-y-auto max-h-[55vh]">
-          {activeTab === 'alerts' ? (
+          {activeTab === 'alerts' && (
             <div className="space-y-6">
+              {/* Change Password Button */}
+              {user && (
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Key className="w-4 h-4 text-gray-500" />
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Account Security</span>
+                        <p className="text-xs text-gray-500">Logged in as {user.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={onChangePassword}
+                      className="px-3 py-1.5 text-sm text-[#007C89] hover:bg-[#007C89]/10 rounded-lg transition-colors"
+                    >
+                      Change Password
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {thresholdGroups.map((group) => (
                 <div key={group.title} className={`rounded-lg p-4 ${group.bgColor} border ${group.borderColor}`}>
                   <div className="flex items-center gap-2 mb-4">
@@ -235,9 +260,9 @@ export default function SettingsModal({ isOpen, onClose }) {
                 </div>
               ))}
             </div>
-          ) : (
-            <ShareLinksManager />
           )}
+          {activeTab === 'shares' && <ShareLinksManager />}
+          {activeTab === 'users' && <UserManagement currentUserId={user?.id} />}
         </div>
 
         {/* Footer */}
