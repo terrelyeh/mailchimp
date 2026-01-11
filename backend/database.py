@@ -5,8 +5,12 @@ import secrets
 import hashlib
 from datetime import datetime, timedelta
 import os
+from passlib.context import CryptContext
 
 logger = logging.getLogger(__name__)
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # 使用環境變數設定資料庫路徑，預設為當前目錄
 DATA_DIR = os.getenv("DATA_DIR", ".")
@@ -42,8 +46,23 @@ def init_db():
             access_count INTEGER DEFAULT 0
         )
     ''')
+    # Create users table for authentication
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT DEFAULT 'viewer',
+            must_change_password INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
+
+    # Initialize default admin if no users exist
+    _init_default_admin()
 
 def upsert_campaigns(campaigns_data, region='US'):
     """
@@ -445,6 +464,387 @@ def delete_shared_link(token):
         logger.info(f"Deleted shared link: {token}")
 
     return deleted
+
+# ============================================
+# User Authentication Functions
+# ============================================
+
+def _init_default_admin():
+    """Initialize default admin user if no users exist"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Check if any users exist
+    c.execute("SELECT COUNT(*) FROM users")
+    count = c.fetchone()[0]
+
+    if count == 0:
+        # Get admin credentials from environment
+        admin_email = os.getenv("ADMIN_EMAIL", "engenius.ad@gmail.com")
+        admin_password = os.getenv("ADMIN_INITIAL_PASSWORD", "ChangeMe123!")
+
+        # Create default admin
+        user_id = secrets.token_urlsafe(16)
+        password_hash = pwd_context.hash(admin_password)
+
+        c.execute('''
+            INSERT INTO users (id, email, password_hash, role, must_change_password)
+            VALUES (?, ?, ?, 'admin', 1)
+        ''', (user_id, admin_email, password_hash))
+
+        conn.commit()
+        logger.info(f"Created default admin user: {admin_email}")
+
+    conn.close()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    """Hash a password"""
+    return pwd_context.hash(password)
+
+
+def authenticate_user(email: str, password: str):
+    """
+    Authenticate user by email and password
+
+    Returns:
+        User dict if authentication successful, None otherwise
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute('''
+        SELECT id, email, password_hash, role, must_change_password, created_at, last_login
+        FROM users WHERE email = ?
+    ''', (email.lower(),))
+
+    row = c.fetchone()
+
+    if not row:
+        conn.close()
+        return None
+
+    if not verify_password(password, row['password_hash']):
+        conn.close()
+        return None
+
+    # Update last login time
+    c.execute('''
+        UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?
+    ''', (row['id'],))
+    conn.commit()
+    conn.close()
+
+    return {
+        "id": row['id'],
+        "email": row['email'],
+        "role": row['role'],
+        "must_change_password": bool(row['must_change_password']),
+        "created_at": row['created_at'],
+        "last_login": row['last_login']
+    }
+
+
+def get_user_by_id(user_id: str):
+    """Get user by ID"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute('''
+        SELECT id, email, role, must_change_password, created_at, last_login
+        FROM users WHERE id = ?
+    ''', (user_id,))
+
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "id": row['id'],
+        "email": row['email'],
+        "role": row['role'],
+        "must_change_password": bool(row['must_change_password']),
+        "created_at": row['created_at'],
+        "last_login": row['last_login']
+    }
+
+
+def get_user_by_email(email: str):
+    """Get user by email"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute('''
+        SELECT id, email, role, must_change_password, created_at, last_login
+        FROM users WHERE email = ?
+    ''', (email.lower(),))
+
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "id": row['id'],
+        "email": row['email'],
+        "role": row['role'],
+        "must_change_password": bool(row['must_change_password']),
+        "created_at": row['created_at'],
+        "last_login": row['last_login']
+    }
+
+
+def create_user(email: str, role: str = 'viewer'):
+    """
+    Create a new user with a temporary password
+
+    Returns:
+        dict with user info and temporary password
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Check if email already exists
+    c.execute("SELECT 1 FROM users WHERE email = ?", (email.lower(),))
+    if c.fetchone():
+        conn.close()
+        return {"error": "email_exists", "message": "Email already registered"}
+
+    # Validate role
+    if role not in ['admin', 'viewer']:
+        conn.close()
+        return {"error": "invalid_role", "message": "Role must be 'admin' or 'viewer'"}
+
+    # Generate user ID and temporary password
+    user_id = secrets.token_urlsafe(16)
+    temp_password = secrets.token_urlsafe(8)
+    password_hash = pwd_context.hash(temp_password)
+
+    c.execute('''
+        INSERT INTO users (id, email, password_hash, role, must_change_password)
+        VALUES (?, ?, ?, ?, 1)
+    ''', (user_id, email.lower(), password_hash, role))
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Created new user: {email} with role: {role}")
+
+    return {
+        "id": user_id,
+        "email": email.lower(),
+        "role": role,
+        "temp_password": temp_password,
+        "must_change_password": True
+    }
+
+
+def update_user_role(user_id: str, new_role: str, admin_id: str):
+    """
+    Update a user's role
+
+    Args:
+        user_id: ID of user to update
+        new_role: New role ('admin' or 'viewer')
+        admin_id: ID of admin making the change
+
+    Returns:
+        dict with result
+    """
+    if new_role not in ['admin', 'viewer']:
+        return {"error": "invalid_role", "message": "Role must be 'admin' or 'viewer'"}
+
+    # Cannot change own role
+    if user_id == admin_id:
+        return {"error": "self_modification", "message": "Cannot change your own role"}
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Check if user exists
+    c.execute("SELECT email FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return {"error": "not_found", "message": "User not found"}
+
+    c.execute('''
+        UPDATE users SET role = ? WHERE id = ?
+    ''', (new_role, user_id))
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Updated user {user_id} role to {new_role}")
+
+    return {"status": "success", "email": row[0], "new_role": new_role}
+
+
+def delete_user(user_id: str, admin_id: str):
+    """
+    Delete a user
+
+    Args:
+        user_id: ID of user to delete
+        admin_id: ID of admin making the deletion
+
+    Returns:
+        dict with result
+    """
+    # Cannot delete self
+    if user_id == admin_id:
+        return {"error": "self_deletion", "message": "Cannot delete your own account"}
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Check if this is the last admin
+    c.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return {"error": "not_found", "message": "User not found"}
+
+    user_role = row[0]
+    if user_role == 'admin':
+        # Count remaining admins
+        c.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND id != ?", (user_id,))
+        admin_count = c.fetchone()[0]
+        if admin_count == 0:
+            conn.close()
+            return {"error": "last_admin", "message": "Cannot delete the last admin user"}
+
+    c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Deleted user {user_id}")
+
+    return {"status": "success"}
+
+
+def list_users():
+    """
+    List all users
+
+    Returns:
+        List of user dicts
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute('''
+        SELECT id, email, role, must_change_password, created_at, last_login
+        FROM users
+        ORDER BY created_at DESC
+    ''')
+
+    rows = c.fetchall()
+    conn.close()
+
+    return [{
+        "id": row['id'],
+        "email": row['email'],
+        "role": row['role'],
+        "must_change_password": bool(row['must_change_password']),
+        "created_at": row['created_at'],
+        "last_login": row['last_login']
+    } for row in rows]
+
+
+def change_password(user_id: str, old_password: str, new_password: str):
+    """
+    Change user's password
+
+    Returns:
+        dict with result
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+
+    if not row:
+        conn.close()
+        return {"error": "not_found", "message": "User not found"}
+
+    # Verify old password
+    if not verify_password(old_password, row['password_hash']):
+        conn.close()
+        return {"error": "invalid_password", "message": "Current password is incorrect"}
+
+    # Validate new password
+    if len(new_password) < 8:
+        conn.close()
+        return {"error": "weak_password", "message": "Password must be at least 8 characters"}
+
+    # Update password
+    new_hash = pwd_context.hash(new_password)
+    c.execute('''
+        UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?
+    ''', (new_hash, user_id))
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"User {user_id} changed password")
+
+    return {"status": "success"}
+
+
+def reset_user_password(user_id: str, admin_id: str):
+    """
+    Reset a user's password (admin action)
+
+    Returns:
+        dict with new temporary password
+    """
+    if user_id == admin_id:
+        return {"error": "self_reset", "message": "Cannot reset your own password this way. Use change password."}
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Check if user exists
+    c.execute("SELECT email FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return {"error": "not_found", "message": "User not found"}
+
+    # Generate new temporary password
+    temp_password = secrets.token_urlsafe(8)
+    password_hash = pwd_context.hash(temp_password)
+
+    c.execute('''
+        UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?
+    ''', (password_hash, user_id))
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Admin {admin_id} reset password for user {user_id}")
+
+    return {
+        "status": "success",
+        "email": row[0],
+        "temp_password": temp_password
+    }
+
 
 # Initialize on module load or explicitly
 init_db()

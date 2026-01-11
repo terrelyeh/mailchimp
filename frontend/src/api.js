@@ -4,6 +4,24 @@ import axios from 'axios';
 // In development, use localhost
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+// Token management
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+
+export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+export const getStoredUser = () => {
+    const user = localStorage.getItem(USER_KEY);
+    return user ? JSON.parse(user) : null;
+};
+export const setStoredAuth = (token, user) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+};
+export const clearStoredAuth = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+};
+
 // Create axios instance with default config
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -13,6 +31,18 @@ const api = axios.create({
     },
 });
 
+// Request interceptor to add auth token
+api.interceptors.request.use(
+    (config) => {
+        const token = getStoredToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
 // Response interceptor for error handling
 api.interceptors.response.use(
     (response) => response,
@@ -21,6 +51,12 @@ api.interceptors.response.use(
             console.warn('API request timeout');
         } else if (error.response) {
             console.warn(`API Error ${error.response.status}:`, error.response.data);
+            // Handle 401 unauthorized - clear auth and redirect
+            if (error.response.status === 401) {
+                clearStoredAuth();
+                // Dispatch custom event for auth state change
+                window.dispatchEvent(new CustomEvent('auth-expired'));
+            }
         } else if (error.request) {
             console.warn('API Network Error: No response received');
         }
@@ -200,5 +236,164 @@ export const deleteShareLink = async (token) => {
             return { status: 'error', error: 'not_found' };
         }
         return { status: 'error', error: error.message };
+    }
+};
+
+// ============================================
+// Authentication API Functions
+// ============================================
+
+/**
+ * Login with email and password
+ * @param {string} email - User email
+ * @param {string} password - User password
+ */
+export const login = async (email, password) => {
+    try {
+        const response = await api.post('/auth/login', { email, password });
+        if (response.data.status === 'success') {
+            setStoredAuth(response.data.token, response.data.user);
+        }
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 401) {
+            return { status: 'error', error: 'invalid_credentials', message: 'Invalid email or password' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * Logout - clear stored auth
+ */
+export const logout = () => {
+    clearStoredAuth();
+};
+
+/**
+ * Get current user info
+ */
+export const getCurrentUser = async () => {
+    try {
+        const response = await api.get('/auth/me');
+        return response.data;
+    } catch (error) {
+        return null;
+    }
+};
+
+/**
+ * Change current user's password
+ * @param {string} oldPassword - Current password
+ * @param {string} newPassword - New password
+ */
+export const changePassword = async (oldPassword, newPassword) => {
+    try {
+        const response = await api.post('/auth/change-password', {
+            old_password: oldPassword,
+            new_password: newPassword
+        });
+        if (response.data.status === 'success' && response.data.token) {
+            // Update stored token
+            const user = getStoredUser();
+            if (user) {
+                user.must_change_password = false;
+                setStoredAuth(response.data.token, user);
+            }
+        }
+        return response.data;
+    } catch (error) {
+        if (error.response?.data?.detail) {
+            return { status: 'error', message: error.response.data.detail };
+        }
+        return { status: 'error', message: error.message };
+    }
+};
+
+// ============================================
+// User Management API Functions (Admin only)
+// ============================================
+
+/**
+ * List all users (admin only)
+ */
+export const listUsers = async () => {
+    try {
+        const response = await api.get('/users');
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'forbidden', message: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message, users: [] };
+    }
+};
+
+/**
+ * Create a new user (admin only)
+ * @param {string} email - New user email
+ * @param {string} role - User role ('admin' or 'viewer')
+ */
+export const createUser = async (email, role = 'viewer') => {
+    try {
+        const response = await api.post('/users', { email, role });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 409) {
+            return { status: 'error', error: 'email_exists', message: 'Email already registered' };
+        }
+        if (error.response?.data?.detail) {
+            return { status: 'error', message: error.response.data.detail };
+        }
+        return { status: 'error', message: error.message };
+    }
+};
+
+/**
+ * Update a user's role (admin only)
+ * @param {string} userId - User ID to update
+ * @param {string} role - New role ('admin' or 'viewer')
+ */
+export const updateUserRole = async (userId, role) => {
+    try {
+        const response = await api.put(`/users/${userId}/role`, { role });
+        return response.data;
+    } catch (error) {
+        if (error.response?.data?.detail) {
+            return { status: 'error', message: error.response.data.detail };
+        }
+        return { status: 'error', message: error.message };
+    }
+};
+
+/**
+ * Delete a user (admin only)
+ * @param {string} userId - User ID to delete
+ */
+export const deleteUser = async (userId) => {
+    try {
+        const response = await api.delete(`/users/${userId}`);
+        return response.data;
+    } catch (error) {
+        if (error.response?.data?.detail) {
+            return { status: 'error', message: error.response.data.detail };
+        }
+        return { status: 'error', message: error.message };
+    }
+};
+
+/**
+ * Reset a user's password (admin only)
+ * @param {string} userId - User ID to reset password
+ */
+export const resetUserPassword = async (userId) => {
+    try {
+        const response = await api.post(`/users/${userId}/reset-password`);
+        return response.data;
+    } catch (error) {
+        if (error.response?.data?.detail) {
+            return { status: 'error', message: error.response.data.detail };
+        }
+        return { status: 'error', message: error.message };
     }
 };
