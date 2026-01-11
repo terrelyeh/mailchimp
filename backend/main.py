@@ -741,9 +741,9 @@ def diagnose_api(days: int = 60, region: str = None):
 # ============================================
 
 @app.post("/api/share")
-def create_share_link(request: CreateShareLinkRequest):
+def create_share_link(request: CreateShareLinkRequest, user: Dict = Depends(require_auth)):
     """
-    Create a new shared link with optional password and expiration
+    Create a new shared link with optional password and expiration (requires login)
 
     Request body:
     - filter_state: dict of filter settings (days, region, audience, etc.)
@@ -859,8 +859,8 @@ def verify_share_link_password(token: str, request: VerifyPasswordRequest):
 
 
 @app.delete("/api/share/cleanup")
-def cleanup_expired_share_links():
-    """Clean up expired shared links (can be called periodically)"""
+def cleanup_expired_share_links(user: Dict = Depends(require_admin)):
+    """Clean up expired shared links (admin only)"""
     deleted = database.cleanup_expired_links()
     return {
         "status": "success",
@@ -869,9 +869,9 @@ def cleanup_expired_share_links():
 
 
 @app.get("/api/share")
-def list_share_links():
+def list_share_links(user: Dict = Depends(require_admin)):
     """
-    List all shared links for management
+    List all shared links for management (admin only)
 
     Returns list of share links with metadata
     """
@@ -884,9 +884,9 @@ def list_share_links():
 
 
 @app.delete("/api/share/{token}")
-def delete_share_link(token: str):
+def delete_share_link(token: str, user: Dict = Depends(require_admin)):
     """
-    Delete a specific shared link
+    Delete a specific shared link (admin only)
 
     Returns success or 404 if not found
     """
