@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project Name:** EnGenius EDM Analytic Dashboard
-**Version:** 1.3
+**Version:** 1.4
 **Last Updated:** January 2026
 **Data Source:** Mailchimp Marketing API
 
@@ -212,6 +212,55 @@ Developer tool for troubleshooting:
 - Error logging
 - Force refresh capability
 
+### 9. User Authentication & Management
+Secure access control system with role-based permissions.
+
+#### Authentication
+| Feature | Description |
+|---------|-------------|
+| JWT Tokens | 24-hour session tokens stored in localStorage |
+| Password Hashing | bcrypt-based secure password storage |
+| Session Persistence | Auto-login on page refresh if token valid |
+| Forced Password Change | New users must change temporary password on first login |
+
+#### User Roles
+| Role | Permissions |
+|------|-------------|
+| Admin | Full access: view dashboard, manage share links, manage users |
+| Viewer | View dashboard only, no access to Settings > Share Links or Users tabs |
+
+#### User Management (Admin Only)
+Access via Settings > Users tab:
+
+| Feature | Description |
+|---------|-------------|
+| View Users | List all users with email, role, last login |
+| Create User | Add new user with email and role, generates temp password |
+| Change Role | Switch user between Admin and Viewer roles |
+| Reset Password | Generate new temporary password for user |
+| Delete User | Remove user (cannot delete self or last admin) |
+
+#### Onboarding Flow
+1. Admin creates new user via Settings > Users > Add User
+2. System generates temporary password
+3. Admin shares credentials manually (via Slack, Line, etc.)
+4. New user logs in with temporary password
+5. User is prompted to create new password
+6. User gains access based on assigned role
+
+#### Environment Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `JWT_SECRET` | Secret key for JWT signing (change in production!) | Auto-generated |
+| `ADMIN_EMAIL` | Default admin email created on first run | engenius.ad@gmail.com |
+| `ADMIN_INITIAL_PASSWORD` | Initial admin password | admin123 |
+
+#### Security Notes
+- Change `JWT_SECRET` in production environment
+- Change default admin password immediately after first login
+- Temporary passwords are randomly generated (12 characters)
+- All password changes require old password verification (except admin reset)
+
 ---
 
 ## Filter Controls
@@ -344,3 +393,4 @@ Dashboard is configured to prevent search engine indexing:
 | 1.1 | Jan 2026 | Added URL state persistence & share link feature, clickable campaign titles, simplified export to PNG only, improved chart legend styling |
 | 1.2 | Jan 2026 | Enhanced share link with password protection and expiration options, share link database storage |
 | 1.3 | Jan 2026 | Added share links management interface in Settings modal with list, copy, and delete functionality |
+| 1.4 | Jan 2026 | Added user authentication and management system with JWT tokens, role-based permissions (admin/viewer), user CRUD operations, and secure password handling |
