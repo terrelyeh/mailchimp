@@ -485,7 +485,7 @@ def _init_default_admin():
 
         # Create default admin
         user_id = secrets.token_urlsafe(16)
-        password_hash = pwd_context.hash(admin_password)
+        password_hash = get_password_hash(admin_password)
 
         c.execute('''
             INSERT INTO users (id, email, password_hash, role, must_change_password)
@@ -499,13 +499,17 @@ def _init_default_admin():
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a password against its hash (bcrypt has 72 byte limit)"""
+    # Truncate to 72 bytes to match hashing
+    password_bytes = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return pwd_context.verify(password_bytes, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password"""
-    return pwd_context.hash(password)
+    """Hash a password (bcrypt has 72 byte limit)"""
+    # Truncate to 72 bytes to avoid bcrypt limit
+    password_bytes = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return pwd_context.hash(password_bytes)
 
 
 def authenticate_user(email: str, password: str):
@@ -629,7 +633,7 @@ def create_user(email: str, role: str = 'viewer'):
     # Generate user ID and temporary password
     user_id = secrets.token_urlsafe(16)
     temp_password = secrets.token_urlsafe(8)
-    password_hash = pwd_context.hash(temp_password)
+    password_hash = get_password_hash(temp_password)
 
     c.execute('''
         INSERT INTO users (id, email, password_hash, role, must_change_password)
@@ -793,7 +797,7 @@ def change_password(user_id: str, old_password: str, new_password: str):
         return {"error": "weak_password", "message": "Password must be at least 8 characters"}
 
     # Update password
-    new_hash = pwd_context.hash(new_password)
+    new_hash = get_password_hash(new_password)
     c.execute('''
         UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?
     ''', (new_hash, user_id))
@@ -828,7 +832,7 @@ def reset_user_password(user_id: str, admin_id: str):
 
     # Generate new temporary password
     temp_password = secrets.token_urlsafe(8)
-    password_hash = pwd_context.hash(temp_password)
+    password_hash = get_password_hash(temp_password)
 
     c.execute('''
         UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?
