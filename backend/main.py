@@ -33,9 +33,13 @@ class ChangePasswordRequest(BaseModel):
 class CreateUserRequest(BaseModel):
     email: str
     role: str = 'viewer'
+    display_name: Optional[str] = None
 
 class UpdateUserRoleRequest(BaseModel):
     role: str
+
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = None
 
 
 # Pydantic models for share link API
@@ -188,6 +192,25 @@ def change_password(request: ChangePasswordRequest, user: Dict = Depends(require
     }
 
 
+@app.put("/api/auth/profile")
+def update_profile(request: UpdateProfileRequest, user: Dict = Depends(require_auth)):
+    """
+    Update current user's profile (display_name)
+    """
+    result = database.update_user_profile(user["id"], request.display_name)
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    # Get updated user info
+    updated_user = database.get_user_by_id(user["id"])
+
+    return {
+        "status": "success",
+        "user": updated_user
+    }
+
+
 # ============================================
 # User Management Endpoints (Admin only)
 # ============================================
@@ -210,7 +233,7 @@ def create_user(request: CreateUserRequest, user: Dict = Depends(require_admin))
 
     Returns temporary password to share with the user
     """
-    result = database.create_user(request.email, request.role)
+    result = database.create_user(request.email, request.role, request.display_name)
 
     if result.get("error"):
         if result["error"] == "email_exists":
@@ -222,6 +245,7 @@ def create_user(request: CreateUserRequest, user: Dict = Depends(require_admin))
         "user": {
             "id": result["id"],
             "email": result["email"],
+            "display_name": result["display_name"],
             "role": result["role"]
         },
         "temp_password": result["temp_password"],

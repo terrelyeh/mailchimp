@@ -52,12 +52,20 @@ def init_db():
             id TEXT PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            display_name TEXT,
             role TEXT DEFAULT 'viewer',
             must_change_password INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_login TIMESTAMP
         )
     ''')
+
+    # Migration: Add display_name column if it doesn't exist
+    c.execute("PRAGMA table_info(users)")
+    columns = [col[1] for col in c.fetchall()]
+    if 'display_name' not in columns:
+        c.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
+
     conn.commit()
     conn.close()
 
@@ -482,15 +490,16 @@ def _init_default_admin():
         # Get admin credentials from environment
         admin_email = os.getenv("ADMIN_EMAIL", "engenius.ad@gmail.com")
         admin_password = os.getenv("ADMIN_INITIAL_PASSWORD", "ChangeMe123!")
+        admin_name = os.getenv("ADMIN_DISPLAY_NAME", "Admin")
 
         # Create default admin
         user_id = secrets.token_urlsafe(16)
         password_hash = get_password_hash(admin_password)
 
         c.execute('''
-            INSERT INTO users (id, email, password_hash, role, must_change_password)
-            VALUES (?, ?, ?, 'admin', 1)
-        ''', (user_id, admin_email, password_hash))
+            INSERT INTO users (id, email, password_hash, display_name, role, must_change_password)
+            VALUES (?, ?, ?, ?, 'admin', 1)
+        ''', (user_id, admin_email, password_hash, admin_name))
 
         conn.commit()
         logger.info(f"Created default admin user: {admin_email}")
@@ -524,7 +533,7 @@ def authenticate_user(email: str, password: str):
     c = conn.cursor()
 
     c.execute('''
-        SELECT id, email, password_hash, role, must_change_password, created_at, last_login
+        SELECT id, email, password_hash, display_name, role, must_change_password, created_at, last_login
         FROM users WHERE email = ?
     ''', (email.lower(),))
 
@@ -548,6 +557,7 @@ def authenticate_user(email: str, password: str):
     return {
         "id": row['id'],
         "email": row['email'],
+        "display_name": row['display_name'],
         "role": row['role'],
         "must_change_password": bool(row['must_change_password']),
         "created_at": row['created_at'],
@@ -562,7 +572,7 @@ def get_user_by_id(user_id: str):
     c = conn.cursor()
 
     c.execute('''
-        SELECT id, email, role, must_change_password, created_at, last_login
+        SELECT id, email, display_name, role, must_change_password, created_at, last_login
         FROM users WHERE id = ?
     ''', (user_id,))
 
@@ -575,6 +585,7 @@ def get_user_by_id(user_id: str):
     return {
         "id": row['id'],
         "email": row['email'],
+        "display_name": row['display_name'],
         "role": row['role'],
         "must_change_password": bool(row['must_change_password']),
         "created_at": row['created_at'],
@@ -609,7 +620,7 @@ def get_user_by_email(email: str):
     }
 
 
-def create_user(email: str, role: str = 'viewer'):
+def create_user(email: str, role: str = 'viewer', display_name: str = None):
     """
     Create a new user with a temporary password
 
@@ -635,10 +646,14 @@ def create_user(email: str, role: str = 'viewer'):
     temp_password = secrets.token_urlsafe(8)
     password_hash = get_password_hash(temp_password)
 
+    # Use email prefix as default display name if not provided
+    if not display_name:
+        display_name = email.split('@')[0]
+
     c.execute('''
-        INSERT INTO users (id, email, password_hash, role, must_change_password)
-        VALUES (?, ?, ?, ?, 1)
-    ''', (user_id, email.lower(), password_hash, role))
+        INSERT INTO users (id, email, password_hash, display_name, role, must_change_password)
+        VALUES (?, ?, ?, ?, ?, 1)
+    ''', (user_id, email.lower(), password_hash, display_name, role))
 
     conn.commit()
     conn.close()
@@ -648,6 +663,7 @@ def create_user(email: str, role: str = 'viewer'):
     return {
         "id": user_id,
         "email": email.lower(),
+        "display_name": display_name,
         "role": role,
         "temp_password": temp_password,
         "must_change_password": True
@@ -750,7 +766,7 @@ def list_users():
     c = conn.cursor()
 
     c.execute('''
-        SELECT id, email, role, must_change_password, created_at, last_login
+        SELECT id, email, display_name, role, must_change_password, created_at, last_login
         FROM users
         ORDER BY created_at DESC
     ''')
@@ -761,6 +777,7 @@ def list_users():
     return [{
         "id": row['id'],
         "email": row['email'],
+        "display_name": row['display_name'],
         "role": row['role'],
         "must_change_password": bool(row['must_change_password']),
         "created_at": row['created_at'],
@@ -848,6 +865,35 @@ def reset_user_password(user_id: str, admin_id: str):
         "email": row[0],
         "temp_password": temp_password
     }
+
+
+def update_user_profile(user_id: str, display_name: str = None):
+    """
+    Update user's profile (display_name)
+
+    Returns:
+        dict with result
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Check if user exists
+    c.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+    if not c.fetchone():
+        conn.close()
+        return {"error": "not_found", "message": "User not found"}
+
+    if display_name is not None:
+        c.execute('''
+            UPDATE users SET display_name = ? WHERE id = ?
+        ''', (display_name.strip(), user_id))
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"User {user_id} updated their profile")
+
+    return {"status": "success", "display_name": display_name}
 
 
 # Initialize on module load or explicitly

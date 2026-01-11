@@ -14,6 +14,7 @@ import SettingsModal from './components/SettingsModal';
 import ShareDialog from './components/ShareDialog';
 import LoginPage from './components/LoginPage';
 import ChangePasswordModal from './components/ChangePasswordModal';
+import UserProfileDropdown from './components/UserProfileDropdown';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
 import {
@@ -21,7 +22,7 @@ import {
   createShareLink, getShareLink, verifyShareLinkPassword,
   getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth
 } from './api';
-import { RefreshCw, ArrowLeft, Activity, Settings, Share2, Lock, AlertTriangle, LogOut, User } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
@@ -548,40 +549,15 @@ function App() {
                 </button>
               )}
 
-              <button
-                onClick={() => setDiagnosticsOpen(true)}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Open API Diagnostics"
-              >
-                <Activity className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-
-              {/* User Menu */}
+              {/* User Profile Dropdown - consolidates Settings, Diagnostics, and Logout */}
               {isAuthenticated && user && (
-                <div className="flex items-center gap-1 ml-2 pl-2 border-l border-gray-200">
-                  <div className="hidden md:flex items-center gap-1.5 text-xs text-gray-600">
-                    <User className="w-4 h-4" />
-                    <span className="max-w-[120px] truncate">{user.email}</span>
-                    {user.role === 'admin' && (
-                      <span className="px-1.5 py-0.5 bg-[#007C89]/10 text-[#007C89] text-[10px] font-medium rounded">Admin</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Sign out"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
+                <UserProfileDropdown
+                  user={user}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+                  onChangePassword={() => setShowChangePassword(true)}
+                  onLogout={handleLogout}
+                />
               )}
             </div>
           </div>

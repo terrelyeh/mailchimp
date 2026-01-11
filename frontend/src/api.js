@@ -310,6 +310,29 @@ export const changePassword = async (oldPassword, newPassword) => {
     }
 };
 
+/**
+ * Update current user's profile
+ * @param {string} displayName - New display name
+ */
+export const updateProfile = async (displayName) => {
+    try {
+        const response = await api.put('/auth/profile', { display_name: displayName });
+        if (response.data.status === 'success' && response.data.user) {
+            // Update stored user
+            const token = getStoredToken();
+            if (token) {
+                setStoredAuth(token, response.data.user);
+            }
+        }
+        return response.data;
+    } catch (error) {
+        if (error.response?.data?.detail) {
+            return { status: 'error', message: error.response.data.detail };
+        }
+        return { status: 'error', message: error.message };
+    }
+};
+
 // ============================================
 // User Management API Functions (Admin only)
 // ============================================
@@ -333,10 +356,11 @@ export const listUsers = async () => {
  * Create a new user (admin only)
  * @param {string} email - New user email
  * @param {string} role - User role ('admin' or 'viewer')
+ * @param {string} displayName - Optional display name
  */
-export const createUser = async (email, role = 'viewer') => {
+export const createUser = async (email, role = 'viewer', displayName = null) => {
     try {
-        const response = await api.post('/users', { email, role });
+        const response = await api.post('/users', { email, role, display_name: displayName });
         return response.data;
     } catch (error) {
         if (error.response?.status === 409) {
