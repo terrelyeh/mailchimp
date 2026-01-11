@@ -12,13 +12,24 @@ import ExportButton from './components/ExportButton';
 import ExecutiveSummary from './components/ExecutiveSummary';
 import SettingsModal from './components/SettingsModal';
 import ShareDialog from './components/ShareDialog';
+import LoginPage from './components/LoginPage';
+import ChangePasswordModal from './components/ChangePasswordModal';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
-import { fetchDashboardData, triggerSync, fetchRegions, fetchAudiences, createShareLink, getShareLink, verifyShareLinkPassword } from './api';
-import { RefreshCw, ArrowLeft, Activity, Settings, Share2, Lock, AlertTriangle } from 'lucide-react';
+import {
+  fetchDashboardData, triggerSync, fetchRegions, fetchAudiences,
+  createShareLink, getShareLink, verifyShareLinkPassword,
+  getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth
+} from './api';
+import { RefreshCw, ArrowLeft, Activity, Settings, Share2, Lock, AlertTriangle, LogOut, User } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
+  // Authentication state
+  const [user, setUser] = useState(() => getStoredUser());
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!getStoredToken());
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -46,6 +57,45 @@ function App() {
 
   // Ref for export functionality
   const exportContentRef = useRef(null);
+
+  // Handle login success
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setIsAuthenticated(true);
+    // Check if user must change password
+    if (userData.must_change_password) {
+      setShowChangePassword(true);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    apiLogout();
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  // Handle password change success
+  const handlePasswordChangeSuccess = () => {
+    setShowChangePassword(false);
+    // Update user state to reflect password change
+    if (user) {
+      const updatedUser = { ...user, must_change_password: false };
+      setUser(updatedUser);
+      setStoredAuth(getStoredToken(), updatedUser);
+    }
+  };
+
+  // Listen for auth-expired event
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setUser(null);
+      setIsAuthenticated(false);
+    };
+
+    window.addEventListener('auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('auth-expired', handleAuthExpired);
+  }, []);
 
   // Read URL parameters on initial mount
   useEffect(() => {
@@ -404,6 +454,14 @@ function App() {
     return total > 0 ? total : null;
   }, [audienceList, selectedAudience]);
 
+  // Check if accessing via share link (allow without auth)
+  const isShareLinkAccess = shareToken || sharePasswordRequired;
+
+  // Show login page if not authenticated (unless accessing share link)
+  if (!isAuthenticated && !isShareLinkAccess) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#F6F6F4] bg-textured p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -478,15 +536,17 @@ function App() {
                 onExportEnd={() => setIsExporting(false)}
               />
 
-              {/* Share Link Button */}
-              <button
-                onClick={() => setShareDialogOpen(true)}
-                className="flex items-center gap-1 px-2 md:px-3 py-2 rounded-lg transition-colors text-xs bg-gray-100 text-gray-700 hover:bg-gray-200"
-                title="Share dashboard with current filters"
-              >
-                <Share2 className="w-4 h-4" />
-                <span className="hidden md:inline">Share</span>
-              </button>
+              {/* Share Link Button - only show if authenticated */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => setShareDialogOpen(true)}
+                  className="flex items-center gap-1 px-2 md:px-3 py-2 rounded-lg transition-colors text-xs bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  title="Share dashboard with current filters"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden md:inline">Share</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setDiagnosticsOpen(true)}
@@ -499,10 +559,30 @@ function App() {
               <button
                 onClick={() => setSettingsOpen(true)}
                 className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Alert Settings"
+                title="Settings"
               >
                 <Settings className="w-4 h-4" />
               </button>
+
+              {/* User Menu */}
+              {isAuthenticated && user && (
+                <div className="flex items-center gap-1 ml-2 pl-2 border-l border-gray-200">
+                  <div className="hidden md:flex items-center gap-1.5 text-xs text-gray-600">
+                    <User className="w-4 h-4" />
+                    <span className="max-w-[120px] truncate">{user.email}</span>
+                    {user.role === 'admin' && (
+                      <span className="px-1.5 py-0.5 bg-[#007C89]/10 text-[#007C89] text-[10px] font-medium rounded">Admin</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Sign out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -657,6 +737,16 @@ function App() {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        user={user}
+        onChangePassword={() => setShowChangePassword(true)}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        mustChange={user?.must_change_password}
+        onSuccess={handlePasswordChangeSuccess}
       />
 
       {/* Share Dialog */}

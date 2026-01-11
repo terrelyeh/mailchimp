@@ -1,12 +1,41 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import os
 import logging
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from jose import JWTError, jwt
 from mailchimp_service import mailchimp_service
 import database
+
+load_dotenv()
+
+# JWT Configuration
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 24
+
+security = HTTPBearer(auto_error=False)
+
+
+# Pydantic models for authentication
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+class CreateUserRequest(BaseModel):
+    email: str
+    role: str = 'viewer'
+
+class UpdateUserRoleRequest(BaseModel):
+    role: str
 
 
 # Pydantic models for share link API
@@ -17,8 +46,6 @@ class CreateShareLinkRequest(BaseModel):
 
 class VerifyPasswordRequest(BaseModel):
     password: str
-
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +65,228 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================
+# JWT Helper Functions
+# ============================================
+
+def create_access_token(user_id: str, email: str, role: str) -> str:
+    """Create JWT access token"""
+    expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRE_HOURS)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "role": role,
+        "exp": expire
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def verify_token(token: str) -> Optional[Dict]:
+    """Verify JWT token and return payload"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[Dict]:
+    """Dependency to get current user from token"""
+    if not credentials:
+        return None
+
+    payload = verify_token(credentials.credentials)
+    if not payload:
+        return None
+
+    user = database.get_user_by_id(payload.get("sub"))
+    return user
+
+
+async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+    """Dependency that requires authentication"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    payload = verify_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = database.get_user_by_id(payload.get("sub"))
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user
+
+
+async def require_admin(user: Dict = Depends(require_auth)) -> Dict:
+    """Dependency that requires admin role"""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+# ============================================
+# Authentication Endpoints
+# ============================================
+
+@app.post("/api/auth/login")
+def login(request: LoginRequest):
+    """
+    Login with email and password
+
+    Returns JWT token on success
+    """
+    user = database.authenticate_user(request.email, request.password)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Create access token
+    token = create_access_token(user["id"], user["email"], user["role"])
+
+    return {
+        "status": "success",
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "role": user["role"],
+            "must_change_password": user["must_change_password"]
+        }
+    }
+
+
+@app.get("/api/auth/me")
+def get_me(user: Dict = Depends(require_auth)):
+    """Get current user info"""
+    return {
+        "status": "success",
+        "user": user
+    }
+
+
+@app.post("/api/auth/change-password")
+def change_password(request: ChangePasswordRequest, user: Dict = Depends(require_auth)):
+    """
+    Change current user's password
+    """
+    result = database.change_password(user["id"], request.old_password, request.new_password)
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    # Generate new token since password changed
+    updated_user = database.get_user_by_id(user["id"])
+    token = create_access_token(updated_user["id"], updated_user["email"], updated_user["role"])
+
+    return {
+        "status": "success",
+        "message": "Password changed successfully",
+        "token": token
+    }
+
+
+# ============================================
+# User Management Endpoints (Admin only)
+# ============================================
+
+@app.get("/api/users")
+def list_users(user: Dict = Depends(require_admin)):
+    """List all users (admin only)"""
+    users = database.list_users()
+    return {
+        "status": "success",
+        "count": len(users),
+        "users": users
+    }
+
+
+@app.post("/api/users")
+def create_user(request: CreateUserRequest, user: Dict = Depends(require_admin)):
+    """
+    Create a new user (admin only)
+
+    Returns temporary password to share with the user
+    """
+    result = database.create_user(request.email, request.role)
+
+    if result.get("error"):
+        if result["error"] == "email_exists":
+            raise HTTPException(status_code=409, detail=result["message"])
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return {
+        "status": "success",
+        "user": {
+            "id": result["id"],
+            "email": result["email"],
+            "role": result["role"]
+        },
+        "temp_password": result["temp_password"],
+        "message": "User created. Share the temporary password with the user."
+    }
+
+
+@app.put("/api/users/{user_id}/role")
+def update_user_role(user_id: str, request: UpdateUserRoleRequest, admin: Dict = Depends(require_admin)):
+    """Update a user's role (admin only)"""
+    result = database.update_user_role(user_id, request.role, admin["id"])
+
+    if result.get("error"):
+        if result["error"] == "not_found":
+            raise HTTPException(status_code=404, detail=result["message"])
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return {
+        "status": "success",
+        "email": result["email"],
+        "new_role": result["new_role"]
+    }
+
+
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: str, admin: Dict = Depends(require_admin)):
+    """Delete a user (admin only)"""
+    result = database.delete_user(user_id, admin["id"])
+
+    if result.get("error"):
+        if result["error"] == "not_found":
+            raise HTTPException(status_code=404, detail=result["message"])
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return {
+        "status": "success",
+        "message": "User deleted"
+    }
+
+
+@app.post("/api/users/{user_id}/reset-password")
+def reset_user_password(user_id: str, admin: Dict = Depends(require_admin)):
+    """
+    Reset a user's password (admin only)
+
+    Returns new temporary password
+    """
+    result = database.reset_user_password(user_id, admin["id"])
+
+    if result.get("error"):
+        if result["error"] == "not_found":
+            raise HTTPException(status_code=404, detail=result["message"])
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return {
+        "status": "success",
+        "email": result["email"],
+        "temp_password": result["temp_password"],
+        "message": "Password reset. Share the new temporary password with the user."
+    }
+
+
+# ============================================
+# General Endpoints
+# ============================================
 
 @app.get("/")
 def read_root():
@@ -492,9 +741,9 @@ def diagnose_api(days: int = 60, region: str = None):
 # ============================================
 
 @app.post("/api/share")
-def create_share_link(request: CreateShareLinkRequest):
+def create_share_link(request: CreateShareLinkRequest, user: Dict = Depends(require_auth)):
     """
-    Create a new shared link with optional password and expiration
+    Create a new shared link with optional password and expiration (requires login)
 
     Request body:
     - filter_state: dict of filter settings (days, region, audience, etc.)
@@ -610,8 +859,8 @@ def verify_share_link_password(token: str, request: VerifyPasswordRequest):
 
 
 @app.delete("/api/share/cleanup")
-def cleanup_expired_share_links():
-    """Clean up expired shared links (can be called periodically)"""
+def cleanup_expired_share_links(user: Dict = Depends(require_admin)):
+    """Clean up expired shared links (admin only)"""
     deleted = database.cleanup_expired_links()
     return {
         "status": "success",
@@ -620,9 +869,9 @@ def cleanup_expired_share_links():
 
 
 @app.get("/api/share")
-def list_share_links():
+def list_share_links(user: Dict = Depends(require_admin)):
     """
-    List all shared links for management
+    List all shared links for management (admin only)
 
     Returns list of share links with metadata
     """
@@ -635,9 +884,9 @@ def list_share_links():
 
 
 @app.delete("/api/share/{token}")
-def delete_share_link(token: str):
+def delete_share_link(token: str, user: Dict = Depends(require_admin)):
     """
-    Delete a specific shared link
+    Delete a specific shared link (admin only)
 
     Returns success or 404 if not found
     """
