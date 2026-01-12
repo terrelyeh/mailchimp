@@ -336,8 +336,11 @@ function App() {
   const loadRegions = async () => {
     const regions = await fetchRegions();
     if (regions && regions.length > 0) {
-      // Map region codes to full region info
-      const regionsWithMetadata = regions.map(code => getRegionInfo(code));
+      // Map region codes to full region info (API returns {code, name} objects)
+      const regionsWithMetadata = regions.map(region => {
+        const code = typeof region === 'string' ? region : region.code;
+        return getRegionInfo(code);
+      });
       setAvailableRegions(regionsWithMetadata);
     }
   };

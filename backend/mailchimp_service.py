@@ -257,6 +257,28 @@ class MailchimpClient:
 class MultiRegionMailchimpService:
     """Service to manage MailChimp clients across multiple regions"""
 
+    # Region code to display name mapping
+    REGION_NAMES = {
+        'US': 'United States',
+        'EU': 'Europe',
+        'APAC': 'Asia Pacific',
+        'JP': 'Japan',
+        'TW': 'Taiwan',
+        'KR': 'Korea',
+        'SG': 'Singapore',
+        'AU': 'Australia',
+        'UK': 'United Kingdom',
+        'CA': 'Canada',
+        'INDIA': 'India',
+        'CN': 'China',
+        'HK': 'Hong Kong',
+        'DE': 'Germany',
+        'FR': 'France',
+        'BR': 'Brazil',
+        'MX': 'Mexico',
+        'DEFAULT': 'Default',
+    }
+
     def __init__(self):
         # Dynamically detect available regions from environment variables
         self.REGIONS = self._detect_available_regions()
@@ -266,19 +288,18 @@ class MultiRegionMailchimpService:
         }
 
     def _detect_available_regions(self):
-        """Detect which regions have API credentials configured"""
+        """Detect which regions have API credentials configured by scanning environment variables"""
         available_regions = []
 
-        # Check for common region names
-        possible_regions = ['US', 'EU', 'APAC', 'JP', 'INDIA', 'AU', 'CA', 'UK', 'SG', 'TW']
+        # Auto-detect regions from environment variables matching MAILCHIMP_API_KEY_*
+        for key in os.environ:
+            if key.startswith("MAILCHIMP_API_KEY_"):
+                region = key.replace("MAILCHIMP_API_KEY_", "")
+                server_prefix = os.getenv(f"MAILCHIMP_SERVER_PREFIX_{region}")
 
-        for region in possible_regions:
-            api_key = os.getenv(f"MAILCHIMP_API_KEY_{region}")
-            server_prefix = os.getenv(f"MAILCHIMP_SERVER_PREFIX_{region}")
-
-            # If both credentials exist, add this region
-            if api_key and server_prefix:
-                available_regions.append(region)
+                # If both credentials exist, add this region
+                if server_prefix:
+                    available_regions.append(region)
 
         # Fallback to default region if no specific regions configured
         if not available_regions:
@@ -289,6 +310,17 @@ class MultiRegionMailchimpService:
 
         logger.info(f"Detected MailChimp regions: {available_regions}")
         return available_regions
+
+    def get_region_name(self, region_code):
+        """Get display name for a region code"""
+        return self.REGION_NAMES.get(region_code, region_code)
+
+    def get_regions_with_names(self):
+        """Get list of regions with their display names"""
+        return [
+            {"code": region, "name": self.get_region_name(region)}
+            for region in self.REGIONS
+        ]
 
     def get_client(self, region):
         """Get MailChimp client for a specific region"""
