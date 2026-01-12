@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Settings, Activity, Key, LogOut, ChevronDown } from 'lucide-react';
+import { User, Settings, Activity, Key, LogOut } from 'lucide-react';
 
 const UserProfileDropdown = ({
     user,
@@ -25,6 +25,7 @@ const UserProfileDropdown = ({
 
     const displayName = user?.display_name || user?.email?.split('@')[0] || 'User';
     const isAdmin = user?.role === 'admin';
+    const initials = displayName.substring(0, 2).toUpperCase();
 
     const handleItemClick = (action) => {
         setIsOpen(false);
@@ -33,23 +34,19 @@ const UserProfileDropdown = ({
 
     return (
         <div className="relative" ref={dropdownRef}>
-            {/* Trigger Button */}
+            {/* Circular Avatar Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all
+                    ${isAdmin
+                        ? 'bg-[#007C89] text-white hover:bg-[#006570]'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }
+                    ${isOpen ? 'ring-2 ring-offset-2 ring-[#007C89]' : ''}
+                `}
+                title={`${displayName} (${user?.role})`}
             >
-                <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
-                    <User className="w-4 h-4 text-teal-600" />
-                </div>
-                <span className="font-medium text-gray-700 max-w-[120px] truncate">
-                    {displayName}
-                </span>
-                {isAdmin && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-teal-100 text-teal-700 rounded">
-                        Admin
-                    </span>
-                )}
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                {initials}
             </button>
 
             {/* Dropdown Menu */}
@@ -57,7 +54,14 @@ const UserProfileDropdown = ({
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                     {/* User Info Header */}
                     <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">{displayName}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900">{displayName}</p>
+                            {isAdmin && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[#007C89]/10 text-[#007C89] rounded">
+                                    Admin
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                     </div>
 

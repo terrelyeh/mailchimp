@@ -515,14 +515,18 @@ function App() {
                   {lastFetchTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
-              <button
-                onClick={handleSync}
-                disabled={isSyncing}
-                className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-bold shadow-sm transition-colors text-xs md:text-sm"
-              >
-                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''} md:mr-2`} />
-                <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
-              </button>
+
+              {/* Only show Sync button for authenticated users (not share link access) */}
+              {isAuthenticated && !isShareLinkAccess && (
+                <button
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-bold shadow-sm transition-colors text-xs md:text-sm"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''} md:mr-2`} />
+                  <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+                </button>
+              )}
 
               <ExportButton
                 targetRef={exportContentRef}
@@ -537,11 +541,11 @@ function App() {
                 onExportEnd={() => setIsExporting(false)}
               />
 
-              {/* Share Link Button - only show if authenticated */}
-              {isAuthenticated && (
+              {/* Share Link Button - only show if authenticated and not accessing via share link */}
+              {isAuthenticated && !isShareLinkAccess && (
                 <button
                   onClick={() => setShareDialogOpen(true)}
-                  className="flex items-center gap-1 px-2 md:px-3 py-2 rounded-lg transition-colors text-xs bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-medium shadow-sm transition-colors text-xs md:text-sm"
                   title="Share dashboard with current filters"
                 >
                   <Share2 className="w-4 h-4" />
@@ -549,8 +553,8 @@ function App() {
                 </button>
               )}
 
-              {/* User Profile Dropdown - consolidates Settings, Diagnostics, and Logout */}
-              {isAuthenticated && user && (
+              {/* User Profile Dropdown - only show for authenticated users (not share link access) */}
+              {isAuthenticated && user && !isShareLinkAccess && (
                 <UserProfileDropdown
                   user={user}
                   onOpenSettings={() => setSettingsOpen(true)}
@@ -562,31 +566,41 @@ function App() {
             </div>
           </div>
 
-          {/* Filters Row */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <TimeRangeSelector
-              selectedDays={selectedDays}
-              onDaysChange={setSelectedDays}
-              dateRange={customDateRange}
-              onDateRangeChange={setCustomDateRange}
-            />
-
-            <RegionSelector
-              regions={availableRegions}
-              selectedRegion={selectedRegion}
-              onRegionChange={handleRegionChange}
-            />
-
-            {/* 只在選擇特定 region 時顯示 Audience 篩選器 */}
-            {selectedRegion && (
-              <AudienceSelector
-                audiences={audiences}
-                selectedAudience={selectedAudience}
-                onAudienceChange={setSelectedAudience}
-                selectedRegion={selectedRegion}
+          {/* Filters Row - hide for share link access (read-only mode) */}
+          {!isShareLinkAccess && (
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <TimeRangeSelector
+                selectedDays={selectedDays}
+                onDaysChange={setSelectedDays}
+                dateRange={customDateRange}
+                onDateRangeChange={setCustomDateRange}
               />
-            )}
-          </div>
+
+              <RegionSelector
+                regions={availableRegions}
+                selectedRegion={selectedRegion}
+                onRegionChange={handleRegionChange}
+              />
+
+              {/* 只在選擇特定 region 時顯示 Audience 篩選器 */}
+              {selectedRegion && (
+                <AudienceSelector
+                  audiences={audiences}
+                  selectedAudience={selectedAudience}
+                  onAudienceChange={setSelectedAudience}
+                  selectedRegion={selectedRegion}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Share Link Info Banner */}
+          {isShareLinkAccess && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
+              <Share2 className="w-4 h-4" />
+              <span>You are viewing a shared report</span>
+            </div>
+          )}
         </div>
 
         {useMock && (
