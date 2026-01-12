@@ -602,13 +602,13 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
             </div>
           </div>
         ) : bottomCampaignHasData ? (
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 shadow-lg ring-1 ring-orange-500/20 hover:bg-orange-500/15 transition-colors">
-              <div className="flex items-center gap-2 mb-2">
-                <ThumbsDown className="w-4 h-4 text-orange-400" />
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 shadow-lg ring-1 ring-orange-500/20 hover:bg-orange-500/15 transition-colors overflow-hidden">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <ThumbsDown className="w-4 h-4 text-orange-400 flex-shrink-0" />
                 <span className="text-xs text-orange-300 uppercase tracking-wide">Needs Review</span>
-                <span className="text-xs text-slate-500 ml-auto">Open &lt;{(reviewThresholds.reviewOpenRate * 100).toFixed(0)}% / Click &lt;{(reviewThresholds.reviewClickRate * 100).toFixed(0)}% / Delivery &lt;{(reviewThresholds.reviewDeliveryRate * 100).toFixed(0)}%</span>
+                <span className="text-xs text-slate-500 ml-auto whitespace-nowrap">Open &lt;{(reviewThresholds.reviewOpenRate * 100).toFixed(0)}% / Click &lt;{(reviewThresholds.reviewClickRate * 100).toFixed(0)}% / Delivery &lt;{(reviewThresholds.reviewDeliveryRate * 100).toFixed(0)}%</span>
               </div>
-              <div className="font-semibold text-sm mb-2">
+              <div className="font-semibold text-sm mb-2 min-w-0 overflow-hidden">
                 <CampaignLink campaign={metrics.bottomCampaign} className="text-white" />
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm">
@@ -662,9 +662,11 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           </div>
           <div className="space-y-2">
             {metrics.highBounceCampaigns.map((campaign, i) => (
-              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                <CampaignLink campaign={campaign} className="text-sm text-white flex-1 mr-3" />
-                <span className="text-sm text-red-400 font-medium whitespace-nowrap">
+              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 min-w-0 gap-2">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <CampaignLink campaign={campaign} className="text-sm text-white" />
+                </div>
+                <span className="text-sm text-red-400 font-medium whitespace-nowrap flex-shrink-0">
                   {(campaign.bounceRate * 100).toFixed(1)}%
                 </span>
               </div>
@@ -683,9 +685,11 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           </div>
           <div className="space-y-2">
             {metrics.highUnsubCampaigns.map((campaign, i) => (
-              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                <CampaignLink campaign={campaign} className="text-sm text-white flex-1 mr-3" />
-                <span className="text-sm text-amber-400 font-medium whitespace-nowrap">
+              <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 min-w-0 gap-2">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <CampaignLink campaign={campaign} className="text-sm text-white" />
+                </div>
+                <span className="text-sm text-amber-400 font-medium whitespace-nowrap flex-shrink-0">
                   {(campaign.unsubRate * 100).toFixed(1)}%
                 </span>
               </div>
@@ -720,13 +724,14 @@ function CampaignLink({ campaign, className = '', truncate = true }) {
         href={campaign.archive_url}
         target="_blank"
         rel="noreferrer"
-        className={`group inline-flex items-center gap-1.5 hover:text-[#007C89] transition-colors ${className}`}
+        title={title}
+        className={`group inline-flex items-center gap-1.5 hover:text-[#007C89] transition-colors min-w-0 ${className}`}
       >
-        <span className={truncate ? 'truncate' : ''}>{title}</span>
+        <span className={truncate ? 'truncate min-w-0 block' : 'break-words'}>{title}</span>
         <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
       </a>
     );
   }
 
-  return <span className={`${className} ${truncate ? 'truncate' : ''}`}>{title}</span>;
+  return <span title={title} className={`${className} ${truncate ? 'truncate min-w-0 block' : 'break-words'}`}>{title}</span>;
 }
