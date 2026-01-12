@@ -70,6 +70,7 @@ export default function LoginPage({ onLoginSuccess }) {
                   placeholder="you@example.com"
                   required
                   autoComplete="email"
+                  autoFocus
                 />
               </div>
             </div>
@@ -124,8 +125,13 @@ export default function LoginPage({ onLoginSuccess }) {
           </form>
         </div>
 
-        {/* Footer */}
+        {/* Help Note */}
         <p className="text-center text-sm text-gray-500 mt-6">
+          登入問題或忘記密碼？請聯絡管理員
+        </p>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-gray-400 mt-2">
           EnGenius EDM Dashboard - Internal Use Only
         </p>
       </div>
