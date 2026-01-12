@@ -45,12 +45,21 @@ export const REGION_METADATA = {
   US: { code: 'US', name: 'United States', flag: '🇺🇸', color: '#2563EB' },      // Rich Blue
   EU: { code: 'EU', name: 'Europe', flag: '🇪🇺', color: '#0891B2' },             // Deep Cyan
   APAC: { code: 'APAC', name: 'Asia-Pacific', flag: '🌏', color: '#F59E0B' },    // Golden Amber
-  JP: { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#E11D48' },              // Rose Red (distinct from orange)
+  JP: { code: 'JP', name: 'Japan', flag: '🇯🇵', color: '#E11D48' },              // Rose Red
+  TW: { code: 'TW', name: 'Taiwan', flag: '🇹🇼', color: '#10B981' },             // Emerald
+  KR: { code: 'KR', name: 'Korea', flag: '🇰🇷', color: '#6366F1' },              // Indigo
   INDIA: { code: 'INDIA', name: 'India', flag: '🇮🇳', color: '#8B5CF6' },        // Bright Violet
   AU: { code: 'AU', name: 'Australia', flag: '🇦🇺', color: '#059669' },          // Deep Emerald
   UK: { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', color: '#BE185D' },     // Deep Rose
   CA: { code: 'CA', name: 'Canada', flag: '🇨🇦', color: '#EA580C' },             // Burnt Orange
-  SG: { code: 'SG', name: 'Singapore', flag: '🇸🇬', color: '#0284C7' }           // Sky Blue
+  SG: { code: 'SG', name: 'Singapore', flag: '🇸🇬', color: '#0284C7' },          // Sky Blue
+  CN: { code: 'CN', name: 'China', flag: '🇨🇳', color: '#DC2626' },              // Red
+  HK: { code: 'HK', name: 'Hong Kong', flag: '🇭🇰', color: '#7C3AED' },          // Purple
+  DE: { code: 'DE', name: 'Germany', flag: '🇩🇪', color: '#1F2937' },            // Dark Gray
+  FR: { code: 'FR', name: 'France', flag: '🇫🇷', color: '#2563EB' },             // Blue
+  BR: { code: 'BR', name: 'Brazil', flag: '🇧🇷', color: '#16A34A' },             // Green
+  MX: { code: 'MX', name: 'Mexico', flag: '🇲🇽', color: '#15803D' },             // Dark Green
+  DEFAULT: { code: 'DEFAULT', name: 'Default', flag: '🌍', color: '#6B7280' }   // Gray
 };
 
 // Helper function to get region info

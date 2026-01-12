@@ -79,7 +79,12 @@ export const fetchDashboardData = async (days = 30, region = null, forceRefresh 
 export const fetchRegions = async () => {
     try {
         const response = await api.get('/regions');
-        return response.data.regions;
+        // Return regions with names if available, otherwise fall back to codes only
+        if (response.data.regions_with_names) {
+            return response.data.regions_with_names;
+        }
+        // Fallback: convert codes to objects
+        return response.data.regions.map(code => ({ code, name: code }));
     } catch (error) {
         return null;
     }

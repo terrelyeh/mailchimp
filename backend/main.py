@@ -392,7 +392,8 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
 def get_regions():
     """Get list of available regions dynamically detected from environment variables"""
     return {
-        "regions": mailchimp_service.REGIONS
+        "regions": mailchimp_service.REGIONS,
+        "regions_with_names": mailchimp_service.get_regions_with_names()
     }
 
 @app.post("/api/sync")
