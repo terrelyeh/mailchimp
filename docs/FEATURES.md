@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project Name:** EnGenius EDM Analytic Dashboard
-**Version:** 1.4
+**Version:** 1.5
 **Last Updated:** January 2026
 **Data Source:** Mailchimp Marketing API
 
@@ -394,3 +394,4 @@ Dashboard is configured to prevent search engine indexing:
 | 1.2 | Jan 2026 | Enhanced share link with password protection and expiration options, share link database storage |
 | 1.3 | Jan 2026 | Added share links management interface in Settings modal with list, copy, and delete functionality |
 | 1.4 | Jan 2026 | Added user authentication and management system with JWT tokens, role-based permissions (admin/viewer), user CRUD operations, and secure password handling |
+| 1.5 | Jan 2026 | Added display name for users, circular avatar profile dropdown, share link read-only mode (hidden filters), auto-detect Mailchimp regions from environment variables |

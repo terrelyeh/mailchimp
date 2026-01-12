@@ -150,13 +150,51 @@ To persist the SQLite database across deployments:
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `MAILCHIMP_API_KEY` | Mailchimp API key | - | Yes |
-| `MAILCHIMP_SERVER_PREFIX` | Mailchimp server (e.g., `us14`) | - | Yes |
 | `JWT_SECRET` | JWT signing secret | Auto-generated (insecure) | Yes |
 | `ADMIN_EMAIL` | Default admin email | `engenius.ad@gmail.com` | No |
 | `ADMIN_INITIAL_PASSWORD` | Initial admin password | `ChangeMe123!` | No |
+| `ADMIN_DISPLAY_NAME` | Default admin display name | `Admin` | No |
 | `DATA_DIR` | SQLite database directory | `.` | No |
 | `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `*` | No |
+
+### Mailchimp Multi-Region Variables
+
+The system auto-detects regions from environment variables. Use the pattern `MAILCHIMP_API_KEY_{REGION}` and `MAILCHIMP_SERVER_PREFIX_{REGION}`:
+
+| Variable Pattern | Example | Description |
+|------------------|---------|-------------|
+| `MAILCHIMP_API_KEY_{REGION}` | `MAILCHIMP_API_KEY_TW` | API key for Taiwan region |
+| `MAILCHIMP_SERVER_PREFIX_{REGION}` | `MAILCHIMP_SERVER_PREFIX_TW` | Server prefix (e.g., `us14`) |
+
+**Supported Region Codes:**
+
+| Code | Display Name | Flag |
+|------|-------------|------|
+| US | United States | 🇺🇸 |
+| EU | Europe | 🇪🇺 |
+| TW | Taiwan | 🇹🇼 |
+| JP | Japan | 🇯🇵 |
+| KR | Korea | 🇰🇷 |
+| SG | Singapore | 🇸🇬 |
+| APAC | Asia-Pacific | 🌏 |
+| AU | Australia | 🇦🇺 |
+| UK | United Kingdom | 🇬🇧 |
+| CA | Canada | 🇨🇦 |
+| INDIA | India | 🇮🇳 |
+
+**Example Multi-Region Setup:**
+```
+MAILCHIMP_API_KEY_US=abc123...
+MAILCHIMP_SERVER_PREFIX_US=us14
+
+MAILCHIMP_API_KEY_TW=def456...
+MAILCHIMP_SERVER_PREFIX_TW=us21
+
+MAILCHIMP_API_KEY_JP=ghi789...
+MAILCHIMP_SERVER_PREFIX_JP=us10
+```
+
+The frontend will automatically display all detected regions in the region selector.
 
 ### Frontend Variables
 
