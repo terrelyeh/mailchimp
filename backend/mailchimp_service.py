@@ -270,7 +270,7 @@ class MultiRegionMailchimpService:
         available_regions = []
 
         # Check for common region names
-        possible_regions = ['US', 'EU', 'APAC', 'JP', 'INDIA', 'AU', 'CA', 'UK', 'SG']
+        possible_regions = ['US', 'EU', 'APAC', 'JP', 'INDIA', 'AU', 'CA', 'UK', 'SG', 'TW']
 
         for region in possible_regions:
             api_key = os.getenv(f"MAILCHIMP_API_KEY_{region}")
