@@ -4,6 +4,13 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
+# Create data directory for persistent storage
+# On Zeabur, mount a persistent volume to /data
+RUN mkdir -p /data
+
+# Set environment variable for database location
+ENV DATA_DIR=/data
+
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
