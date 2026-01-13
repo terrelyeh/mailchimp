@@ -51,6 +51,15 @@ class CreateShareLinkRequest(BaseModel):
 class VerifyPasswordRequest(BaseModel):
     password: str
 
+# Pydantic models for excluded audiences
+class ExcludedAudienceItem(BaseModel):
+    audience_id: str
+    audience_name: Optional[str] = None
+    region: Optional[str] = None
+
+class SetExcludedAudiencesRequest(BaseModel):
+    audiences: list[ExcludedAudienceItem]
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -923,4 +932,42 @@ def delete_share_link(token: str, user: Dict = Depends(require_admin)):
     return {
         "status": "success",
         "message": f"Share link {token} deleted"
+    }
+
+
+# ============================================
+# Excluded Audiences API Endpoints
+# ============================================
+
+@app.get("/api/settings/excluded-audiences")
+def get_excluded_audiences(user: Dict = Depends(require_auth)):
+    """
+    Get list of excluded audiences
+
+    Returns list of excluded audience IDs with metadata
+    """
+    excluded = database.get_excluded_audiences()
+    return {
+        "status": "success",
+        "excluded_audiences": excluded
+    }
+
+
+@app.put("/api/settings/excluded-audiences")
+def set_excluded_audiences(request: SetExcludedAudiencesRequest, user: Dict = Depends(require_admin)):
+    """
+    Set the list of excluded audiences (admin only)
+
+    Replaces the entire exclusion list
+    """
+    audiences = [aud.dict() for aud in request.audiences]
+    result = database.set_excluded_audiences(audiences)
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return {
+        "status": "success",
+        "count": result["count"],
+        "message": f"{result['count']} audiences excluded"
     }

@@ -20,7 +20,8 @@ import { ThresholdProvider } from './contexts/ThresholdContext';
 import {
   fetchDashboardData, triggerSync, fetchRegions, fetchAudiences,
   createShareLink, getShareLink, verifyShareLinkPassword,
-  getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth
+  getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth,
+  getExcludedAudiences
 } from './api';
 import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
@@ -42,6 +43,7 @@ function App() {
   const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
   const [audiences, setAudiences] = useState([]); // Available audiences
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
+  const [excludedAudienceIds, setExcludedAudienceIds] = useState(new Set()); // Excluded audience IDs
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // Diagnostics drawer state
   const [settingsOpen, setSettingsOpen] = useState(false); // Settings modal state
   const [shareDialogOpen, setShareDialogOpen] = useState(false); // Share dialog state
@@ -352,10 +354,18 @@ function App() {
     }
   };
 
+  const loadExcludedAudiences = async () => {
+    const result = await getExcludedAudiences();
+    if (result?.excluded_audiences) {
+      setExcludedAudienceIds(new Set(result.excluded_audiences.map(a => a.audience_id)));
+    }
+  };
+
   useEffect(() => {
-    // Load available regions and audiences on mount
+    // Load available regions, audiences, and excluded audiences on mount
     loadRegions();
     loadAudiences();
+    loadExcludedAudiences();
   }, []);
 
   useEffect(() => {
@@ -428,6 +438,25 @@ function App() {
     }
   }
 
+  // Filter out excluded audiences (when viewing "All Audiences")
+  if (!selectedAudience && excludedAudienceIds.size > 0) {
+    if (Array.isArray(displayData)) {
+      // Single region view - filter out excluded audiences
+      displayData = displayData.filter(campaign => !excludedAudienceIds.has(campaign.audience_id));
+    } else if (typeof displayData === 'object') {
+      // Multi-region view - filter out excluded audiences from each region
+      const filteredData = {};
+      Object.entries(displayData).forEach(([region, campaigns]) => {
+        if (Array.isArray(campaigns)) {
+          filteredData[region] = campaigns.filter(campaign => !excludedAudienceIds.has(campaign.audience_id));
+        } else {
+          filteredData[region] = campaigns;
+        }
+      });
+      displayData = filteredData;
+    }
+  }
+
   // Convert audiences to a flat list for use across components
   const audienceList = useMemo(() => {
     if (!audiences) return [];
@@ -438,7 +467,7 @@ function App() {
     return [];
   }, [audiences]);
 
-  // Calculate total subscribers (based on selected audience or all)
+  // Calculate total subscribers (based on selected audience or all, excluding excluded audiences)
   const totalSubscribers = useMemo(() => {
     if (audienceList.length === 0) {
       return null;
@@ -450,13 +479,15 @@ function App() {
       return selected ? selected.member_count : null;
     }
 
-    // Otherwise show total across all audiences
-    const total = audienceList.reduce((sum, aud) => {
-      return sum + (aud.member_count || 0);
-    }, 0);
+    // Otherwise show total across all non-excluded audiences
+    const total = audienceList
+      .filter(aud => !excludedAudienceIds.has(aud.id))
+      .reduce((sum, aud) => {
+        return sum + (aud.member_count || 0);
+      }, 0);
 
     return total > 0 ? total : null;
-  }, [audienceList, selectedAudience]);
+  }, [audienceList, selectedAudience, excludedAudienceIds]);
 
   // Check if accessing via share link (allow without auth)
   const isShareLinkAccess = shareToken || sharePasswordRequired;
@@ -729,7 +760,11 @@ function App() {
       {/* Settings Modal */}
       <SettingsModal
         isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => {
+          setSettingsOpen(false);
+          // Reload excluded audiences in case they were changed
+          loadExcludedAudiences();
+        }}
         user={user}
         onChangePassword={() => setShowChangePassword(true)}
       />
