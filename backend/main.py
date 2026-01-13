@@ -762,48 +762,6 @@ def diagnose_api(days: int = 60, region: str = None):
 
 
 # ============================================
-# Subscriber Growth API Endpoints
-# ============================================
-
-@app.get("/api/subscribers/growth")
-def get_subscriber_growth(region: str = None, audience_id: str = None, months: int = 12):
-    """
-    Get subscriber growth data
-
-    Parameters:
-    - region: optional region code (e.g., 'US', 'TW'). If not provided, returns all regions.
-    - audience_id: optional audience list ID (only works when region is specified)
-    - months: number of months of history (default: 12)
-
-    Returns:
-    - If no region: aggregated data across all regions
-    - If region only: all audiences in that region
-    - If region + audience_id: detailed metrics for specific audience
-    """
-    logger.info(f"Subscriber growth API called: region={region}, audience_id={audience_id}, months={months}")
-
-    try:
-        result = mailchimp_service.get_subscriber_growth(
-            region=region,
-            audience_id=audience_id,
-            months=months
-        )
-
-        if result.get("error"):
-            raise HTTPException(status_code=404, detail=result["error"])
-
-        return {
-            "status": "success",
-            "data": result
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching subscriber growth: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================
 # Share Link API Endpoints
 # ============================================
 
