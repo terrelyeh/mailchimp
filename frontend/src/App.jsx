@@ -7,7 +7,6 @@ import TimeRangeSelector from './components/TimeRangeSelector';
 import AudienceSelector from './components/AudienceSelector';
 import RegionCards from './components/RegionCards';
 import TimeSeriesMetricsChart from './components/TimeSeriesMetricsChart';
-import SubscriberTrendChart from './components/SubscriberTrendChart';
 import DiagnosticsDrawer from './components/DiagnosticsDrawer';
 import ExportButton from './components/ExportButton';
 import ExecutiveSummary from './components/ExecutiveSummary';
@@ -653,10 +652,6 @@ function App() {
                 {/* Section 3: Chart */}
                 <div data-export-section="chart">
                   <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
-                  <SubscriberTrendChart
-                    regions={availableRegions}
-                    isOverview={true}
-                  />
                 </div>
 
                 {/* Section 4: Region Cards */}
@@ -711,12 +706,6 @@ function App() {
                 {/* Section 3: Chart */}
                 <div data-export-section="chart">
                   <DashboardCharts data={displayData} />
-                  <SubscriberTrendChart
-                    regions={availableRegions}
-                    currentRegion={selectedRegion}
-                    selectedAudience={selectedAudience}
-                    isOverview={false}
-                  />
                 </div>
 
                 {/* Section 4: Campaign List */}
