@@ -117,37 +117,40 @@ export default function ExcludedAudiencesManager() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Description */}
-      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-700">
-        <p>Excluded audiences will be hidden from "All Audiences" statistics. You can still view them individually.</p>
+    <div className="flex flex-col h-full">
+      {/* Fixed Header Section */}
+      <div className="flex-shrink-0 space-y-3 pb-3">
+        {/* Description */}
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-700">
+          <p>Excluded audiences will be hidden from "All Audiences" statistics. You can still view them individually.</p>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex items-center gap-2 text-red-700 text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-100 rounded-lg p-3 flex items-center gap-2 text-green-700 text-sm">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            {successMessage}
+          </div>
+        )}
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex items-center gap-2 text-red-700 text-sm">
-          <AlertCircle className="w-4 h-4" />
-          {error}
-        </div>
-      )}
-
-      {/* Success Message */}
-      {successMessage && (
-        <div className="bg-green-50 border border-green-100 rounded-lg p-3 flex items-center gap-2 text-green-700 text-sm">
-          <Check className="w-4 h-4" />
-          {successMessage}
-        </div>
-      )}
-
-      {/* Audience List by Region */}
-      <div className="space-y-4">
+      {/* Scrollable Audience List */}
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pb-3" style={{ maxHeight: '300px' }}>
         {regions.map(region => {
           const audiences = allAudiences[region] || [];
           if (audiences.length === 0) return null;
 
           return (
             <div key={region} className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 sticky top-0">
                 <span className="font-medium text-gray-700">{region}</span>
                 <span className="text-xs text-gray-500 ml-2">
                   ({audiences.filter(a => excludedIds.has(a.id)).length} excluded)
@@ -193,29 +196,34 @@ export default function ExcludedAudiencesManager() {
         })}
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end pt-2">
-        <button
-          onClick={handleSave}
-          disabled={!hasChanges || saving}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            hasChanges && !saving
-              ? 'bg-[#007C89] hover:bg-[#006670] text-white'
-              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Check className="w-4 h-4" />
-              Save Changes
-            </>
-          )}
-        </button>
+      {/* Fixed Save Button at Bottom */}
+      <div className="flex-shrink-0 pt-3 border-t border-gray-200 bg-white">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">
+            {excludedIds.size} audience(s) selected for exclusion
+          </span>
+          <button
+            onClick={handleSave}
+            disabled={!hasChanges || saving}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              hasChanges && !saving
+                ? 'bg-[#007C89] hover:bg-[#006670] text-white'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
