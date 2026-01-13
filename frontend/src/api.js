@@ -426,3 +426,39 @@ export const resetUserPassword = async (userId) => {
         return { status: 'error', message: error.message };
     }
 };
+
+// ============================================
+// Excluded Audiences API Functions
+// ============================================
+
+/**
+ * Get list of excluded audiences
+ */
+export const getExcludedAudiences = async () => {
+    try {
+        const response = await api.get('/settings/excluded-audiences');
+        return response.data;
+    } catch (error) {
+        console.error('Failed to get excluded audiences:', error);
+        return { status: 'error', excluded_audiences: [] };
+    }
+};
+
+/**
+ * Set excluded audiences (admin only)
+ * @param {Array} audiences - Array of {audience_id, audience_name, region}
+ */
+export const setExcludedAudiences = async (audiences) => {
+    try {
+        const response = await api.put('/settings/excluded-audiences', { audiences });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', message: 'Admin access required' };
+        }
+        if (error.response?.data?.detail) {
+            return { status: 'error', message: error.response.data.detail };
+        }
+        return { status: 'error', message: error.message };
+    }
+};

@@ -60,6 +60,16 @@ def init_db():
         )
     ''')
 
+    # Create excluded_audiences table for filtering out test audiences
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS excluded_audiences (
+            audience_id TEXT PRIMARY KEY,
+            audience_name TEXT,
+            region TEXT,
+            excluded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Migration: Add display_name column if it doesn't exist
     c.execute("PRAGMA table_info(users)")
     columns = [col[1] for col in c.fetchall()]
@@ -894,6 +904,106 @@ def update_user_profile(user_id: str, display_name: str = None):
     logger.info(f"User {user_id} updated their profile")
 
     return {"status": "success", "display_name": display_name}
+
+
+# ============================================
+# Excluded Audiences Functions
+# ============================================
+
+def get_excluded_audiences():
+    """
+    Get list of excluded audience IDs
+
+    Returns:
+        List of excluded audience dicts
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute('''
+        SELECT audience_id, audience_name, region, excluded_at
+        FROM excluded_audiences
+        ORDER BY region, audience_name
+    ''')
+
+    rows = c.fetchall()
+    conn.close()
+
+    return [{
+        "audience_id": row['audience_id'],
+        "audience_name": row['audience_name'],
+        "region": row['region'],
+        "excluded_at": row['excluded_at']
+    } for row in rows]
+
+
+def get_excluded_audience_ids():
+    """
+    Get just the list of excluded audience IDs (for filtering)
+
+    Returns:
+        Set of excluded audience IDs
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute('SELECT audience_id FROM excluded_audiences')
+    rows = c.fetchall()
+    conn.close()
+
+    return set(row[0] for row in rows)
+
+
+def set_excluded_audiences(audiences):
+    """
+    Set the list of excluded audiences (replaces existing)
+
+    Args:
+        audiences: List of dicts with audience_id, audience_name, region
+
+    Returns:
+        dict with result
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Clear existing exclusions
+    c.execute('DELETE FROM excluded_audiences')
+
+    # Insert new exclusions
+    for aud in audiences:
+        c.execute('''
+            INSERT INTO excluded_audiences (audience_id, audience_name, region)
+            VALUES (?, ?, ?)
+        ''', (aud['audience_id'], aud.get('audience_name', ''), aud.get('region', '')))
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Updated excluded audiences: {len(audiences)} audiences excluded")
+
+    return {"status": "success", "count": len(audiences)}
+
+
+def is_audience_excluded(audience_id):
+    """
+    Check if an audience is excluded
+
+    Args:
+        audience_id: The audience ID to check
+
+    Returns:
+        True if excluded, False otherwise
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute('SELECT 1 FROM excluded_audiences WHERE audience_id = ?', (audience_id,))
+    result = c.fetchone() is not None
+    conn.close()
+
+    return result
 
 
 # Initialize on module load or explicitly
