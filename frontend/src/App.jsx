@@ -623,6 +623,7 @@ function App() {
                   selectedAudience={selectedAudience}
                   onAudienceChange={setSelectedAudience}
                   selectedRegion={selectedRegion}
+                  excludedAudienceIds={excludedAudienceIds}
                 />
               )}
             </div>
