@@ -1,7 +1,7 @@
 import React from 'react';
-import { Users } from 'lucide-react';
+import { Users, EyeOff } from 'lucide-react';
 
-export default function AudienceSelector({ audiences, selectedAudience, onAudienceChange, selectedRegion }) {
+export default function AudienceSelector({ audiences, selectedAudience, onAudienceChange, selectedRegion, excludedAudienceIds = new Set() }) {
   // Filter audiences based on selected region
   let filteredAudiences = [];
 
@@ -43,6 +43,10 @@ export default function AudienceSelector({ audiences, selectedAudience, onAudien
     return acc;
   }, []);
 
+  // Separate active and excluded audiences
+  const activeAudiences = uniqueAudiences.filter(a => !excludedAudienceIds.has(a.id));
+  const excludedAudiences = uniqueAudiences.filter(a => excludedAudienceIds.has(a.id));
+
   return (
     <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
       <div className="px-3 py-2 border-r border-gray-200">
@@ -54,11 +58,20 @@ export default function AudienceSelector({ audiences, selectedAudience, onAudien
         className="px-4 py-2 bg-transparent text-sm font-medium text-gray-700 focus:outline-none cursor-pointer"
       >
         <option value="">All Audiences</option>
-        {uniqueAudiences.map((audience) => (
+        {activeAudiences.map((audience) => (
           <option key={audience.id} value={audience.id}>
             {audience.name}
           </option>
         ))}
+        {excludedAudiences.length > 0 && (
+          <optgroup label="── Excluded ──">
+            {excludedAudiences.map((audience) => (
+              <option key={audience.id} value={audience.id} className="text-gray-400">
+                {audience.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
       </select>
     </div>
   );
