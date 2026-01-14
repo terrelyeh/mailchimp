@@ -27,6 +27,14 @@ import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle } from 'lucide-react'
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 function App() {
+  // Helper function to detect share token from URL synchronously
+  const getShareTokenFromUrl = () => {
+    const pathParts = window.location.pathname.split('/');
+    const tokenFromPath = pathParts[1] === 's' ? pathParts[2] : null;
+    const tokenFromQuery = new URLSearchParams(window.location.search).get('token');
+    return tokenFromPath || tokenFromQuery || null;
+  };
+
   // Authentication state
   const [user, setUser] = useState(() => getStoredUser());
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!getStoredToken());
@@ -51,8 +59,8 @@ function App() {
   const [isExporting, setIsExporting] = useState(false); // Export mode state
   const [initialUrlParsed, setInitialUrlParsed] = useState(false); // Track if URL was parsed
 
-  // Share link access states
-  const [shareToken, setShareToken] = useState(null); // Current share token being accessed
+  // Share link access states - detect token synchronously to prevent login flash
+  const [shareToken, setShareToken] = useState(() => getShareTokenFromUrl());
   const [sharePasswordRequired, setSharePasswordRequired] = useState(false); // Password prompt state
   const [sharePassword, setSharePassword] = useState(''); // Password input value
   const [shareError, setShareError] = useState(null); // Share link error
