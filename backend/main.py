@@ -2,9 +2,10 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 import logging
+import base64
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from jose import JWTError, jwt
@@ -12,6 +13,10 @@ from mailchimp_service import mailchimp_service
 import database
 
 load_dotenv()
+
+# Gemini AI Configuration
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = "gemini-1.5-flash"
 
 # JWT Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
@@ -59,6 +64,17 @@ class ExcludedAudienceItem(BaseModel):
 
 class SetExcludedAudiencesRequest(BaseModel):
     audiences: list[ExcludedAudienceItem]
+
+# Pydantic models for AI analysis
+class AIAnalysisContext(BaseModel):
+    view: str  # 'overview' or 'region-detail'
+    region: Optional[str] = None
+    timeRange: str
+    audience: Optional[str] = None
+
+class AIAnalysisRequest(BaseModel):
+    image: str  # base64 encoded image
+    context: AIAnalysisContext
 
 # Configure logging
 logging.basicConfig(
@@ -970,4 +986,131 @@ def set_excluded_audiences(request: SetExcludedAudiencesRequest, user: Dict = De
         "status": "success",
         "count": result["count"],
         "message": f"{result['count']} audiences excluded"
+    }
+
+
+# ============================================
+# AI Dashboard Analysis API Endpoints
+# ============================================
+
+@app.post("/api/ai/analyze-dashboard")
+async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(require_admin)):
+    """
+    Analyze dashboard screenshot using Gemini AI (admin only)
+
+    Accepts a base64 encoded image and context, returns AI-generated insights
+    """
+    if not GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="AI analysis is not configured. Please set GEMINI_API_KEY environment variable."
+        )
+
+    try:
+        import google.generativeai as genai
+
+        # Configure Gemini
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel(GEMINI_MODEL)
+
+        # Decode base64 image
+        image_data = request.image
+        if image_data.startswith('data:'):
+            # Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+            image_data = image_data.split(',', 1)[1]
+
+        image_bytes = base64.b64decode(image_data)
+
+        # Build context string
+        context = request.context
+        view_type = "Overview Dashboard" if context.view == "overview" else f"Region Detail ({context.region})"
+        audience_info = context.audience if context.audience else "All Audiences"
+
+        # Create the prompt
+        system_prompt = """You are an expert Email Marketing Analyst with 10+ years of experience in analyzing campaign performance data. You specialize in interpreting marketing dashboards and providing actionable insights.
+
+Your analysis style:
+- Data-driven and specific (reference actual numbers when visible)
+- Actionable and practical
+- Prioritized by impact
+- Written for marketing managers, not technical staff"""
+
+        user_prompt = f"""Please analyze this email marketing dashboard screenshot and provide insights in Traditional Chinese (繁體中文).
+
+**Current View Context:**
+- Dashboard Type: {view_type}
+- Time Period: {context.timeRange}
+- Audience Filter: {audience_info}
+
+**Please provide your analysis in the following format:**
+
+## 🔍 關鍵洞察 (Key Insights)
+Identify 3-5 important findings from the data. Be specific with numbers if visible.
+
+## ⚠️ 需改進之處 (Areas for Improvement)
+Identify 2-4 areas that need attention or show concerning trends.
+
+## 💡 建議行動方案 (Recommended Actions)
+Provide 3-5 specific, actionable recommendations that can be implemented.
+
+## 📊 整體評估 (Overall Assessment)
+A brief 2-3 sentence summary of the dashboard's overall health.
+
+Focus on:
+- Open rates and click rates trends
+- Campaign performance patterns
+- Audience engagement levels
+- Any anomalies or notable changes
+- Comparison between regions (if applicable)"""
+
+        # Create image part for Gemini
+        image_part = {
+            "mime_type": "image/jpeg",
+            "data": image_bytes
+        }
+
+        # Generate response
+        response = model.generate_content(
+            [system_prompt, image_part, user_prompt],
+            generation_config={
+                "temperature": 0.7,
+                "top_p": 0.95,
+                "max_output_tokens": 2048,
+            }
+        )
+
+        # Parse the response
+        analysis_text = response.text
+
+        logger.info(f"AI analysis completed for user {user.get('email')}")
+
+        return {
+            "status": "success",
+            "analysis": analysis_text,
+            "model": GEMINI_MODEL,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Generative AI library is not installed"
+        )
+    except Exception as e:
+        logger.error(f"AI analysis error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI analysis failed: {str(e)}"
+        )
+
+
+@app.get("/api/ai/status")
+def get_ai_status(user: Dict = Depends(require_auth)):
+    """
+    Check if AI analysis is available
+    """
+    return {
+        "status": "success",
+        "ai_enabled": bool(GEMINI_API_KEY),
+        "model": GEMINI_MODEL if GEMINI_API_KEY else None
     }

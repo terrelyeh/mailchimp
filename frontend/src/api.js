@@ -462,3 +462,47 @@ export const setExcludedAudiences = async (audiences) => {
         return { status: 'error', message: error.message };
     }
 };
+
+// ============================================
+// AI Analysis API Functions (Admin only)
+// ============================================
+
+/**
+ * Check AI analysis service status
+ */
+export const getAIStatus = async () => {
+    try {
+        const response = await api.get('/ai/status');
+        return response.data;
+    } catch (error) {
+        return { available: false, error: error.message };
+    }
+};
+
+/**
+ * Analyze dashboard screenshot with AI (admin only)
+ * @param {string} imageBase64 - Base64 encoded image data
+ * @param {Object} context - Dashboard context (view, region, timeRange, audience)
+ */
+export const analyzeWithAI = async (imageBase64, context) => {
+    try {
+        const response = await api.post('/ai/analyze-dashboard', {
+            image: imageBase64,
+            context: context
+        }, {
+            timeout: 120000 // 2 minutes timeout for AI analysis
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        if (error.response?.status === 503) {
+            return { status: 'error', error: 'AI service not available' };
+        }
+        if (error.response?.data?.detail) {
+            return { status: 'error', error: error.response.data.detail };
+        }
+        return { status: 'error', error: error.message || 'AI analysis failed' };
+    }
+};
