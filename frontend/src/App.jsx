@@ -68,6 +68,7 @@ function App() {
   const [sharePassword, setSharePassword] = useState(''); // Password input value
   const [shareError, setShareError] = useState(null); // Share link error
   const [shareVerifying, setShareVerifying] = useState(false); // Verifying password state
+  const [shareAccessVerified, setShareAccessVerified] = useState(false); // True once share link is verified
 
   // Ref for export functionality
   const exportContentRef = useRef(null);
@@ -291,6 +292,9 @@ function App() {
       setView(filterState.view);
     }
 
+    // Mark share access as verified BEFORE clearing the token
+    setShareAccessVerified(true);
+
     // Clear the share token from URL and show clean URL
     const cleanUrl = window.location.origin + window.location.pathname.replace(/\/s\/[^/]+/, '');
     window.history.replaceState({}, '', cleanUrl);
@@ -506,7 +510,7 @@ function App() {
     const pathParts = window.location.pathname.split('/');
     return pathParts[1] === 's' && pathParts[2];
   };
-  const isShareLinkAccess = shareToken || sharePasswordRequired || hasShareTokenInUrl();
+  const isShareLinkAccess = shareToken || sharePasswordRequired || shareAccessVerified || hasShareTokenInUrl();
 
   // Show login page if not authenticated (unless accessing share link)
   if (!isAuthenticated && !isShareLinkAccess) {
