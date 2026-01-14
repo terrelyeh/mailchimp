@@ -501,7 +501,12 @@ function App() {
   }, [audienceList, selectedAudience, excludedAudienceIds]);
 
   // Check if accessing via share link (allow without auth)
-  const isShareLinkAccess = shareToken || sharePasswordRequired;
+  // Also check URL directly as a fallback in case state hasn't updated yet
+  const hasShareTokenInUrl = () => {
+    const pathParts = window.location.pathname.split('/');
+    return pathParts[1] === 's' && pathParts[2];
+  };
+  const isShareLinkAccess = shareToken || sharePasswordRequired || hasShareTokenInUrl();
 
   // Show login page if not authenticated (unless accessing share link)
   if (!isAuthenticated && !isShareLinkAccess) {
