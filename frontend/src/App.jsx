@@ -15,6 +15,8 @@ import ShareDialog from './components/ShareDialog';
 import LoginPage from './components/LoginPage';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import UserProfileDropdown from './components/UserProfileDropdown';
+import AIAnalysisButton from './components/AIAnalysisButton';
+import AIAnalysisModal from './components/AIAnalysisModal';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
 import {
@@ -61,6 +63,12 @@ function App() {
   const [lastFetchTime, setLastFetchTime] = useState(null); // Last data fetch timestamp
   const [isExporting, setIsExporting] = useState(false); // Export mode state
   const [initialUrlParsed, setInitialUrlParsed] = useState(false); // Track if URL was parsed
+
+  // AI Analysis states
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiContext, setAiContext] = useState(null);
+  const [aiError, setAiError] = useState(null);
 
   // Share link access states - use pre-detected token to prevent login flash
   const [shareToken, setShareToken] = useState(initialShareToken);
@@ -415,6 +423,20 @@ function App() {
   const handleBackToOverview = () => {
     setSelectedRegion(null);
     setView('overview');
+  };
+
+  // Handle AI analysis completion
+  const handleAIAnalysisComplete = (result) => {
+    if (result.success) {
+      setAiAnalysis(result.analysis);
+      setAiContext(result.context);
+      setAiError(null);
+    } else {
+      setAiAnalysis(null);
+      setAiContext(null);
+      setAiError(result.error);
+    }
+    setAiModalOpen(true);
   };
 
   // Get current region info
@@ -804,6 +826,30 @@ function App() {
         onClose={() => setShareDialogOpen(false)}
         onCreateLink={handleCreateShareLink}
         currentUrl={window.location.href}
+      />
+
+      {/* AI Analysis Button - Admin only, not for share link access */}
+      {isAuthenticated && user?.role === 'admin' && !isShareLinkAccess && (
+        <AIAnalysisButton
+          targetRef={exportContentRef}
+          view={view}
+          selectedRegion={selectedRegion}
+          selectedDays={selectedDays}
+          customDateRange={customDateRange}
+          selectedAudience={selectedAudience}
+          audienceList={audienceList}
+          onAnalysisComplete={handleAIAnalysisComplete}
+          isAdmin={user?.role === 'admin'}
+        />
+      )}
+
+      {/* AI Analysis Modal */}
+      <AIAnalysisModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        analysis={aiAnalysis}
+        context={aiContext}
+        error={aiError}
       />
 
       {/* Password Prompt for Protected Share Links */}
