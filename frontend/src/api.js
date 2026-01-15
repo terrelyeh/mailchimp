@@ -480,6 +480,52 @@ export const getAIStatus = async () => {
 };
 
 /**
+ * Get AI settings (admin only)
+ */
+export const getAISettings = async () => {
+    try {
+        const response = await api.get('/ai/settings');
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * Update AI settings (admin only)
+ * @param {Object} settings - AI settings to update
+ */
+export const updateAISettings = async (settings) => {
+    try {
+        const response = await api.put('/ai/settings', settings);
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * Reset AI settings to defaults (admin only)
+ */
+export const resetAISettings = async () => {
+    try {
+        const response = await api.post('/ai/settings/reset');
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
  * Analyze dashboard screenshot with AI (admin only)
  * @param {string} imageBase64 - Base64 encoded image data
  * @param {Object} context - Dashboard context (view, region, timeRange, audience)

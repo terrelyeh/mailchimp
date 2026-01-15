@@ -1011,7 +1011,6 @@ async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(req
 
         # Configure Gemini
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel(GEMINI_MODEL)
 
         # Decode base64 image
         image_data = request.image
@@ -1021,21 +1020,27 @@ async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(req
 
         image_bytes = base64.b64decode(image_data)
 
+        # Get AI settings from database
+        ai_settings = database.get_ai_settings()
+
+        # Check if AI is enabled
+        if not ai_settings.get("enabled", True):
+            raise HTTPException(status_code=503, detail="AI analysis is disabled")
+
+        # Get model from settings (fallback to env var)
+        model_name = ai_settings.get("model") or GEMINI_MODEL
+        model = genai.GenerativeModel(model_name)
+
         # Build context string
         context = request.context
         view_type = "Overview Dashboard" if context.view == "overview" else f"Region Detail ({context.region})"
         audience_info = context.audience if context.audience else "All Audiences"
 
-        # Create the prompt
-        system_prompt = """你是一位「實戰派行銷策略顧問」，專注於協助中小企業（SME）透過數據改善業績。
-你具備 10+ 年的 Email Marketing 分析經驗，擅長解讀行銷儀表板並提供可落地執行的建議。
+        # Get prompts from settings
+        system_prompt = ai_settings.get("system_prompt", "")
+        output_format = ai_settings.get("output_format", "")
 
-你的分析風格：
-- 數據驅動且具體（引用實際數字）
-- 可執行且實用
-- 按影響力排序優先順序
-- 為行銷經理撰寫，而非技術人員"""
-
+        # Build user prompt with context
         user_prompt = f"""請分析這張 EDM 行銷儀表板截圖，並以繁體中文提供完整的策略分析報告。
 
 **目前檢視的內容：**
@@ -1043,58 +1048,11 @@ async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(req
 - 時間區間：{context.timeRange}
 - 受眾篩選：{audience_info}
 
-**請嚴格依照以下結構輸出分析報告：**
-
-## 1️⃣ 現況診斷 (The Reality Check)
-分析目前發生了什麼事：
-
-### ✅ 亮點 (The Good)
-數據中值得肯定的 2-3 個部分，請引用具體數字。
-
-### ⚠️ 痛點 (The Bad)
-流量在哪個環節流失？（例如：開信率過低、點擊率不足、轉換瓶頸）
-
-### 🚨 風險 (The Ugly)
-是否有長期隱憂？（例如：名單品質惡化、退訂率上升、網域信譽風險）
-
----
-
-## 2️⃣ 核心洞察與理由 (The "Why" & Strategy)
-解釋為什麼會這樣，以及應該怎麼做：
-
-### 🔍 深度歸因
-數據不佳的根本原因是什麼？（用戶疲乏？內容價值不足？發送頻率問題？市場因素？）
-
-### 💡 策略邏輯
-建議背後的商業思考（例如：為什麼要先清洗名單而不是先改設計？）
-
----
-
-## 3️⃣ 本週執行清單 (Action Items)
-將建議整理成具體的 To-Do List：
-
-### 📣 行銷/小編 (Marketing)
-- [ ] (立即) 需調整的設定
-- [ ] (測試) 下一檔活動的 A/B Test 項目
-
-### 💼 業務/銷售 (Sales)
-- [ ] (跟進) 如何利用這份報表跟進客戶？
-
-### ⚙️ 技術/自動化 (Auto/Dev)
-- [ ] (流程) 需要串接或自動處理的資料任務
-
----
-
-## 4️⃣ 自動化建議 (Automation Tips)
-若問題適合自動化解決，請提供 GAS 或 n8n 的簡要建議（觸發條件 → 執行動作的流程描述）。
-
----
-
-請確保分析具體、可執行，並優先處理影響最大的問題。"""
+{output_format}"""
 
         # Create image part for Gemini
         image_part = {
-            "mime_type": "image/jpeg",
+            "mime_type": "image/png",
             "data": image_bytes
         }
 
@@ -1104,7 +1062,7 @@ async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(req
             generation_config={
                 "temperature": 0.7,
                 "top_p": 0.95,
-                "max_output_tokens": 2048,
+                "max_output_tokens": 8192,
             }
         )
 
@@ -1116,7 +1074,7 @@ async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(req
         return {
             "status": "success",
             "analysis": analysis_text,
-            "model": GEMINI_MODEL,
+            "model": model_name,
             "timestamp": datetime.utcnow().isoformat()
         }
 
@@ -1138,8 +1096,50 @@ def get_ai_status(user: Dict = Depends(require_auth)):
     """
     Check if AI analysis is available
     """
+    ai_settings = database.get_ai_settings()
     return {
         "status": "success",
-        "ai_enabled": bool(GEMINI_API_KEY),
-        "model": GEMINI_MODEL if GEMINI_API_KEY else None
+        "ai_enabled": bool(GEMINI_API_KEY) and ai_settings.get("enabled", True),
+        "model": ai_settings.get("model", GEMINI_MODEL) if GEMINI_API_KEY else None
     }
+
+
+@app.get("/api/ai/settings")
+def get_ai_settings(user: Dict = Depends(require_admin)):
+    """
+    Get AI settings (admin only)
+    """
+    settings = database.get_ai_settings()
+    return {
+        "status": "success",
+        "settings": settings,
+        "api_key_configured": bool(GEMINI_API_KEY)
+    }
+
+
+@app.put("/api/ai/settings")
+def update_ai_settings(
+    settings: Dict[str, Any],
+    user: Dict = Depends(require_admin)
+):
+    """
+    Update AI settings (admin only)
+    """
+    # Validate settings
+    allowed_keys = {"enabled", "model", "system_prompt", "output_format"}
+    filtered_settings = {k: v for k, v in settings.items() if k in allowed_keys}
+
+    if not filtered_settings:
+        raise HTTPException(status_code=400, detail="No valid settings provided")
+
+    result = database.update_ai_settings(filtered_settings)
+    return result
+
+
+@app.post("/api/ai/settings/reset")
+def reset_ai_settings(user: Dict = Depends(require_admin)):
+    """
+    Reset AI settings to defaults (admin only)
+    """
+    result = database.reset_ai_settings()
+    return result

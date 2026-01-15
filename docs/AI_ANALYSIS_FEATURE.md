@@ -2,42 +2,71 @@
 
 ## 功能概述
 
-新增「AI 分析」功能，讓使用者可以一鍵將儀表板截圖傳送給 Gemini AI，獲得專業的行銷洞察與建議。
+使用 Gemini AI 分析儀表板截圖，提供專業的行銷策略洞察與執行建議。此功能僅限管理員使用。
 
 ---
 
 ## 使用者故事
 
-> 作為行銷人員，我希望能夠快速獲得 AI 對儀表板數據的專業分析，包含洞察、改進建議和行動方案，以便我能夠更有效地優化行銷策略。
+> 作為行銷主管，我希望能夠一鍵獲得 AI 對儀表板數據的專業分析，包含現況診斷、核心洞察、本週執行清單和自動化建議，以便快速優化行銷策略。
 
 ---
 
 ## 功能規格
 
 ### 觸發方式
-- 在 Header 區域新增「AI Analysis」按鈕（位於 Export 按鈕旁邊）
-- 按鈕圖示：使用 `Sparkles` 或 `Brain` icon（Lucide）
+- **浮動按鈕 (FAB)** - 位於畫面右下角的漸層圓形按鈕
+- **圖示**：使用 `Sparkles` icon（Lucide）
+- **樣式**：紫色到青色漸層、發光效果、hover 動畫
+- **權限**：僅管理員可見
 
 ### 執行流程
 
 ```
-1. 使用者點擊「AI Analysis」按鈕
-2. 顯示確認對話框（可選：說明將截圖並分析）
+1. 管理員點擊右下角 AI 按鈕
+2. 顯示 Loading 狀態（動態進度提示）
 3. 系統截取當前儀表板畫面
-4. 顯示 Loading 狀態（預計 5-15 秒）
-5. 將截圖傳送至後端 API
-6. 後端呼叫 Gemini AI 進行分析
-7. 返回分析結果
-8. 以 Modal 視窗顯示分析結果
+4. 將截圖傳送至後端 API
+5. 後端呼叫 Gemini AI 進行分析
+6. 返回分析結果
+7. 以 Modal 視窗顯示專業格式化報告
 ```
 
 ### 輸出內容結構
 
-| 區塊 | 說明 |
+依據「實戰派行銷策略顧問」框架：
+
+| 區塊 | Emoji | 說明 |
+|------|-------|------|
+| 現況診斷 | 1️⃣ | 識別表現異常的 3 大問題（附正常參考值） |
+| 核心洞察與理由 | 2️⃣ | 分析資料交叉比對後的根因（3 點） |
+| 本週執行清單 | 3️⃣ | 可勾選的具體行動項目（5-7 項） |
+| 自動化建議 | 4️⃣ | 若接入行銷自動化工具的優先執行事項（2-3 項） |
+
+#### 子區塊類型
+- ✅ 表現良好 - 綠色背景
+- ⚠️ 需要關注 - 橘色背景
+- 🚨 嚴重問題 - 紅色背景
+
+---
+
+## AI 設定管理
+
+管理員可透過 Settings > AI Analysis 標籤頁進行設定：
+
+### 可配置項目
+
+| 項目 | 說明 |
 |------|------|
-| 🔍 Key Insights | 從數據中發現的重要洞察（3-5 點） |
-| ⚠️ Areas for Improvement | 需要關注或改進的地方（2-4 點） |
-| 💡 Recommended Actions | 具體可執行的行動建議（3-5 點） |
+| AI 功能開關 | 啟用或停用 AI 分析功能 |
+| AI 模型選擇 | Gemini 2.0 Flash / 1.5 Flash / 1.5 Pro |
+| 系統提示詞 | 定義 AI 的角色和分析風格 |
+| 輸出格式 | 定義分析報告的結構和內容 |
+
+### 預設設定
+- 預設模型：`models/gemini-2.0-flash`
+- 預設角色：實戰派行銷策略顧問
+- 預設輸出：四區塊結構化報告
 
 ---
 
@@ -47,25 +76,43 @@
 
 | 項目 | 說明 |
 |------|------|
-| 截圖工具 | `html2canvas`（已有） |
-| 圖片格式 | JPEG（品質 0.8，減少檔案大小） |
+| 截圖工具 | `html2canvas` |
+| 圖片格式 | JPEG（品質 0.8） |
 | 圖片傳輸 | Base64 編碼 |
-| 結果顯示 | 新建 `AIAnalysisModal` 組件 |
+| 按鈕組件 | `AIAnalysisButton.jsx` (FAB) |
+| 結果顯示 | `AIAnalysisModal.jsx` (專業 Markdown 渲染) |
+| 設定管理 | `AISettingsManager.jsx` |
 
 ### 後端
 
 | 項目 | 說明 |
 |------|------|
-| API Endpoint | `POST /api/ai/analyze-dashboard` |
-| AI 服務 | Google Gemini API（gemini-1.5-flash 或 gemini-1.5-pro） |
-| API Key | 環境變數 `GEMINI_API_KEY` |
+| API Endpoints | `/api/ai/status`, `/api/ai/analyze-dashboard`, `/api/ai/settings` |
+| AI 服務 | Google Gemini API |
+| 設定儲存 | SQLite 資料庫 |
+| Max Output | 8192 tokens |
 
-### API Request/Response
+### API Endpoints
+
+#### GET /api/ai/status
+檢查 AI 服務狀態
+
+**Response:**
+```json
+{
+  "status": "success",
+  "ai_enabled": true,
+  "model": "models/gemini-2.0-flash"
+}
+```
+
+#### POST /api/ai/analyze-dashboard
+執行 AI 分析（需管理員權限）
 
 **Request:**
 ```json
 {
-  "image": "data:image/jpeg;base64,/9j/4AAQ...",
+  "image": "base64_encoded_image",
   "context": {
     "view": "overview | region-detail",
     "region": "APAC",
@@ -79,89 +126,136 @@
 ```json
 {
   "status": "success",
-  "analysis": {
-    "insights": ["...", "...", "..."],
-    "improvements": ["...", "...", "..."],
-    "actions": ["...", "...", "..."],
-    "summary": "整體摘要..."
-  },
-  "model": "gemini-1.5-flash",
-  "timestamp": "2024-01-15T10:30:00Z"
+  "analysis": "## 1️⃣ 現況診斷\n...",
+  "model": "models/gemini-2.0-flash",
+  "timestamp": "2026-01-15T10:30:00Z"
 }
 ```
+
+#### GET /api/ai/settings
+取得 AI 設定（需管理員權限）
+
+**Response:**
+```json
+{
+  "status": "success",
+  "settings": {
+    "enabled": true,
+    "model": "models/gemini-2.0-flash",
+    "system_prompt": "你是一位「實戰派行銷策略顧問」...",
+    "output_format": "請嚴格依照以下結構輸出分析報告..."
+  },
+  "api_key_configured": true
+}
+```
+
+#### PUT /api/ai/settings
+更新 AI 設定（需管理員權限）
+
+#### POST /api/ai/settings/reset
+重置為預設值（需管理員權限）
 
 ---
 
 ## Gemini AI Prompt 設計
 
-### System Prompt
+### 預設系統提示詞
 
 ```
-You are an expert Email Marketing Analyst with 10+ years of experience in analyzing campaign performance data. You specialize in interpreting marketing dashboards and providing actionable insights.
+你是一位「實戰派行銷策略顧問」，擅長快速診斷 Email/EDM 行銷數據並給出可立即執行的建議。
 
-Your analysis style:
-- Data-driven and specific (reference actual numbers when visible)
-- Actionable and practical
-- Prioritized by impact
-- Written for marketing managers, not technical staff
+你的角色特質：
+1. 直接講重點，不說廢話、不過度解釋基礎概念
+2. 每個建議都附帶「為什麼」的簡短理由（一句話內）
+3. 優先解決最影響 ROI 的問題
+4. 善用 80/20 法則──聚焦少數能帶來最大效益的行動
+5. 所有數字判斷都有行業參考值依據
+
+行業參考值（B2B 科技/網通產業）：
+- Open Rate 正常值：15-25%
+- Click Rate 正常值：2-5%
+- Bounce Rate 警戒值：> 2%
+- Unsubscribe Rate 警戒值：> 0.5%
+- Delivery Rate 正常值：> 95%
 ```
 
-### User Prompt Template
+### 預設輸出格式
 
 ```
-Please analyze this email marketing dashboard screenshot and provide insights in Traditional Chinese (繁體中文).
+請嚴格依照以下結構輸出分析報告：
 
-**Current View Context:**
-- Dashboard Type: {view_type}
-- Region: {region}
-- Time Period: {time_range}
-- Audience Filter: {audience}
+## 1️⃣ 現況診斷
+根據儀表板數據，識別「表現異常」的 3 大問題。
+每項格式：
+- **問題名稱**：具體數值（正常參考值：XX%）
 
-**Please provide your analysis in the following format:**
+### ✅ 表現良好
+- 列出表現優於參考值的指標
 
-## 🔍 關鍵洞察 (Key Insights)
-Identify 3-5 important findings from the data. Be specific with numbers if visible.
+### ⚠️ 需要關注
+- 列出略低於參考值但非緊急的指標
 
-## ⚠️ 需改進之處 (Areas for Improvement)
-Identify 2-4 areas that need attention or show concerning trends.
+### 🚨 嚴重問題
+- 列出顯著低於參考值需立即處理的指標
 
-## 💡 建議行動方案 (Recommended Actions)
-Provide 3-5 specific, actionable recommendations that can be implemented.
+---
 
-## 📊 整體評估 (Overall Assessment)
-A brief 2-3 sentence summary of the dashboard's overall health.
+## 2️⃣ 核心洞察與理由
+提出 3 點洞察（不是問題的重述，而是資料交叉比對後的「為什麼」）
+格式：
+- **洞察**：簡短解釋（15 字內）
 
-Focus on:
-- Open rates and click rates trends
-- Campaign performance patterns
-- Audience engagement levels
-- Any anomalies or notable changes
-- Comparison between regions (if applicable)
+---
+
+## 3️⃣ 本週執行清單
+列出 5-7 項具體行動，可直接執行。使用 checkbox 格式：
+- [ ] 行動項目 1
+- [ ] 行動項目 2
+...
+
+---
+
+## 4️⃣ 自動化建議
+若接入行銷自動化工具，列出優先執行 2-3 項自動化：
+- 自動化名稱 → 預期效益（一句話）
 ```
 
 ---
 
 ## UI/UX 設計
 
-### AI Analysis 按鈕
-- 位置：Header 區域，Export 按鈕旁邊
-- 樣式：與其他按鈕一致
-- 文字：「AI Analysis」或「✨ AI 分析」
+### AI 浮動按鈕 (FAB)
+- **位置**：畫面右下角，距離邊緣 1rem
+- **樣式**：
+  - 56x56px 圓形
+  - 漸層背景：紫色 (#8B5CF6) 到青色 (#06B6D4)
+  - 發光效果：blur shadow
+  - Hover：放大 1.05x + 旋轉發光
+- **權限**：僅管理員可見
+- **狀態**：
+  - 預設：顯示 Sparkles 圖示
+  - Loading：顯示旋轉動畫
 
 ### Loading 狀態
-- 全螢幕 overlay 或 Modal
-- 動畫：腦部/星星動畫 + 進度提示
-- 文字提示：
-  - "正在截取儀表板..."
-  - "AI 分析中，請稍候..."
+- 全螢幕 overlay + 動畫
+- 文字提示輪播：
+  - "AI 分析中..."
+  - "正在識別關鍵指標..."
+  - "生成行銷洞察..."
   - "即將完成..."
 
 ### 結果 Modal
-- 寬度：max-w-2xl（適合閱讀）
-- 可滾動內容區
-- 底部按鈕：
-  - 「複製內容」- 複製分析結果文字
-  - 「關閉」
+- **寬度**：max-w-4xl
+- **Header**：漸層背景 + Sparkles 圖示 + 標題
+- **Context Bar**：顯示分析時的檢視/期間/受眾
+- **內容區**：
+  - 專業 Markdown 渲染
+  - 色彩區塊（依 emoji 類型）
+  - 可勾選 checkbox 清單
+- **Footer**：
+  - 「複製全部」按鈕
+  - 「關閉」按鈕
+  - AI 僅供參考提示
 
 ---
 
@@ -170,55 +264,77 @@ Focus on:
 | 錯誤情境 | 處理方式 |
 |---------|---------|
 | 截圖失敗 | 顯示錯誤訊息，建議重試 |
-| API 請求逾時 | 30 秒逾時，顯示重試選項 |
+| API 請求逾時 | 120 秒逾時，顯示重試選項 |
 | Gemini API 錯誤 | 顯示友善錯誤訊息 |
-| API Key 未設定 | 按鈕禁用或顯示設定提示 |
+| API Key 未設定 | 按鈕不顯示 |
+| AI 功能已停用 | 按鈕不顯示 |
 
 ---
 
 ## 安全性考量
 
-1. **API Key 保護**：Gemini API Key 只存在後端，不暴露給前端
-2. **Rate Limiting**：考慮限制每用戶每日分析次數（如 10 次/天）
+1. **權限控制**：僅管理員可存取 AI 功能
+2. **API Key 保護**：Gemini API Key 只存在後端環境變數
 3. **圖片處理**：截圖不儲存，分析完即丟棄
+4. **設定權限**：僅管理員可修改 AI 設定
 
 ---
 
 ## 環境變數
 
 ```env
-# Backend (.env)
-GEMINI_API_KEY=your_gemini_api_key_here
-AI_ANALYSIS_ENABLED=true
-AI_ANALYSIS_DAILY_LIMIT=10
+# Backend
+GEMINI_API_KEY=your_gemini_api_key_here    # 必填
+GEMINI_MODEL=models/gemini-2.0-flash        # 選填，預設值
 ```
 
 ---
 
-## 實作優先順序
+## 資料庫結構
 
-1. **Phase 1 - MVP**
-   - [ ] 後端 API endpoint
-   - [ ] Gemini API 整合
-   - [ ] 前端按鈕與截圖功能
-   - [ ] 結果顯示 Modal
+### settings 表
 
-2. **Phase 2 - Enhancement**
-   - [ ] 分析歷史記錄
-   - [ ] 匯出分析報告（PDF）
-   - [ ] 多語言支援
-   - [ ] 自訂分析重點
+```sql
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
+
+### AI 設定鍵值
+
+| Key | Description |
+|-----|-------------|
+| ai_enabled | AI 功能開關 (true/false) |
+| ai_model | Gemini 模型名稱 |
+| ai_system_prompt | 系統提示詞 |
+| ai_output_format | 輸出格式定義 |
 
 ---
 
-## 預估開發時間
+## 實作狀態
 
-| 項目 | 預估時間 |
-|------|---------|
-| 後端 API | 2-3 小時 |
-| 前端 UI | 2-3 小時 |
-| 測試與調整 | 1-2 小時 |
-| **總計** | **5-8 小時** |
+### Phase 1 - MVP ✅
+- [x] 後端 API endpoints
+- [x] Gemini API 整合
+- [x] 前端浮動按鈕
+- [x] 截圖功能
+- [x] 結果顯示 Modal
+- [x] 專業 Markdown 渲染
+
+### Phase 2 - Settings ✅
+- [x] AI 功能開關
+- [x] 模型選擇
+- [x] 可自訂提示詞
+- [x] 可自訂輸出格式
+- [x] 重置為預設值
+
+### Phase 3 - Future
+- [ ] 分析歷史記錄
+- [ ] 匯出分析報告（PDF）
+- [ ] 排程自動分析
+- [ ] 多語言支援
 
 ---
 

@@ -1006,5 +1006,175 @@ def is_audience_excluded(audience_id):
     return result
 
 
+# ============================================
+# AI Settings Functions
+# ============================================
+
+DEFAULT_AI_SETTINGS = {
+    "enabled": True,
+    "model": "models/gemini-2.0-flash",
+    "system_prompt": """你是一位「實戰派行銷策略顧問」，專注於協助中小企業（SME）透過數據改善業績。
+你具備 10+ 年的 Email Marketing 分析經驗，擅長解讀行銷儀表板並提供可落地執行的建議。
+
+你的分析風格：
+- 數據驅動且具體（引用實際數字）
+- 可執行且實用
+- 按影響力排序優先順序
+- 為行銷經理撰寫，而非技術人員""",
+    "output_format": """請嚴格依照以下結構輸出分析報告：
+
+## 1️⃣ 現況診斷 (The Reality Check)
+分析目前發生了什麼事：
+
+### ✅ 亮點 (The Good)
+數據中值得肯定的 2-3 個部分，請引用具體數字。
+
+### ⚠️ 痛點 (The Bad)
+流量在哪個環節流失？（例如：開信率過低、點擊率不足、轉換瓶頸）
+
+### 🚨 風險 (The Ugly)
+是否有長期隱憂？（例如：名單品質惡化、退訂率上升、網域信譽風險）
+
+---
+
+## 2️⃣ 核心洞察與理由 (The "Why" & Strategy)
+解釋為什麼會這樣，以及應該怎麼做：
+
+### 🔍 深度歸因
+數據不佳的根本原因是什麼？（用戶疲乏？內容價值不足？發送頻率問題？市場因素？）
+
+### 💡 策略邏輯
+建議背後的商業思考（例如：為什麼要先清洗名單而不是先改設計？）
+
+---
+
+## 3️⃣ 本週執行清單 (Action Items)
+將建議整理成具體的 To-Do List：
+
+### 📣 行銷/小編 (Marketing)
+- [ ] (立即) 需調整的設定
+- [ ] (測試) 下一檔活動的 A/B Test 項目
+
+### 💼 業務/銷售 (Sales)
+- [ ] (跟進) 如何利用這份報表跟進客戶？
+
+### ⚙️ 技術/自動化 (Auto/Dev)
+- [ ] (流程) 需要串接或自動處理的資料任務
+
+---
+
+## 4️⃣ 自動化建議 (Automation Tips)
+若問題適合自動化解決，請提供 GAS 或 n8n 的簡要建議（觸發條件 → 執行動作的流程描述）。
+
+---
+
+請確保分析具體、可執行，並優先處理影響最大的問題。"""
+}
+
+
+def _ensure_settings_table():
+    """Ensure settings table exists"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+def get_ai_settings():
+    """
+    Get AI settings from database
+
+    Returns:
+        dict with AI settings
+    """
+    _ensure_settings_table()
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT value FROM settings WHERE key = 'ai_settings'")
+    row = c.fetchone()
+    conn.close()
+
+    if row:
+        try:
+            return json.loads(row['value'])
+        except:
+            pass
+
+    return DEFAULT_AI_SETTINGS.copy()
+
+
+def update_ai_settings(settings):
+    """
+    Update AI settings in database
+
+    Args:
+        settings: dict with AI settings (enabled, model, system_prompt, output_format)
+
+    Returns:
+        dict with result
+    """
+    _ensure_settings_table()
+
+    # Merge with defaults to ensure all keys exist
+    current = get_ai_settings()
+    current.update(settings)
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute('''
+        INSERT INTO settings (key, value, updated_at)
+        VALUES ('ai_settings', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = CURRENT_TIMESTAMP
+    ''', (json.dumps(current),))
+
+    conn.commit()
+    conn.close()
+
+    logger.info("Updated AI settings")
+
+    return {"status": "success", "settings": current}
+
+
+def reset_ai_settings():
+    """
+    Reset AI settings to defaults
+
+    Returns:
+        dict with default settings
+    """
+    _ensure_settings_table()
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute('''
+        INSERT INTO settings (key, value, updated_at)
+        VALUES ('ai_settings', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = CURRENT_TIMESTAMP
+    ''', (json.dumps(DEFAULT_AI_SETTINGS),))
+
+    conn.commit()
+    conn.close()
+
+    logger.info("Reset AI settings to defaults")
+
+    return {"status": "success", "settings": DEFAULT_AI_SETTINGS}
+
+
 # Initialize on module load or explicitly
 init_db()
