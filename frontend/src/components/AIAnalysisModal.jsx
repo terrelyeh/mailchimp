@@ -1,109 +1,179 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Copy, Check, AlertCircle } from 'lucide-react';
+import { X, Sparkles, Copy, Check, AlertCircle, ChevronRight } from 'lucide-react';
 
-// Simple markdown renderer for AI analysis output
+// Professional markdown renderer for AI analysis output
 function MarkdownRenderer({ content }) {
   if (!content) return null;
 
-  // Process markdown content
   const lines = content.split('\n');
   const elements = [];
   let currentList = [];
   let listType = null;
+  let inSection = false;
+  let sectionContent = [];
+  let sectionTitle = '';
+  let sectionEmoji = '';
+
+  const getSectionStyle = (emoji) => {
+    const styles = {
+      '1️⃣': { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'text-blue-600' },
+      '2️⃣': { bg: 'bg-purple-50', border: 'border-purple-200', icon: 'text-purple-600' },
+      '3️⃣': { bg: 'bg-green-50', border: 'border-green-200', icon: 'text-green-600' },
+      '4️⃣': { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'text-amber-600' },
+      '✅': { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'text-emerald-600' },
+      '⚠️': { bg: 'bg-orange-50', border: 'border-orange-200', icon: 'text-orange-600' },
+      '🚨': { bg: 'bg-red-50', border: 'border-red-200', icon: 'text-red-600' },
+      '🔍': { bg: 'bg-indigo-50', border: 'border-indigo-200', icon: 'text-indigo-600' },
+      '💡': { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: 'text-yellow-600' },
+      '📣': { bg: 'bg-pink-50', border: 'border-pink-200', icon: 'text-pink-600' },
+      '💼': { bg: 'bg-slate-50', border: 'border-slate-200', icon: 'text-slate-600' },
+      '⚙️': { bg: 'bg-gray-50', border: 'border-gray-200', icon: 'text-gray-600' },
+    };
+    return styles[emoji] || { bg: 'bg-gray-50', border: 'border-gray-200', icon: 'text-gray-600' };
+  };
 
   const flushList = () => {
     if (currentList.length > 0) {
-      elements.push(
-        <ul key={`list-${elements.length}`} className={listType === 'checkbox' ? 'space-y-1 my-2' : 'list-disc list-inside space-y-1 my-2'}>
+      const listElement = (
+        <ul key={`list-${elements.length}-${currentList.length}`} className="space-y-2 my-3">
           {currentList}
         </ul>
       );
+      if (inSection) {
+        sectionContent.push(listElement);
+      } else {
+        elements.push(listElement);
+      }
       currentList = [];
       listType = null;
     }
   };
 
+  const flushSection = () => {
+    flushList();
+    if (inSection && sectionContent.length > 0) {
+      const style = getSectionStyle(sectionEmoji);
+      elements.push(
+        <div key={`section-${elements.length}`} className={`rounded-xl border ${style.border} overflow-hidden mb-4 shadow-sm`}>
+          <div className={`${style.bg} px-4 py-3 border-b ${style.border}`}>
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <span className="text-lg">{sectionEmoji}</span>
+              <span>{sectionTitle}</span>
+            </h3>
+          </div>
+          <div className="bg-white p-4">
+            {sectionContent}
+          </div>
+        </div>
+      );
+      sectionContent = [];
+      sectionTitle = '';
+      sectionEmoji = '';
+      inSection = false;
+    }
+  };
+
+  const processInlineFormatting = (text) => {
+    // Bold
+    let processed = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+    // Inline code
+    processed = processed.replace(/`(.*?)`/g, '<code class="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>');
+    return processed;
+  };
+
   lines.forEach((line, index) => {
-    // Headers
-    if (line.startsWith('## ')) {
+    // Main section headers (## 1️⃣, ## 2️⃣, etc.)
+    if (line.match(/^## \d️⃣/)) {
+      flushSection();
+      const match = line.match(/^## (\d️⃣)\s*(.+)$/);
+      if (match) {
+        sectionEmoji = match[1];
+        sectionTitle = match[2];
+        inSection = true;
+      }
+    }
+    // Sub-section headers (### ✅, ### ⚠️, etc.)
+    else if (line.match(/^### [^\s]/)) {
       flushList();
-      const headerText = line.replace('## ', '');
-      elements.push(
-        <h2 key={index} className="text-lg font-bold text-gray-900 mt-6 mb-3 pb-2 border-b border-gray-200 flex items-center gap-2">
-          {headerText}
-        </h2>
-      );
-    } else if (line.startsWith('### ')) {
-      flushList();
-      const headerText = line.replace('### ', '');
-      elements.push(
-        <h3 key={index} className="text-md font-semibold text-gray-800 mt-4 mb-2">
-          {headerText}
-        </h3>
-      );
-    } else if (line.startsWith('---')) {
-      flushList();
-      elements.push(<hr key={index} className="my-4 border-gray-200" />);
-    } else if (line.match(/^- \[ \]/)) {
-      // Unchecked checkbox
+      const match = line.match(/^### (\S+)\s*(.+)$/);
+      if (match) {
+        const emoji = match[1];
+        const title = match[2];
+        const style = getSectionStyle(emoji);
+        const subHeader = (
+          <div key={`subheader-${index}`} className={`flex items-center gap-2 ${style.bg} -mx-4 px-4 py-2 mt-2 mb-3 border-y ${style.border}`}>
+            <span>{emoji}</span>
+            <span className="font-medium text-gray-800">{title}</span>
+          </div>
+        );
+        if (inSection) {
+          sectionContent.push(subHeader);
+        } else {
+          elements.push(subHeader);
+        }
+      }
+    }
+    // Horizontal rule
+    else if (line.startsWith('---')) {
+      flushSection();
+    }
+    // Checkbox items
+    else if (line.match(/^- \[ \]/)) {
       listType = 'checkbox';
       const text = line.replace(/^- \[ \] ?/, '');
       currentList.push(
-        <li key={index} className="flex items-start gap-2 text-gray-700">
-          <span className="inline-block w-4 h-4 mt-0.5 border border-gray-300 rounded flex-shrink-0"></span>
-          <span>{text}</span>
+        <li key={`item-${index}`} className="flex items-start gap-3 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+          <span className="flex-shrink-0 w-5 h-5 mt-0.5 border-2 border-gray-300 rounded bg-white"></span>
+          <span className="text-gray-700 text-sm" dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
         </li>
       );
-    } else if (line.match(/^- \[x\]/i)) {
-      // Checked checkbox
+    }
+    else if (line.match(/^- \[x\]/i)) {
       listType = 'checkbox';
       const text = line.replace(/^- \[x\] ?/i, '');
       currentList.push(
-        <li key={index} className="flex items-start gap-2 text-gray-700">
-          <span className="inline-block w-4 h-4 mt-0.5 bg-green-500 rounded flex-shrink-0 flex items-center justify-center">
+        <li key={`item-${index}`} className="flex items-start gap-3 p-2 bg-green-50 rounded-lg">
+          <span className="flex-shrink-0 w-5 h-5 mt-0.5 bg-green-500 rounded flex items-center justify-center">
             <Check className="w-3 h-3 text-white" />
           </span>
-          <span>{text}</span>
+          <span className="text-gray-700 text-sm" dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
         </li>
       );
-    } else if (line.startsWith('- ')) {
-      // Regular list item
+    }
+    // Regular list items
+    else if (line.startsWith('- ')) {
       if (listType !== 'checkbox') {
         listType = 'bullet';
       }
       const text = line.replace('- ', '');
       currentList.push(
-        <li key={index} className="text-gray-700">
-          {text}
+        <li key={`item-${index}`} className="flex items-start gap-2 text-gray-700 text-sm">
+          <ChevronRight className="w-4 h-4 mt-0.5 text-gray-400 flex-shrink-0" />
+          <span dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
         </li>
       );
-    } else if (line.trim() === '') {
+    }
+    // Empty lines
+    else if (line.trim() === '') {
       flushList();
-    } else if (line.startsWith('**') && line.endsWith('**')) {
+    }
+    // Regular paragraphs
+    else if (line.trim()) {
       flushList();
-      elements.push(
-        <p key={index} className="font-semibold text-gray-800 my-2">
-          {line.replace(/\*\*/g, '')}
-        </p>
+      const paragraph = (
+        <p key={`p-${index}`} className="text-gray-700 text-sm leading-relaxed my-2" dangerouslySetInnerHTML={{ __html: processInlineFormatting(line) }} />
       );
-    } else if (line.trim()) {
-      flushList();
-      // Process inline formatting
-      let processedLine = line;
-      // Bold
-      processedLine = processedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      // Inline code
-      processedLine = processedLine.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>');
-
-      elements.push(
-        <p key={index} className="text-gray-700 my-2" dangerouslySetInnerHTML={{ __html: processedLine }} />
-      );
+      if (inSection) {
+        sectionContent.push(paragraph);
+      } else {
+        elements.push(paragraph);
+      }
     }
   });
 
-  flushList();
+  flushSection();
 
-  return <div className="markdown-content">{elements}</div>;
+  return <div className="space-y-2">{elements}</div>;
 }
 
 export default function AIAnalysisModal({ isOpen, onClose, analysis, context, error }) {
@@ -133,7 +203,6 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
     }
   };
 
-  // Handle both string (new format) and object (old format) analysis
   const analysisContent = typeof analysis === 'string' ? analysis : null;
 
   return (
@@ -141,27 +210,22 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-gradient-to-r from-violet-50 to-cyan-50">
           <div className="flex items-center gap-3">
             <div
-              className="p-2 rounded-lg"
+              className="p-2.5 rounded-xl shadow-sm"
               style={{
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 50%, rgba(16, 185, 129, 0.15) 100%)',
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)',
               }}
             >
-              <Sparkles
-                className="w-5 h-5"
-                style={{
-                  color: '#8B5CF6'
-                }}
-              />
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">AI 儀表板分析</h2>
+              <h2 className="text-lg font-bold text-gray-900">AI 儀表板分析報告</h2>
               <p className="text-xs text-gray-500">
-                Powered by Gemini AI
+                由 Gemini AI 生成的行銷策略建議
               </p>
             </div>
           </div>
@@ -169,10 +233,10 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
             {analysis && (
               <button
                 onClick={copyAllAnalysis}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   copied
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-green-100 text-green-700 shadow-sm'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 shadow-sm border border-gray-200'
                 }`}
               >
                 {copied ? (
@@ -190,7 +254,7 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/80 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-gray-400" />
             </button>
@@ -200,19 +264,19 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
         {/* Context Banner */}
         {context && !error && (
           <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0">
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-              <span className="flex items-center gap-1.5">
-                <span className="font-medium">檢視：</span>
-                {context.view === 'region-detail' ? context.region : '總覽'}
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-200">
+                <span className="text-gray-500">檢視：</span>
+                <span className="font-medium text-gray-700">{context.view === 'region-detail' ? context.region : '總覽'}</span>
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="font-medium">期間：</span>
-                {context.timeRange}
+              <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-200">
+                <span className="text-gray-500">期間：</span>
+                <span className="font-medium text-gray-700">{context.timeRange}</span>
               </span>
               {context.audience && (
-                <span className="flex items-center gap-1.5">
-                  <span className="font-medium">受眾：</span>
-                  {context.audience}
+                <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-200">
+                  <span className="text-gray-500">受眾：</span>
+                  <span className="font-medium text-gray-700">{context.audience}</span>
                 </span>
               )}
             </div>
@@ -220,10 +284,10 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
           {error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="p-3 bg-red-100 rounded-full mb-4">
+              <div className="p-4 bg-red-100 rounded-full mb-4">
                 <AlertCircle className="w-8 h-8 text-red-500" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">分析失敗</h3>
@@ -245,10 +309,13 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
+          <p className="text-xs text-gray-400">
+            AI 分析僅供參考，請結合實際情況做出決策
+          </p>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium rounded-lg transition-colors"
+            className="px-5 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
           >
             關閉
           </button>
