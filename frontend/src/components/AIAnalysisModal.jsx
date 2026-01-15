@@ -1,8 +1,113 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Lightbulb, TrendingUp, Target, BarChart3, Copy, Check, AlertCircle } from 'lucide-react';
+import { X, Sparkles, Copy, Check, AlertCircle } from 'lucide-react';
+
+// Simple markdown renderer for AI analysis output
+function MarkdownRenderer({ content }) {
+  if (!content) return null;
+
+  // Process markdown content
+  const lines = content.split('\n');
+  const elements = [];
+  let currentList = [];
+  let listType = null;
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        <ul key={`list-${elements.length}`} className={listType === 'checkbox' ? 'space-y-1 my-2' : 'list-disc list-inside space-y-1 my-2'}>
+          {currentList}
+        </ul>
+      );
+      currentList = [];
+      listType = null;
+    }
+  };
+
+  lines.forEach((line, index) => {
+    // Headers
+    if (line.startsWith('## ')) {
+      flushList();
+      const headerText = line.replace('## ', '');
+      elements.push(
+        <h2 key={index} className="text-lg font-bold text-gray-900 mt-6 mb-3 pb-2 border-b border-gray-200 flex items-center gap-2">
+          {headerText}
+        </h2>
+      );
+    } else if (line.startsWith('### ')) {
+      flushList();
+      const headerText = line.replace('### ', '');
+      elements.push(
+        <h3 key={index} className="text-md font-semibold text-gray-800 mt-4 mb-2">
+          {headerText}
+        </h3>
+      );
+    } else if (line.startsWith('---')) {
+      flushList();
+      elements.push(<hr key={index} className="my-4 border-gray-200" />);
+    } else if (line.match(/^- \[ \]/)) {
+      // Unchecked checkbox
+      listType = 'checkbox';
+      const text = line.replace(/^- \[ \] ?/, '');
+      currentList.push(
+        <li key={index} className="flex items-start gap-2 text-gray-700">
+          <span className="inline-block w-4 h-4 mt-0.5 border border-gray-300 rounded flex-shrink-0"></span>
+          <span>{text}</span>
+        </li>
+      );
+    } else if (line.match(/^- \[x\]/i)) {
+      // Checked checkbox
+      listType = 'checkbox';
+      const text = line.replace(/^- \[x\] ?/i, '');
+      currentList.push(
+        <li key={index} className="flex items-start gap-2 text-gray-700">
+          <span className="inline-block w-4 h-4 mt-0.5 bg-green-500 rounded flex-shrink-0 flex items-center justify-center">
+            <Check className="w-3 h-3 text-white" />
+          </span>
+          <span>{text}</span>
+        </li>
+      );
+    } else if (line.startsWith('- ')) {
+      // Regular list item
+      if (listType !== 'checkbox') {
+        listType = 'bullet';
+      }
+      const text = line.replace('- ', '');
+      currentList.push(
+        <li key={index} className="text-gray-700">
+          {text}
+        </li>
+      );
+    } else if (line.trim() === '') {
+      flushList();
+    } else if (line.startsWith('**') && line.endsWith('**')) {
+      flushList();
+      elements.push(
+        <p key={index} className="font-semibold text-gray-800 my-2">
+          {line.replace(/\*\*/g, '')}
+        </p>
+      );
+    } else if (line.trim()) {
+      flushList();
+      // Process inline formatting
+      let processedLine = line;
+      // Bold
+      processedLine = processedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      // Inline code
+      processedLine = processedLine.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>');
+
+      elements.push(
+        <p key={index} className="text-gray-700 my-2" dangerouslySetInnerHTML={{ __html: processedLine }} />
+      );
+    }
+  });
+
+  flushList();
+
+  return <div className="markdown-content">{elements}</div>;
+}
 
 export default function AIAnalysisModal({ isOpen, onClose, analysis, context, error }) {
-  const [copiedSection, setCopiedSection] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
@@ -12,86 +117,31 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
     }
   };
 
-  const copyToClipboard = async (text, sectionId) => {
+  const copyAllAnalysis = async () => {
+    if (!analysis) return;
+
+    const fullText = typeof analysis === 'string'
+      ? analysis
+      : JSON.stringify(analysis, null, 2);
+
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedSection(sectionId);
-      setTimeout(() => setCopiedSection(null), 2000);
+      await navigator.clipboard.writeText(fullText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
   };
 
-  const copyAllAnalysis = async () => {
-    if (!analysis) return;
-
-    const fullText = `AI Dashboard Analysis
-====================
-
-${context?.view === 'region-detail' ? `Region: ${context.region}` : 'Overview'}
-Time Range: ${context?.timeRange || 'N/A'}
-${context?.audience ? `Audience: ${context.audience}` : ''}
-
-Key Insights:
-${analysis.key_insights}
-
-Areas for Improvement:
-${analysis.areas_for_improvement}
-
-Recommended Actions:
-${analysis.recommended_actions}
-
-Overall Assessment:
-${analysis.overall_assessment}`;
-
-    await copyToClipboard(fullText, 'all');
-  };
-
-  const sections = analysis ? [
-    {
-      id: 'insights',
-      title: 'Key Insights',
-      icon: Lightbulb,
-      content: analysis.key_insights,
-      iconColor: 'text-amber-500',
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-200'
-    },
-    {
-      id: 'improvements',
-      title: 'Areas for Improvement',
-      icon: TrendingUp,
-      content: analysis.areas_for_improvement,
-      iconColor: 'text-orange-500',
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-200'
-    },
-    {
-      id: 'actions',
-      title: 'Recommended Actions',
-      icon: Target,
-      content: analysis.recommended_actions,
-      iconColor: 'text-green-500',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200'
-    },
-    {
-      id: 'assessment',
-      title: 'Overall Assessment',
-      icon: BarChart3,
-      content: analysis.overall_assessment,
-      iconColor: 'text-blue-500',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200'
-    }
-  ] : [];
+  // Handle both string (new format) and object (old format) analysis
+  const analysisContent = typeof analysis === 'string' ? analysis : null;
 
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -109,7 +159,7 @@ ${analysis.overall_assessment}`;
               />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">AI Dashboard Analysis</h2>
+              <h2 className="text-lg font-bold text-gray-900">AI 儀表板分析</h2>
               <p className="text-xs text-gray-500">
                 Powered by Gemini AI
               </p>
@@ -120,20 +170,20 @@ ${analysis.overall_assessment}`;
               <button
                 onClick={copyAllAnalysis}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  copiedSection === 'all'
+                  copied
                     ? 'bg-green-100 text-green-700'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {copiedSection === 'all' ? (
+                {copied ? (
                   <>
                     <Check className="w-4 h-4" />
-                    Copied
+                    已複製
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    Copy All
+                    複製全部
                   </>
                 )}
               </button>
@@ -152,16 +202,16 @@ ${analysis.overall_assessment}`;
           <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0">
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
               <span className="flex items-center gap-1.5">
-                <span className="font-medium">View:</span>
-                {context.view === 'region-detail' ? context.region : 'Overview'}
+                <span className="font-medium">檢視：</span>
+                {context.view === 'region-detail' ? context.region : '總覽'}
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="font-medium">Period:</span>
+                <span className="font-medium">期間：</span>
                 {context.timeRange}
               </span>
               {context.audience && (
                 <span className="flex items-center gap-1.5">
-                  <span className="font-medium">Audience:</span>
+                  <span className="font-medium">受眾：</span>
                   {context.audience}
                 </span>
               )}
@@ -176,54 +226,20 @@ ${analysis.overall_assessment}`;
               <div className="p-3 bg-red-100 rounded-full mb-4">
                 <AlertCircle className="w-8 h-8 text-red-500" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Analysis Failed</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">分析失敗</h3>
               <p className="text-gray-600 mb-4 max-w-md">{error}</p>
               <button
                 onClick={onClose}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
               >
-                Close
+                關閉
               </button>
             </div>
-          ) : analysis ? (
-            <div className="space-y-4">
-              {sections.map((section) => (
-                <div
-                  key={section.id}
-                  className={`rounded-lg border ${section.borderColor} overflow-hidden`}
-                >
-                  <div className={`${section.bgColor} px-4 py-3 flex items-center justify-between`}>
-                    <div className="flex items-center gap-2">
-                      <section.icon className={`w-5 h-5 ${section.iconColor}`} />
-                      <h3 className="font-semibold text-gray-900">{section.title}</h3>
-                    </div>
-                    <button
-                      onClick={() => copyToClipboard(section.content, section.id)}
-                      className={`p-1.5 rounded transition-colors ${
-                        copiedSection === section.id
-                          ? 'text-green-600 bg-green-100'
-                          : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
-                      }`}
-                      title="Copy section"
-                    >
-                      {copiedSection === section.id ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                  <div className="p-4 bg-white">
-                    <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
-                      {section.content}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          ) : analysisContent ? (
+            <MarkdownRenderer content={analysisContent} />
           ) : (
             <div className="flex items-center justify-center py-12">
-              <p className="text-gray-500">No analysis data available</p>
+              <p className="text-gray-500">沒有分析資料</p>
             </div>
           )}
         </div>
@@ -234,7 +250,7 @@ ${analysis.overall_assessment}`;
             onClick={onClose}
             className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            Close
+            關閉
           </button>
         </div>
       </div>

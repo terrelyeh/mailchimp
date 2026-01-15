@@ -1027,41 +1027,70 @@ async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(req
         audience_info = context.audience if context.audience else "All Audiences"
 
         # Create the prompt
-        system_prompt = """You are an expert Email Marketing Analyst with 10+ years of experience in analyzing campaign performance data. You specialize in interpreting marketing dashboards and providing actionable insights.
+        system_prompt = """你是一位「實戰派行銷策略顧問」，專注於協助中小企業（SME）透過數據改善業績。
+你具備 10+ 年的 Email Marketing 分析經驗，擅長解讀行銷儀表板並提供可落地執行的建議。
 
-Your analysis style:
-- Data-driven and specific (reference actual numbers when visible)
-- Actionable and practical
-- Prioritized by impact
-- Written for marketing managers, not technical staff"""
+你的分析風格：
+- 數據驅動且具體（引用實際數字）
+- 可執行且實用
+- 按影響力排序優先順序
+- 為行銷經理撰寫，而非技術人員"""
 
-        user_prompt = f"""Please analyze this email marketing dashboard screenshot and provide insights in Traditional Chinese (繁體中文).
+        user_prompt = f"""請分析這張 EDM 行銷儀表板截圖，並以繁體中文提供完整的策略分析報告。
 
-**Current View Context:**
-- Dashboard Type: {view_type}
-- Time Period: {context.timeRange}
-- Audience Filter: {audience_info}
+**目前檢視的內容：**
+- 儀表板類型：{view_type}
+- 時間區間：{context.timeRange}
+- 受眾篩選：{audience_info}
 
-**Please provide your analysis in the following format:**
+**請嚴格依照以下結構輸出分析報告：**
 
-## 🔍 關鍵洞察 (Key Insights)
-Identify 3-5 important findings from the data. Be specific with numbers if visible.
+## 1️⃣ 現況診斷 (The Reality Check)
+分析目前發生了什麼事：
 
-## ⚠️ 需改進之處 (Areas for Improvement)
-Identify 2-4 areas that need attention or show concerning trends.
+### ✅ 亮點 (The Good)
+數據中值得肯定的 2-3 個部分，請引用具體數字。
 
-## 💡 建議行動方案 (Recommended Actions)
-Provide 3-5 specific, actionable recommendations that can be implemented.
+### ⚠️ 痛點 (The Bad)
+流量在哪個環節流失？（例如：開信率過低、點擊率不足、轉換瓶頸）
 
-## 📊 整體評估 (Overall Assessment)
-A brief 2-3 sentence summary of the dashboard's overall health.
+### 🚨 風險 (The Ugly)
+是否有長期隱憂？（例如：名單品質惡化、退訂率上升、網域信譽風險）
 
-Focus on:
-- Open rates and click rates trends
-- Campaign performance patterns
-- Audience engagement levels
-- Any anomalies or notable changes
-- Comparison between regions (if applicable)"""
+---
+
+## 2️⃣ 核心洞察與理由 (The "Why" & Strategy)
+解釋為什麼會這樣，以及應該怎麼做：
+
+### 🔍 深度歸因
+數據不佳的根本原因是什麼？（用戶疲乏？內容價值不足？發送頻率問題？市場因素？）
+
+### 💡 策略邏輯
+建議背後的商業思考（例如：為什麼要先清洗名單而不是先改設計？）
+
+---
+
+## 3️⃣ 本週執行清單 (Action Items)
+將建議整理成具體的 To-Do List：
+
+### 📣 行銷/小編 (Marketing)
+- [ ] (立即) 需調整的設定
+- [ ] (測試) 下一檔活動的 A/B Test 項目
+
+### 💼 業務/銷售 (Sales)
+- [ ] (跟進) 如何利用這份報表跟進客戶？
+
+### ⚙️ 技術/自動化 (Auto/Dev)
+- [ ] (流程) 需要串接或自動處理的資料任務
+
+---
+
+## 4️⃣ 自動化建議 (Automation Tips)
+若問題適合自動化解決，請提供 GAS 或 n8n 的簡要建議（觸發條件 → 執行動作的流程描述）。
+
+---
+
+請確保分析具體、可執行，並優先處理影響最大的問題。"""
 
         # Create image part for Gemini
         image_part = {
