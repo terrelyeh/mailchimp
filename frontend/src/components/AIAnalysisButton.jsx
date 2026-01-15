@@ -86,7 +86,7 @@ export default function AIAnalysisButton({
         onAnalysisComplete({
           success: true,
           analysis: result.analysis,
-          context: result.context,
+          context: context,  // Use local context, not API response
           screenshot: imageDataUrl  // Pass the screenshot for display
         });
       } else {
