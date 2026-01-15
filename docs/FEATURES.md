@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project Name:** EnGenius EDM Analytic Dashboard
-**Version:** 1.5
+**Version:** 1.6
 **Last Updated:** January 2026
 **Data Source:** Mailchimp Marketing API
 
@@ -205,14 +205,49 @@ Configurable threshold alerts for key metrics:
 - Bounce Rate maximum threshold
 - Visual warnings when thresholds exceeded
 
-### 8. API Diagnostics
+### 8. AI Dashboard Analysis (Admin Only)
+AI-powered analysis using Google Gemini to provide marketing insights and recommendations.
+
+#### Features
+| Feature | Description |
+|---------|-------------|
+| Floating AI Button | Purple-cyan gradient FAB in bottom-right corner |
+| Screenshot Analysis | Captures dashboard and sends to Gemini AI |
+| Marketing Consultant Framework | Structured output with diagnosis, insights, action items |
+| Professional Markdown Rendering | Color-coded sections with emoji indicators |
+| Configurable Settings | Model selection, custom prompts, output format |
+
+#### AI Analysis Output Structure
+| Section | Description |
+|---------|-------------|
+| 1️⃣ 現況診斷 | Identifies performance issues with benchmark values |
+| 2️⃣ 核心洞察與理由 | Root cause analysis from data cross-referencing |
+| 3️⃣ 本週執行清單 | Actionable checkbox items (5-7 items) |
+| 4️⃣ 自動化建議 | Marketing automation recommendations |
+
+#### AI Settings (Settings > AI Analysis)
+| Setting | Description |
+|---------|-------------|
+| Enable/Disable | Toggle AI analysis feature on/off |
+| Model Selection | Choose Gemini model (2.0 Flash, 1.5 Flash, 1.5 Pro) |
+| System Prompt | Customize AI's role and analysis style |
+| Output Format | Define report structure and content |
+| Reset to Defaults | Restore default prompt and format |
+
+#### Environment Variables
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `GEMINI_API_KEY` | Google Gemini API key | Yes |
+| `GEMINI_MODEL` | Default model override | No |
+
+### 9. API Diagnostics
 Developer tool for troubleshooting:
 - API endpoint status
 - Response times
 - Error logging
 - Force refresh capability
 
-### 9. User Authentication & Management
+### 10. User Authentication & Management
 Secure access control system with role-based permissions.
 
 #### Authentication
@@ -395,3 +430,4 @@ Dashboard is configured to prevent search engine indexing:
 | 1.3 | Jan 2026 | Added share links management interface in Settings modal with list, copy, and delete functionality |
 | 1.4 | Jan 2026 | Added user authentication and management system with JWT tokens, role-based permissions (admin/viewer), user CRUD operations, and secure password handling |
 | 1.5 | Jan 2026 | Added display name for users, circular avatar profile dropdown, share link read-only mode (hidden filters), auto-detect Mailchimp regions from environment variables |
+| 1.6 | Jan 2026 | Added AI Dashboard Analysis feature with Gemini AI integration, floating action button, professional markdown rendering, configurable AI settings (model, prompts, output format) |
