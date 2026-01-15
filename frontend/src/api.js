@@ -167,13 +167,15 @@ export const populateCache = async (days = 30) => {
  * @param {Object} filterState - Current filter settings
  * @param {string|null} password - Optional password
  * @param {number|null} expiresDays - Expiration in days (1, 7, 30, or null for never)
+ * @param {string|null} name - Optional descriptive name for the link
  */
-export const createShareLink = async (filterState, password = null, expiresDays = null) => {
+export const createShareLink = async (filterState, password = null, expiresDays = null, name = null) => {
     try {
         const response = await api.post('/share', {
             filter_state: filterState,
             password: password,
-            expires_days: expiresDays
+            expires_days: expiresDays,
+            name: name
         });
         return response.data;
     } catch (error) {

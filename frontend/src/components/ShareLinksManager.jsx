@@ -138,11 +138,15 @@ export default function ShareLinksManager() {
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              {/* Token and status */}
-              <div className="flex items-center gap-2 mb-1">
-                <code className="text-sm font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
-                  {link.token}
-                </code>
+              {/* Name and Token */}
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                {link.name ? (
+                  <span className="text-sm font-medium text-gray-800">{link.name}</span>
+                ) : (
+                  <code className="text-sm font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
+                    {link.token}
+                  </code>
+                )}
                 {link.has_password && (
                   <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
                     <Lock className="w-3 h-3" />
@@ -156,8 +160,11 @@ export default function ShareLinksManager() {
                 )}
               </div>
 
-              {/* Filter summary */}
+              {/* Token (if has name) and Filter summary */}
               <div className="text-xs text-gray-500 mb-1">
+                {link.name && (
+                  <code className="font-mono text-gray-400 mr-2">{link.token}</code>
+                )}
                 {getFilterSummary(link.filter_summary)}
               </div>
 
