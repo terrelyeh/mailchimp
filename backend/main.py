@@ -52,6 +52,7 @@ class CreateShareLinkRequest(BaseModel):
     filter_state: Dict[str, Any]
     password: Optional[str] = None
     expires_days: Optional[int] = None  # None = never expires
+    name: Optional[str] = None  # Optional descriptive name for the link
 
 class VerifyPasswordRequest(BaseModel):
     password: str
@@ -808,12 +809,14 @@ def create_share_link(request: CreateShareLinkRequest, user: Dict = Depends(requ
         result = database.create_shared_link(
             filter_state=request.filter_state,
             password=request.password,
-            expires_days=request.expires_days
+            expires_days=request.expires_days,
+            name=request.name
         )
 
         return {
             "status": "success",
             "token": result["token"],
+            "name": result["name"],
             "has_password": result["has_password"],
             "expires_at": result["expires_at"]
         }

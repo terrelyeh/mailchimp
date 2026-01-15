@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Link2, Lock, Clock, Copy, Check, Loader2 } from 'lucide-react';
 
 export default function ShareDialog({ isOpen, onClose, onCreateLink, currentUrl }) {
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [usePassword, setUsePassword] = useState(false);
   const [expiresDays, setExpiresDays] = useState(null); // null = never
@@ -20,6 +21,7 @@ export default function ShareDialog({ isOpen, onClose, onCreateLink, currentUrl 
 
   const handleClose = () => {
     // Reset state
+    setName('');
     setPassword('');
     setUsePassword(false);
     setExpiresDays(null);
@@ -35,6 +37,7 @@ export default function ShareDialog({ isOpen, onClose, onCreateLink, currentUrl 
 
     try {
       const result = await onCreateLink({
+        name: name.trim() || null,
         password: usePassword ? password : null,
         expiresDays: expiresDays
       });
@@ -141,6 +144,21 @@ export default function ShareDialog({ isOpen, onClose, onCreateLink, currentUrl 
                 <div className="relative flex justify-center text-sm">
                   <span className="px-3 bg-white text-gray-500">or create protected link</span>
                 </div>
+              </div>
+
+              {/* Link Name */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Link Name <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Q1 Report for Marketing Team"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#007C89] focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500">Give your link a descriptive name for easier identification</p>
               </div>
 
               {/* Password Protection */}

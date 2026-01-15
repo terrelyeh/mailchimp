@@ -134,24 +134,6 @@ export default function AISettingsManager() {
         </div>
       </div>
 
-      {/* Model Selection */}
-      <div className="bg-white rounded-lg p-4 border border-gray-200">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          AI 模型
-        </label>
-        <select
-          value={settings?.model || ''}
-          onChange={(e) => handleChange('model', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-        >
-          <option value="models/gemini-2.0-flash">Gemini 2.0 Flash (快速)</option>
-          <option value="models/gemini-2.0-flash-preview">Gemini 2.0 Flash Preview</option>
-          <option value="models/gemini-1.5-flash">Gemini 1.5 Flash</option>
-          <option value="models/gemini-1.5-pro">Gemini 1.5 Pro (較強大)</option>
-        </select>
-        <p className="text-xs text-gray-500 mt-1">選擇用於分析的 Gemini 模型</p>
-      </div>
-
       {/* System Prompt */}
       <div className="bg-white rounded-lg p-4 border border-gray-200">
         <label className="block text-sm font-medium text-gray-700 mb-2">

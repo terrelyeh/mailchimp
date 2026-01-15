@@ -76,6 +76,12 @@ def init_db():
     if 'display_name' not in columns:
         c.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
 
+    # Migration: Add name column to shared_links if it doesn't exist
+    c.execute("PRAGMA table_info(shared_links)")
+    share_columns = [col[1] for col in c.fetchall()]
+    if 'name' not in share_columns:
+        c.execute("ALTER TABLE shared_links ADD COLUMN name TEXT")
+
     conn.commit()
     conn.close()
 
@@ -207,7 +213,7 @@ def hash_password(password):
     """Hash a password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
-def create_shared_link(filter_state, password=None, expires_days=None):
+def create_shared_link(filter_state, password=None, expires_days=None, name=None):
     """
     Create a new shared link
 
@@ -215,6 +221,7 @@ def create_shared_link(filter_state, password=None, expires_days=None):
         filter_state: dict of filter settings
         password: optional password string
         expires_days: optional expiration in days (None = never expires)
+        name: optional descriptive name for the link
 
     Returns:
         dict with token and link info
@@ -244,17 +251,18 @@ def create_shared_link(filter_state, password=None, expires_days=None):
     filter_json = json.dumps(filter_state)
 
     c.execute('''
-        INSERT INTO shared_links (token, filter_state, password_hash, expires_at)
-        VALUES (?, ?, ?, ?)
-    ''', (token, filter_json, password_hash, expires_at))
+        INSERT INTO shared_links (token, filter_state, password_hash, expires_at, name)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (token, filter_json, password_hash, expires_at, name))
 
     conn.commit()
     conn.close()
 
-    logger.info(f"Created shared link: {token}, expires: {expires_at}, has_password: {bool(password)}")
+    logger.info(f"Created shared link: {token}, name: {name}, expires: {expires_at}, has_password: {bool(password)}")
 
     return {
         "token": token,
+        "name": name,
         "has_password": bool(password),
         "expires_at": expires_at
     }
@@ -421,7 +429,7 @@ def list_shared_links():
     c = conn.cursor()
 
     c.execute('''
-        SELECT token, filter_state, password_hash, expires_at, created_at, access_count
+        SELECT token, filter_state, password_hash, expires_at, created_at, access_count, name
         FROM shared_links
         ORDER BY created_at DESC
     ''')
@@ -447,6 +455,7 @@ def list_shared_links():
 
         results.append({
             "token": row['token'],
+            "name": row['name'],
             "has_password": bool(row['password_hash']),
             "expires_at": row['expires_at'],
             "is_expired": is_expired,

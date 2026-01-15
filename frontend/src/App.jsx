@@ -312,7 +312,7 @@ function App() {
   };
 
   // Create share link with options
-  const handleCreateShareLink = async ({ password, expiresDays }) => {
+  const handleCreateShareLink = async ({ name, password, expiresDays }) => {
     const filterState = {
       days: selectedDays,
       customDateRange: customDateRange,
@@ -321,7 +321,7 @@ function App() {
       view: view
     };
 
-    const result = await createShareLink(filterState, password, expiresDays);
+    const result = await createShareLink(filterState, password, expiresDays, name);
 
     if (result.status === 'success') {
       // Build share URL
