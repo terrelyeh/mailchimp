@@ -22,7 +22,8 @@ export default function AIAnalysisButton({
   useEffect(() => {
     const checkStatus = async () => {
       const status = await getAIStatus();
-      setIsAvailable(status.available);
+      // Backend returns ai_enabled, fallback to available for compatibility
+      setIsAvailable(status.ai_enabled || status.available);
     };
     if (isAdmin) {
       checkStatus();
