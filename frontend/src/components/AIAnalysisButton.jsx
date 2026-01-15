@@ -68,7 +68,8 @@ export default function AIAnalysisButton({
       });
 
       // Convert to base64 (remove the data:image/png;base64, prefix)
-      const imageBase64 = canvas.toDataURL('image/png').split(',')[1];
+      const imageDataUrl = canvas.toDataURL('image/png');
+      const imageBase64 = imageDataUrl.split(',')[1];
 
       // Build context
       const context = {
@@ -85,7 +86,8 @@ export default function AIAnalysisButton({
         onAnalysisComplete({
           success: true,
           analysis: result.analysis,
-          context: result.context
+          context: result.context,
+          screenshot: imageDataUrl  // Pass the screenshot for display
         });
       } else {
         onAnalysisComplete({

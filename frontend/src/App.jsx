@@ -69,6 +69,7 @@ function App() {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiContext, setAiContext] = useState(null);
   const [aiError, setAiError] = useState(null);
+  const [aiScreenshot, setAiScreenshot] = useState(null);
 
   // Share link access states - use pre-detected token to prevent login flash
   const [shareToken, setShareToken] = useState(initialShareToken);
@@ -430,10 +431,12 @@ function App() {
     if (result.success) {
       setAiAnalysis(result.analysis);
       setAiContext(result.context);
+      setAiScreenshot(result.screenshot);
       setAiError(null);
     } else {
       setAiAnalysis(null);
       setAiContext(null);
+      setAiScreenshot(null);
       setAiError(result.error);
     }
     setAiModalOpen(true);
@@ -850,6 +853,7 @@ function App() {
         analysis={aiAnalysis}
         context={aiContext}
         error={aiError}
+        screenshot={aiScreenshot}
       />
 
       {/* Password Prompt for Protected Share Links */}

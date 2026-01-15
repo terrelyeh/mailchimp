@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Copy, Check, AlertCircle, ChevronRight } from 'lucide-react';
+import { X, Sparkles, Copy, Check, AlertCircle, ChevronRight, ZoomIn, ZoomOut, Image } from 'lucide-react';
 
-// Professional markdown renderer for AI analysis output
+// Professional markdown renderer for AI analysis output with improved visual hierarchy
 function MarkdownRenderer({ content }) {
   if (!content) return null;
 
@@ -13,23 +13,19 @@ function MarkdownRenderer({ content }) {
   let sectionContent = [];
   let sectionTitle = '';
   let sectionEmoji = '';
+  let sectionNumber = 0;
 
   const getSectionStyle = (emoji) => {
     const styles = {
-      '1️⃣': { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'text-blue-600' },
-      '2️⃣': { bg: 'bg-purple-50', border: 'border-purple-200', icon: 'text-purple-600' },
-      '3️⃣': { bg: 'bg-green-50', border: 'border-green-200', icon: 'text-green-600' },
-      '4️⃣': { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'text-amber-600' },
-      '✅': { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'text-emerald-600' },
-      '⚠️': { bg: 'bg-orange-50', border: 'border-orange-200', icon: 'text-orange-600' },
-      '🚨': { bg: 'bg-red-50', border: 'border-red-200', icon: 'text-red-600' },
-      '🔍': { bg: 'bg-indigo-50', border: 'border-indigo-200', icon: 'text-indigo-600' },
-      '💡': { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: 'text-yellow-600' },
-      '📣': { bg: 'bg-pink-50', border: 'border-pink-200', icon: 'text-pink-600' },
-      '💼': { bg: 'bg-slate-50', border: 'border-slate-200', icon: 'text-slate-600' },
-      '⚙️': { bg: 'bg-gray-50', border: 'border-gray-200', icon: 'text-gray-600' },
+      '1️⃣': { gradient: 'from-blue-500 to-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', badge: 'bg-blue-500', number: 1 },
+      '2️⃣': { gradient: 'from-purple-500 to-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', badge: 'bg-purple-500', number: 2 },
+      '3️⃣': { gradient: 'from-emerald-500 to-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', badge: 'bg-emerald-500', number: 3 },
+      '4️⃣': { gradient: 'from-amber-500 to-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', badge: 'bg-amber-500', number: 4 },
+      '✅': { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', icon: '✅' },
+      '⚠️': { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-700', icon: '⚠️' },
+      '🚨': { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', icon: '🚨' },
     };
-    return styles[emoji] || { bg: 'bg-gray-50', border: 'border-gray-200', icon: 'text-gray-600' };
+    return styles[emoji] || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-700' };
   };
 
   const flushList = () => {
@@ -53,16 +49,24 @@ function MarkdownRenderer({ content }) {
     flushList();
     if (inSection && sectionContent.length > 0) {
       const style = getSectionStyle(sectionEmoji);
+      sectionNumber++;
       elements.push(
-        <div key={`section-${elements.length}`} className={`rounded-xl border ${style.border} overflow-hidden mb-4 shadow-sm`}>
-          <div className={`${style.bg} px-4 py-3 border-b ${style.border}`}>
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <span className="text-lg">{sectionEmoji}</span>
-              <span>{sectionTitle}</span>
-            </h3>
-          </div>
-          <div className="bg-white p-4">
-            {sectionContent}
+        <div key={`section-${elements.length}`} className="mb-6 last:mb-0">
+          {/* Section Card */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Section Header */}
+            <div className={`bg-gradient-to-r ${style.gradient} px-4 py-3`}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">{style.number}</span>
+                </div>
+                <h3 className="font-semibold text-white text-base">{sectionTitle}</h3>
+              </div>
+            </div>
+            {/* Section Content */}
+            <div className="p-4">
+              {sectionContent}
+            </div>
           </div>
         </div>
       );
@@ -74,10 +78,8 @@ function MarkdownRenderer({ content }) {
   };
 
   const processInlineFormatting = (text) => {
-    // Bold
     let processed = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
-    // Inline code
-    processed = processed.replace(/`(.*?)`/g, '<code class="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>');
+    processed = processed.replace(/`(.*?)`/g, '<code class="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
     return processed;
   };
 
@@ -95,15 +97,17 @@ function MarkdownRenderer({ content }) {
     // Sub-section headers (### ✅, ### ⚠️, etc.)
     else if (line.match(/^### [^\s]/)) {
       flushList();
-      const match = line.match(/^### (\S+)\s*(.+)$/);
+      const match = line.match(/^### (\S+)\s*(.*)$/);
       if (match) {
         const emoji = match[1];
         const title = match[2];
         const style = getSectionStyle(emoji);
         const subHeader = (
-          <div key={`subheader-${index}`} className={`flex items-center gap-2 ${style.bg} -mx-4 px-4 py-2 mt-2 mb-3 border-y ${style.border}`}>
-            <span>{emoji}</span>
-            <span className="font-medium text-gray-800">{title}</span>
+          <div key={`subheader-${index}`} className={`${style.bg} ${style.border} border rounded-lg px-3 py-2 mt-3 mb-2`}>
+            <div className="flex items-center gap-2">
+              <span className="text-base">{style.icon || emoji}</span>
+              <span className={`font-medium text-sm ${style.text || 'text-gray-700'}`}>{title}</span>
+            </div>
           </div>
         );
         if (inSection) {
@@ -122,9 +126,9 @@ function MarkdownRenderer({ content }) {
       listType = 'checkbox';
       const text = line.replace(/^- \[ \] ?/, '');
       currentList.push(
-        <li key={`item-${index}`} className="flex items-start gap-3 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+        <li key={`item-${index}`} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
           <span className="flex-shrink-0 w-5 h-5 mt-0.5 border-2 border-gray-300 rounded bg-white"></span>
-          <span className="text-gray-700 text-sm" dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
+          <span className="text-gray-700 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
         </li>
       );
     }
@@ -132,11 +136,11 @@ function MarkdownRenderer({ content }) {
       listType = 'checkbox';
       const text = line.replace(/^- \[x\] ?/i, '');
       currentList.push(
-        <li key={`item-${index}`} className="flex items-start gap-3 p-2 bg-green-50 rounded-lg">
+        <li key={`item-${index}`} className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
           <span className="flex-shrink-0 w-5 h-5 mt-0.5 bg-green-500 rounded flex items-center justify-center">
             <Check className="w-3 h-3 text-white" />
           </span>
-          <span className="text-gray-700 text-sm" dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
+          <span className="text-gray-700 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
         </li>
       );
     }
@@ -147,11 +151,28 @@ function MarkdownRenderer({ content }) {
       }
       const text = line.replace('- ', '');
       currentList.push(
-        <li key={`item-${index}`} className="flex items-start gap-2 text-gray-700 text-sm">
+        <li key={`item-${index}`} className="flex items-start gap-2 py-1.5 text-gray-700 text-sm">
           <ChevronRight className="w-4 h-4 mt-0.5 text-gray-400 flex-shrink-0" />
           <span dangerouslySetInnerHTML={{ __html: processInlineFormatting(text) }} />
         </li>
       );
+    }
+    // Arrow items (→)
+    else if (line.includes('→')) {
+      flushList();
+      const parts = line.split('→');
+      const paragraph = (
+        <div key={`arrow-${index}`} className="flex items-start gap-2 py-2 px-3 bg-gray-50 rounded-lg my-2">
+          <span className="font-medium text-gray-800 text-sm">{parts[0].replace('- ', '').trim()}</span>
+          <span className="text-gray-400">→</span>
+          <span className="text-gray-600 text-sm">{parts[1]?.trim()}</span>
+        </div>
+      );
+      if (inSection) {
+        sectionContent.push(paragraph);
+      } else {
+        elements.push(paragraph);
+      }
     }
     // Empty lines
     else if (line.trim() === '') {
@@ -161,7 +182,7 @@ function MarkdownRenderer({ content }) {
     else if (line.trim()) {
       flushList();
       const paragraph = (
-        <p key={`p-${index}`} className="text-gray-700 text-sm leading-relaxed my-2" dangerouslySetInnerHTML={{ __html: processInlineFormatting(line) }} />
+        <p key={`p-${index}`} className="text-gray-600 text-sm leading-relaxed my-2" dangerouslySetInnerHTML={{ __html: processInlineFormatting(line) }} />
       );
       if (inSection) {
         sectionContent.push(paragraph);
@@ -173,19 +194,14 @@ function MarkdownRenderer({ content }) {
 
   flushSection();
 
-  return <div className="space-y-2">{elements}</div>;
+  return <div className="space-y-1">{elements}</div>;
 }
 
-export default function AIAnalysisModal({ isOpen, onClose, analysis, context, error }) {
+export default function AIAnalysisModal({ isOpen, onClose, analysis, context, error, screenshot }) {
   const [copied, setCopied] = useState(false);
+  const [showFullScreenshot, setShowFullScreenshot] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
 
   const copyAllAnalysis = async () => {
     if (!analysis) return;
@@ -206,13 +222,17 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
   const analysisContent = typeof analysis === 'string' ? analysis : null;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
-    >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/30 z-40 transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Side Drawer */}
+      <div className="fixed right-0 top-0 bottom-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-gradient-to-r from-violet-50 to-cyan-50">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0 bg-gradient-to-r from-violet-50 to-cyan-50">
           <div className="flex items-center gap-3">
             <div
               className="p-2.5 rounded-xl shadow-sm"
@@ -223,9 +243,9 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">AI 儀表板分析報告</h2>
+              <h2 className="text-base font-bold text-gray-900">AI 分析報告</h2>
               <p className="text-xs text-gray-500">
-                由 Gemini AI 生成的行銷策略建議
+                Gemini AI 行銷策略建議
               </p>
             </div>
           </div>
@@ -233,21 +253,21 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
             {analysis && (
               <button
                 onClick={copyAllAnalysis}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   copied
-                    ? 'bg-green-100 text-green-700 shadow-sm'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 shadow-sm border border-gray-200'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                 }`}
               >
                 {copied ? (
                   <>
-                    <Check className="w-4 h-4" />
+                    <Check className="w-3.5 h-3.5" />
                     已複製
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4" />
-                    複製全部
+                    <Copy className="w-3.5 h-3.5" />
+                    複製
                   </>
                 )}
               </button>
@@ -261,40 +281,56 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
           </div>
         </div>
 
-        {/* Context Banner */}
-        {context && !error && (
-          <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0">
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-200">
-                <span className="text-gray-500">檢視：</span>
-                <span className="font-medium text-gray-700">{context.view === 'region-detail' ? context.region : '總覽'}</span>
-              </span>
-              <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-200">
-                <span className="text-gray-500">期間：</span>
-                <span className="font-medium text-gray-700">{context.timeRange}</span>
-              </span>
-              {context.audience && (
-                <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-200">
-                  <span className="text-gray-500">受眾：</span>
-                  <span className="font-medium text-gray-700">{context.audience}</span>
-                </span>
-              )}
+        {/* Screenshot Thumbnail Section */}
+        {screenshot && !error && (
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div
+                className="relative group cursor-pointer flex-shrink-0"
+                onClick={() => setShowFullScreenshot(true)}
+              >
+                <img
+                  src={screenshot}
+                  alt="Analyzed dashboard"
+                  className="h-16 w-auto rounded-lg border border-gray-200 shadow-sm object-cover"
+                  style={{ maxWidth: '120px' }}
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                  <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-gray-700 mb-1">分析依據</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="inline-flex items-center text-xs bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600">
+                    {context?.view === 'region-detail' ? context.region : '總覽'}
+                  </span>
+                  <span className="inline-flex items-center text-xs bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600">
+                    {context?.timeRange}
+                  </span>
+                  {context?.audience && (
+                    <span className="inline-flex items-center text-xs bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600">
+                      {context.audience}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+        <div className="flex-1 overflow-y-auto p-5 bg-gray-50/80">
           {error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="p-4 bg-red-100 rounded-full mb-4">
                 <AlertCircle className="w-8 h-8 text-red-500" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">分析失敗</h3>
-              <p className="text-gray-600 mb-4 max-w-md">{error}</p>
+              <p className="text-gray-600 mb-4 max-w-md text-sm">{error}</p>
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors text-sm"
               >
                 關閉
               </button>
@@ -309,18 +345,43 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-white flex-shrink-0">
           <p className="text-xs text-gray-400">
-            AI 分析僅供參考，請結合實際情況做出決策
+            AI 分析僅供參考
           </p>
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors"
           >
             關閉
           </button>
         </div>
       </div>
-    </div>
+
+      {/* Full Screenshot Modal */}
+      {showFullScreenshot && screenshot && (
+        <div
+          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-8"
+          onClick={() => setShowFullScreenshot(false)}
+        >
+          <div className="relative max-w-full max-h-full">
+            <img
+              src={screenshot}
+              alt="Analyzed dashboard (full size)"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            />
+            <button
+              onClick={() => setShowFullScreenshot(false)}
+              className="absolute -top-3 -right-3 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
+              點擊任意處關閉
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
