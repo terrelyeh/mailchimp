@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Copy, Check, AlertCircle, ChevronRight, ZoomIn, ZoomOut, Image } from 'lucide-react';
+import { X, Sparkles, Copy, Check, AlertCircle, ChevronRight, ZoomIn, ZoomOut, Image, Globe, Calendar, Users } from 'lucide-react';
 
 // Professional markdown renderer for AI analysis output with improved visual hierarchy
 function MarkdownRenderer({ content }) {
@@ -281,46 +281,77 @@ export default function AIAnalysisModal({ isOpen, onClose, analysis, context, er
           </div>
         </div>
 
-        {/* Screenshot Thumbnail Section */}
-        {screenshot && !error && (
-          <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div
-                className="relative group cursor-pointer flex-shrink-0"
-                onClick={() => setShowFullScreenshot(true)}
-              >
-                <img
-                  src={screenshot}
-                  alt="Analyzed dashboard"
-                  className="h-16 w-auto rounded-lg border border-gray-200 shadow-sm object-cover"
-                  style={{ maxWidth: '120px' }}
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
-                  <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-700 mb-1">分析依據</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <span className="inline-flex items-center text-xs bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600">
-                    {context?.view === 'region-detail' ? context.region : '總覽'}
-                  </span>
-                  <span className="inline-flex items-center text-xs bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600">
-                    {context?.timeRange}
-                  </span>
-                  {context?.audience && (
-                    <span className="inline-flex items-center text-xs bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600">
-                      {context.audience}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5 bg-gray-50/80">
+          {/* Analysis Conditions Card */}
+          {context && !error && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-5 overflow-hidden">
+              <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-4 py-2 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  📊 分析條件
+                </h3>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Region/View */}
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-blue-50 rounded-lg">
+                      <Globe className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">範圍</p>
+                      <p className="text-sm font-medium text-gray-800">
+                        {context.view === 'region-detail' ? context.region : '總覽 (All Regions)'}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Time Range */}
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-green-50 rounded-lg">
+                      <Calendar className="w-4 h-4 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">期間</p>
+                      <p className="text-sm font-medium text-gray-800">{context.timeRange}</p>
+                    </div>
+                  </div>
+                  {/* Audience */}
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-purple-50 rounded-lg">
+                      <Users className="w-4 h-4 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">受眾</p>
+                      <p className="text-sm font-medium text-gray-800">
+                        {context.audience || 'All Audiences'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {/* Screenshot thumbnail */}
+                {screenshot && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div
+                      className="inline-flex items-center gap-2 cursor-pointer group"
+                      onClick={() => setShowFullScreenshot(true)}
+                    >
+                      <img
+                        src={screenshot}
+                        alt="Analyzed dashboard"
+                        className="h-10 w-auto rounded border border-gray-200 object-cover"
+                        style={{ maxWidth: '80px' }}
+                      />
+                      <span className="text-xs text-gray-500 group-hover:text-gray-700 flex items-center gap-1">
+                        <ZoomIn className="w-3 h-3" />
+                        查看原始截圖
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="p-4 bg-red-100 rounded-full mb-4">

@@ -112,7 +112,7 @@ export default function AIAnalysisButton({
       disabled={isAnalyzing}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="ai-analysis-button fixed right-6 bottom-6 z-40 group"
+      className="ai-analysis-button fixed right-6 bottom-6 z-40 group hidden md:block"
       title="AI Dashboard Analysis"
     >
       {/* Glow effect */}
