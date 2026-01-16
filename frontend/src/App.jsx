@@ -507,27 +507,40 @@ function App() {
     return [];
   }, [audiences]);
 
-  // Calculate total subscribers (based on selected audience or all, excluding excluded audiences)
+  // Get audiences filtered by selected region
+  const regionAudienceList = useMemo(() => {
+    if (!audiences) return [];
+
+    // If a specific region is selected, only return audiences from that region
+    if (selectedRegion && typeof audiences === 'object' && !Array.isArray(audiences)) {
+      return audiences[selectedRegion] || [];
+    }
+
+    // Otherwise return all audiences
+    return audienceList;
+  }, [audiences, selectedRegion, audienceList]);
+
+  // Calculate total subscribers (based on selected region, audience, excluding excluded audiences)
   const totalSubscribers = useMemo(() => {
-    if (audienceList.length === 0) {
+    if (regionAudienceList.length === 0) {
       return null;
     }
 
     // If a specific audience is selected, show only that audience's subscribers
     if (selectedAudience) {
-      const selected = audienceList.find(aud => aud.id === selectedAudience);
+      const selected = regionAudienceList.find(aud => aud.id === selectedAudience);
       return selected ? selected.member_count : null;
     }
 
-    // Otherwise show total across all non-excluded audiences
-    const total = audienceList
+    // Otherwise show total across all non-excluded audiences in the selected region
+    const total = regionAudienceList
       .filter(aud => !excludedAudienceIds.has(aud.id))
       .reduce((sum, aud) => {
         return sum + (aud.member_count || 0);
       }, 0);
 
     return total > 0 ? total : null;
-  }, [audienceList, selectedAudience, excludedAudienceIds]);
+  }, [regionAudienceList, selectedAudience, excludedAudienceIds]);
 
   // Check if accessing via share link (allow without auth)
   // Also check URL directly as a fallback in case state hasn't updated yet

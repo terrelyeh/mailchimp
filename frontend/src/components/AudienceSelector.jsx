@@ -60,14 +60,14 @@ export default function AudienceSelector({ audiences, selectedAudience, onAudien
         <option value="">All Audiences</option>
         {activeAudiences.map((audience) => (
           <option key={audience.id} value={audience.id}>
-            {audience.name}
+            {audience.name} ({(audience.member_count || 0).toLocaleString()})
           </option>
         ))}
         {excludedAudiences.length > 0 && (
           <optgroup label="── Excluded ──">
             {excludedAudiences.map((audience) => (
               <option key={audience.id} value={audience.id} className="text-gray-400">
-                {audience.name}
+                {audience.name} ({(audience.member_count || 0).toLocaleString()})
               </option>
             ))}
           </optgroup>
