@@ -497,6 +497,38 @@ function App() {
     }
   }
 
+  // Filter out campaigns from deleted audiences (audiences that no longer exist in Mailchimp)
+  // This ensures only campaigns from currently valid audiences are shown
+  if (!selectedAudience && audiences) {
+    // Build set of valid audience IDs from current audiences
+    let validAudienceIds;
+    if (Array.isArray(audiences)) {
+      validAudienceIds = new Set(audiences.map(a => a.id));
+    } else if (typeof audiences === 'object') {
+      validAudienceIds = new Set(
+        Object.values(audiences).flat().filter(Boolean).map(a => a.id)
+      );
+    }
+
+    if (validAudienceIds && validAudienceIds.size > 0) {
+      if (Array.isArray(displayData)) {
+        // Single region view - filter to only valid audiences
+        displayData = displayData.filter(campaign => validAudienceIds.has(campaign.audience_id));
+      } else if (typeof displayData === 'object') {
+        // Multi-region view - filter each region to only valid audiences
+        const filteredData = {};
+        Object.entries(displayData).forEach(([region, campaigns]) => {
+          if (Array.isArray(campaigns)) {
+            filteredData[region] = campaigns.filter(campaign => validAudienceIds.has(campaign.audience_id));
+          } else {
+            filteredData[region] = campaigns;
+          }
+        });
+        displayData = filteredData;
+      }
+    }
+  }
+
   // Convert audiences to a flat list for use across components
   const audienceList = useMemo(() => {
     if (!audiences) return [];
