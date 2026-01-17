@@ -731,6 +731,7 @@ function App() {
                     data={displayData}
                     isOverview={true}
                     regions={availableRegions}
+                    onRegionClick={handleRegionClick}
                   />
                 </div>
 
