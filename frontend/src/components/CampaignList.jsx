@@ -37,7 +37,7 @@ const RateBadge = ({ value, threshold, invertWarning = false, suffix = '%' }) =>
 export default function CampaignList({ data, isExporting = false }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sort, setSort] = useState({ field: 'send_time', direction: 'desc' });
-    const itemsPerPage = isExporting ? data.length : 10; // Show all when exporting
+    const itemsPerPage = isExporting ? data.length : 15; // Show all when exporting
 
     // Reset to page 1 when data changes
     useEffect(() => {
