@@ -707,7 +707,10 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           <div className="space-y-2">
             {metrics.highBounceCampaigns.map((campaign, i) => (
               <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 min-w-0 gap-2">
-                <div className="min-w-0 flex-1 overflow-hidden">
+                <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-2">
+                  <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
+                    {format(new Date(campaign.send_time), 'M/d')}
+                  </span>
                   <CampaignLink campaign={campaign} className="text-sm text-white" />
                 </div>
                 <span className="text-sm text-red-400 font-medium whitespace-nowrap flex-shrink-0">
@@ -730,7 +733,10 @@ function RegionContent({ metrics, currentRegion, audienceName, reviewThresholds 
           <div className="space-y-2">
             {metrics.highUnsubCampaigns.map((campaign, i) => (
               <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 min-w-0 gap-2">
-                <div className="min-w-0 flex-1 overflow-hidden">
+                <div className="min-w-0 flex-1 overflow-hidden flex items-center gap-2">
+                  <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
+                    {format(new Date(campaign.send_time), 'M/d')}
+                  </span>
                   <CampaignLink campaign={campaign} className="text-sm text-white" />
                 </div>
                 <span className="text-sm text-amber-400 font-medium whitespace-nowrap flex-shrink-0">
