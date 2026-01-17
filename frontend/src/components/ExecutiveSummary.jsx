@@ -24,7 +24,8 @@ export default function ExecutiveSummary({
   regions = [],
   currentRegion = null,
   selectedAudience = null,
-  audienceList = []
+  audienceList = [],
+  onRegionClick = null
 }) {
   // Get thresholds from context
   const { getThresholdsForCalculation } = useThresholds();
@@ -63,7 +64,7 @@ export default function ExecutiveSummary({
       </div>
 
       {isOverview ? (
-        <OverviewContent metrics={metrics} />
+        <OverviewContent metrics={metrics} onRegionClick={onRegionClick} />
       ) : (
         <RegionContent metrics={metrics} currentRegion={currentRegion} audienceName={audienceName} reviewThresholds={alertThresholds} />
       )}
@@ -160,21 +161,21 @@ function calculateOverviewMetrics(data, regions, alertThresholds) {
   regionStats.forEach(r => {
     // High bounce rate
     if (r.bounceRate > alertThresholds.bounceRate) {
-      alerts.push({ region: r.info.name, type: 'bounce', value: r.bounceRate, severity: 'high' });
+      alerts.push({ region: r.info.name, regionCode: r.code, type: 'bounce', value: r.bounceRate, severity: 'high' });
     }
     // High unsub rate
     if (r.unsubRate > alertThresholds.unsubRate) {
-      alerts.push({ region: r.info.name, type: 'unsub', value: r.unsubRate, severity: 'high' });
+      alerts.push({ region: r.info.name, regionCode: r.code, type: 'unsub', value: r.unsubRate, severity: 'high' });
     }
     // Low activity (< X campaigns in last 30 days)
     if (r.campaignsLast30Days < alertThresholds.lowActivityCampaigns) {
-      alerts.push({ region: r.info.name, type: 'lowActivity', value: r.campaignsLast30Days, severity: 'medium' });
+      alerts.push({ region: r.info.name, regionCode: r.code, type: 'lowActivity', value: r.campaignsLast30Days, severity: 'medium' });
     }
     // Low engagement (open < X% OR click < X%)
     if (r.avgOpenRate < alertThresholds.lowOpenRate || r.avgClickRate < alertThresholds.lowClickRate) {
       const reason = r.avgOpenRate < alertThresholds.lowOpenRate ? 'open' : 'click';
       const value = reason === 'open' ? r.avgOpenRate : r.avgClickRate;
-      alerts.push({ region: r.info.name, type: 'lowEngagement', reason, value, severity: 'medium' });
+      alerts.push({ region: r.info.name, regionCode: r.code, type: 'lowEngagement', reason, value, severity: 'medium' });
     }
   });
 
@@ -324,8 +325,27 @@ function InsufficientDataCard({ title, icon: Icon, iconColor, type = 'region' })
   );
 }
 
+// Clickable region name component
+function ClickableRegion({ children, regionCode, onRegionClick, className = '' }) {
+  if (!onRegionClick) {
+    return <span className={className}>{children}</span>;
+  }
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onRegionClick(regionCode);
+      }}
+      className={`${className} hover:text-[#FFE066] cursor-pointer transition-colors underline decoration-dotted underline-offset-2`}
+    >
+      {children}
+    </button>
+  );
+}
+
 // Overview content component
-function OverviewContent({ metrics }) {
+function OverviewContent({ metrics, onRegionClick }) {
   // Check if best/worst regions have sufficient data
   const bestHasData = metrics.bestRegion && !hasInsufficientData(metrics.bestRegion);
   const worstHasData = metrics.worstRegion && !hasInsufficientData(metrics.worstRegion);
@@ -358,7 +378,13 @@ function OverviewContent({ metrics }) {
             </div>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-2xl">{metrics.bestRegion.info.flag}</span>
-              <span className="font-bold text-xl">{metrics.bestRegion.info.name}</span>
+              <ClickableRegion
+                regionCode={metrics.bestRegion.code}
+                onRegionClick={onRegionClick}
+                className="font-bold text-xl"
+              >
+                {metrics.bestRegion.info.name}
+              </ClickableRegion>
             </div>
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div>
@@ -406,7 +432,13 @@ function OverviewContent({ metrics }) {
               </div>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">{metrics.worstRegion.info.flag}</span>
-                <span className="font-bold text-xl">{metrics.worstRegion.info.name}</span>
+                <ClickableRegion
+                  regionCode={metrics.worstRegion.code}
+                  onRegionClick={onRegionClick}
+                  className="font-bold text-xl"
+                >
+                  {metrics.worstRegion.info.name}
+                </ClickableRegion>
               </div>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div>
@@ -454,7 +486,13 @@ function OverviewContent({ metrics }) {
                   <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{region.info.flag}</span>
-                      <span className="text-base text-white font-medium">{region.info.name}</span>
+                      <ClickableRegion
+                        regionCode={region.code}
+                        onRegionClick={onRegionClick}
+                        className="text-base text-white font-medium"
+                      >
+                        {region.info.name}
+                      </ClickableRegion>
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-amber-400 font-semibold">
@@ -505,7 +543,13 @@ function OverviewContent({ metrics }) {
 
                   return (
                     <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2.5">
-                      <span className="text-base text-white font-medium">{alert.region}</span>
+                      <ClickableRegion
+                        regionCode={alert.regionCode}
+                        onRegionClick={onRegionClick}
+                        className="text-base text-white font-medium"
+                      >
+                        {alert.region}
+                      </ClickableRegion>
                       <span className={`text-sm font-medium ${colorClass}`}>{message}</span>
                     </div>
                   );
