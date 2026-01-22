@@ -214,6 +214,54 @@ def get_cache_stats():
         "by_region": by_region
     }
 
+def get_regions_last_activity():
+    """
+    Get the last campaign date for each region (regardless of date filter).
+    Used for detecting inactive regions.
+
+    Returns:
+        dict: {region_code: {"last_campaign_date": ISO string, "days_since": int}}
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Get the most recent campaign for each region
+    c.execute("""
+        SELECT region, MAX(send_time) as last_send_time
+        FROM campaigns
+        GROUP BY region
+    """)
+
+    rows = c.fetchall()
+    conn.close()
+
+    result = {}
+    now = datetime.utcnow()
+
+    for row in rows:
+        region = row['region']
+        last_send_time = row['last_send_time']
+
+        if last_send_time:
+            try:
+                # Parse the ISO format date string
+                last_date = datetime.fromisoformat(last_send_time.replace('Z', '+00:00').replace('+00:00', ''))
+                days_since = (now - last_date).days
+                result[region] = {
+                    "last_campaign_date": last_send_time,
+                    "days_since": days_since
+                }
+            except Exception as e:
+                logger.warning(f"Failed to parse date for region {region}: {e}")
+                result[region] = {
+                    "last_campaign_date": last_send_time,
+                    "days_since": None
+                }
+
+    logger.info(f"Retrieved last activity for {len(result)} regions")
+    return result
+
 # ============================================
 # Shared Links Functions
 # ============================================

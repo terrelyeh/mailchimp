@@ -20,7 +20,7 @@ import AIAnalysisModal from './components/AIAnalysisModal';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
 import {
-  fetchDashboardData, triggerSync, fetchRegions, fetchAudiences,
+  fetchDashboardData, triggerSync, fetchRegions, fetchRegionsActivity, fetchAudiences,
   createShareLink, getShareLink, verifyShareLinkPassword,
   getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth,
   getExcludedAudiences, logActivity
@@ -54,6 +54,7 @@ function App() {
   const [customDateRange, setCustomDateRange] = useState(null); // Custom date range { start, end }
   const [view, setView] = useState('overview'); // 'overview' or 'region-detail'
   const [availableRegions, setAvailableRegions] = useState(REGIONS); // Dynamic regions from API
+  const [regionsActivity, setRegionsActivity] = useState({}); // Last activity for each region
   const [audiences, setAudiences] = useState([]); // Available audiences
   const [selectedAudience, setSelectedAudience] = useState(null); // Selected audience for filtering
   const [excludedAudienceIds, setExcludedAudienceIds] = useState(new Set()); // Excluded audience IDs
@@ -368,6 +369,12 @@ function App() {
         return getRegionInfo(code);
       });
       setAvailableRegions(regionsWithMetadata);
+    }
+
+    // Also load region activity for inactive detection
+    const activity = await fetchRegionsActivity();
+    if (activity) {
+      setRegionsActivity(activity);
     }
   };
 
@@ -784,6 +791,7 @@ function App() {
                     data={displayData}
                     isOverview={true}
                     regions={availableRegions}
+                    regionsActivity={regionsActivity}
                     onRegionClick={handleRegionClick}
                   />
                 </div>
