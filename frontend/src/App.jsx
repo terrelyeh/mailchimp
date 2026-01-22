@@ -23,7 +23,7 @@ import {
   fetchDashboardData, triggerSync, fetchRegions, fetchAudiences,
   createShareLink, getShareLink, verifyShareLinkPassword,
   getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth,
-  getExcludedAudiences
+  getExcludedAudiences, logActivity
 } from './api';
 import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
@@ -390,6 +390,11 @@ function App() {
     loadRegions();
     loadAudiences();
     loadExcludedAudiences();
+
+    // Log session start (user opened the app)
+    if (isAuthenticated && !shareToken) {
+      logActivity('session_start', { timestamp: new Date().toISOString() });
+    }
   }, []);
 
   useEffect(() => {
@@ -410,8 +415,10 @@ function App() {
     setSelectedAudience(null); // Clear audience filter when region changes
     if (region) {
       setView('region-detail');
+      logActivity('view_region', { region });
     } else {
       setView('overview');
+      logActivity('view_dashboard', { view: 'overview' });
     }
   };
 
@@ -419,11 +426,15 @@ function App() {
     setSelectedRegion(regionCode);
     setSelectedAudience(null); // Clear audience filter when region changes
     setView('region-detail');
+    // Log activity
+    logActivity('view_region', { region: regionCode });
   };
 
   const handleBackToOverview = () => {
     setSelectedRegion(null);
     setView('overview');
+    // Log activity
+    logActivity('view_dashboard', { view: 'overview' });
   };
 
   // Handle AI analysis completion
