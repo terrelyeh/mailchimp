@@ -554,3 +554,86 @@ export const analyzeWithAI = async (imageBase64, context) => {
         return { status: 'error', error: error.message || 'AI analysis failed' };
     }
 };
+
+// ============================================
+// Activity Logs API Functions (Admin only)
+// ============================================
+
+/**
+ * Log a user activity
+ * @param {string} action - Type of action (e.g., 'view_dashboard', 'export_report')
+ * @param {Object} details - Optional additional details
+ */
+export const logActivity = async (action, details = null) => {
+    try {
+        const response = await api.post('/activity/log', { action, details });
+        return response.data;
+    } catch (error) {
+        // Silently fail for logging - don't disrupt user experience
+        console.warn('Failed to log activity:', error);
+        return null;
+    }
+};
+
+/**
+ * Get activity logs with optional filters (admin only)
+ * @param {Object} filters - Filter options (user_id, action, start_date, end_date, limit, offset)
+ */
+export const getActivityLogs = async (filters = {}) => {
+    try {
+        const response = await api.get('/activity/logs', { params: filters });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message, logs: [] };
+    }
+};
+
+/**
+ * Get activity summary statistics (admin only)
+ * @param {number} days - Number of days to look back (default 30)
+ */
+export const getActivitySummary = async (days = 30) => {
+    try {
+        const response = await api.get('/activity/summary', { params: { days } });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * Get list of all logged action types (admin only)
+ */
+export const getActivityActionTypes = async () => {
+    try {
+        const response = await api.get('/activity/actions');
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message, actions: [] };
+    }
+};
+
+/**
+ * Clean up old activity logs (admin only)
+ * @param {number} days - Keep logs from the last N days (default 90)
+ */
+export const cleanupActivityLogs = async (days = 90) => {
+    try {
+        const response = await api.delete('/activity/cleanup', { params: { days } });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 403) {
+            return { status: 'error', error: 'Admin access required' };
+        }
+        return { status: 'error', error: error.message };
+    }
+};

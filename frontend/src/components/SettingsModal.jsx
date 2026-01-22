@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList, Link2, Users, Key, EyeOff, Sparkles } from 'lucide-react';
+import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList, Link2, Users, Key, EyeOff, Sparkles, History } from 'lucide-react';
 import { useThresholds } from '../contexts/ThresholdContext';
 import ShareLinksManager from './ShareLinksManager';
 import UserManagement from './UserManagement';
 import ExcludedAudiencesManager from './ExcludedAudiencesManager';
 import AISettingsManager from './AISettingsManager';
+import ActivityLogsManager from './ActivityLogsManager';
 
 export default function SettingsModal({ isOpen, onClose, user, onChangePassword }) {
   const { thresholds, updateThreshold, resetToDefaults, DEFAULT_THRESHOLDS } = useThresholds();
@@ -139,7 +140,8 @@ export default function SettingsModal({ isOpen, onClose, user, onChangePassword 
     { id: 'ai', label: 'AI Analysis', icon: Sparkles, adminOnly: true },
     { id: 'excluded', label: 'Excluded', icon: EyeOff, adminOnly: true },
     { id: 'shares', label: 'Share Links', icon: Link2, adminOnly: true },
-    { id: 'users', label: 'Users', icon: Users, adminOnly: true }
+    { id: 'users', label: 'Users', icon: Users, adminOnly: true },
+    { id: 'activity', label: 'Activity', icon: History, adminOnly: true }
   ].filter(tab => !tab.adminOnly || isAdmin);
 
   return (
@@ -269,6 +271,7 @@ export default function SettingsModal({ isOpen, onClose, user, onChangePassword 
           {activeTab === 'excluded' && <ExcludedAudiencesManager />}
           {activeTab === 'shares' && <ShareLinksManager />}
           {activeTab === 'users' && <UserManagement currentUserId={user?.id} />}
+          {activeTab === 'activity' && <ActivityLogsManager />}
         </div>
 
         {/* Footer */}

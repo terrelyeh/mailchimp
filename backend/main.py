@@ -162,7 +162,11 @@ async def require_admin(user: Dict = Depends(require_auth)) -> Dict:
 # ============================================
 
 @app.post("/api/auth/login")
-def login(request: LoginRequest):
+def login(
+    request: LoginRequest,
+    x_forwarded_for: Optional[str] = Header(None),
+    x_real_ip: Optional[str] = Header(None)
+):
     """
     Login with email and password
 
@@ -175,6 +179,15 @@ def login(request: LoginRequest):
 
     # Create access token
     token = create_access_token(user["id"], user["email"], user["role"])
+
+    # Log activity
+    ip_address = x_forwarded_for or x_real_ip or "unknown"
+    database.log_activity(
+        user_id=user["id"],
+        user_email=user["email"],
+        action="login",
+        ip_address=ip_address
+    )
 
     return {
         "status": "success",
@@ -266,6 +279,14 @@ def create_user(request: CreateUserRequest, user: Dict = Depends(require_admin))
             raise HTTPException(status_code=409, detail=result["message"])
         raise HTTPException(status_code=400, detail=result["message"])
 
+    # Log activity
+    database.log_activity(
+        user_id=user["id"],
+        user_email=user["email"],
+        action="create_user",
+        details={"new_user_email": result["email"], "role": result["role"]}
+    )
+
     return {
         "status": "success",
         "user": {
@@ -299,12 +320,23 @@ def update_user_role(user_id: str, request: UpdateUserRoleRequest, admin: Dict =
 @app.delete("/api/users/{user_id}")
 def delete_user(user_id: str, admin: Dict = Depends(require_admin)):
     """Delete a user (admin only)"""
+    # Get user info before deletion for logging
+    deleted_user = database.get_user_by_id(user_id)
+
     result = database.delete_user(user_id, admin["id"])
 
     if result.get("error"):
         if result["error"] == "not_found":
             raise HTTPException(status_code=404, detail=result["message"])
         raise HTTPException(status_code=400, detail=result["message"])
+
+    # Log activity
+    database.log_activity(
+        user_id=admin["id"],
+        user_email=admin["email"],
+        action="delete_user",
+        details={"deleted_user_email": deleted_user["email"] if deleted_user else user_id}
+    )
 
     return {
         "status": "success",
@@ -470,9 +502,22 @@ def get_cache_stats():
     }
 
 @app.post("/api/cache/clear")
-def clear_cache(region: str = None):
+def clear_cache(
+    region: str = None,
+    user: Optional[Dict] = Depends(get_current_user)
+):
     """Clear cached campaigns for a region or all regions"""
     deleted_count = database.clear_cache(region=region)
+
+    # Log activity if user is authenticated
+    if user:
+        database.log_activity(
+            user_id=user["id"],
+            user_email=user["email"],
+            action="clear_cache",
+            details={"region": region or "all", "deleted_count": deleted_count}
+        )
+
     return {
         "status": "success",
         "deleted_count": deleted_count,
@@ -581,12 +626,24 @@ def check_cache_health():
     }
 
 @app.post("/api/cache/populate")
-def populate_cache(days: int = 30):
+def populate_cache(
+    days: int = 30,
+    user: Optional[Dict] = Depends(get_current_user)
+):
     """
     手動填充快取
     強制從 MailChimp API 抓取所有區域的資料並儲存到資料庫
     """
     logger.info(f"Manual cache population triggered for {days} days")
+
+    # Log activity if user is authenticated
+    if user:
+        database.log_activity(
+            user_id=user["id"],
+            user_email=user["email"],
+            action="populate_cache",
+            details={"days": days}
+        )
 
     try:
         results = {}
@@ -1074,6 +1131,19 @@ async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(req
 
         logger.info(f"AI analysis completed for user {user.get('email')}")
 
+        # Log activity
+        database.log_activity(
+            user_id=user["id"],
+            user_email=user["email"],
+            action="run_ai_analysis",
+            details={
+                "view": context.view,
+                "region": context.region,
+                "time_range": context.timeRange,
+                "model": model_name
+            }
+        )
+
         return {
             "status": "success",
             "analysis": analysis_text,
@@ -1146,3 +1216,142 @@ def reset_ai_settings(user: Dict = Depends(require_admin)):
     """
     result = database.reset_ai_settings()
     return result
+
+
+# ============================================
+# Activity Logs API Endpoints
+# ============================================
+
+class ActivityLogRequest(BaseModel):
+    action: str
+    details: Optional[Dict[str, Any]] = None
+
+class GetActivityLogsRequest(BaseModel):
+    user_id: Optional[str] = None
+    action: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    limit: int = 100
+    offset: int = 0
+
+
+@app.post("/api/activity/log")
+def log_activity_endpoint(
+    request: ActivityLogRequest,
+    user: Dict = Depends(require_auth),
+    x_forwarded_for: Optional[str] = Header(None),
+    x_real_ip: Optional[str] = Header(None)
+):
+    """
+    Log a user activity (requires authentication)
+
+    Request body:
+    - action: Type of action (e.g., 'view_dashboard', 'export_report')
+    - details: Optional dict with additional details
+    """
+    # Get IP address from headers (for reverse proxy) or connection
+    ip_address = x_forwarded_for or x_real_ip or "unknown"
+
+    result = database.log_activity(
+        user_id=user.get("id"),
+        user_email=user.get("email"),
+        action=request.action,
+        details=request.details,
+        ip_address=ip_address
+    )
+
+    return {"status": "success", "log_id": result.get("log_id")}
+
+
+@app.get("/api/activity/logs")
+def get_activity_logs_endpoint(
+    user_id: Optional[str] = None,
+    action: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    admin: Dict = Depends(require_admin)
+):
+    """
+    Get activity logs with optional filters (admin only)
+
+    Query parameters:
+    - user_id: Filter by user ID
+    - action: Filter by action type
+    - start_date: Filter by start date (ISO format)
+    - end_date: Filter by end date (ISO format)
+    - limit: Maximum number of records (default 100)
+    - offset: Number of records to skip (default 0)
+    """
+    result = database.get_activity_logs(
+        user_id=user_id,
+        action=action,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+        offset=offset
+    )
+
+    return {
+        "status": "success",
+        "logs": result["logs"],
+        "total": result["total"],
+        "limit": result["limit"],
+        "offset": result["offset"]
+    }
+
+
+@app.get("/api/activity/summary")
+def get_activity_summary_endpoint(
+    days: int = 30,
+    admin: Dict = Depends(require_admin)
+):
+    """
+    Get activity summary statistics (admin only)
+
+    Query parameters:
+    - days: Number of days to look back (default 30)
+    """
+    result = database.get_activity_summary(days=days)
+
+    return {
+        "status": "success",
+        "summary": result
+    }
+
+
+@app.get("/api/activity/actions")
+def get_activity_action_types(admin: Dict = Depends(require_admin)):
+    """
+    Get list of all logged action types (admin only)
+    """
+    # Get unique action types from the last 90 days
+    result = database.get_activity_logs(limit=1000)
+    actions = list(set(log["action"] for log in result["logs"]))
+    actions.sort()
+
+    return {
+        "status": "success",
+        "actions": actions
+    }
+
+
+@app.delete("/api/activity/cleanup")
+def cleanup_activity_logs_endpoint(
+    days: int = 90,
+    admin: Dict = Depends(require_admin)
+):
+    """
+    Clean up old activity logs (admin only)
+
+    Query parameters:
+    - days: Keep logs from the last N days (default 90)
+    """
+    deleted = database.cleanup_old_activity_logs(days=days)
+
+    return {
+        "status": "success",
+        "deleted_count": deleted,
+        "message": f"Deleted logs older than {days} days"
+    }

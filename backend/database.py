@@ -70,6 +70,19 @@ def init_db():
         )
     ''')
 
+    # Create activity_logs table for tracking user actions
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS activity_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id TEXT,
+            user_email TEXT,
+            action TEXT NOT NULL,
+            details TEXT,
+            ip_address TEXT
+        )
+    ''')
+
     # Migration: Add display_name column if it doesn't exist
     c.execute("PRAGMA table_info(users)")
     columns = [col[1] for col in c.fetchall()]
@@ -1183,6 +1196,229 @@ def reset_ai_settings():
     logger.info("Reset AI settings to defaults")
 
     return {"status": "success", "settings": DEFAULT_AI_SETTINGS}
+
+
+# ============================================
+# Activity Logging Functions
+# ============================================
+
+def log_activity(user_id: str = None, user_email: str = None, action: str = None, details: dict = None, ip_address: str = None):
+    """
+    Log a user activity
+
+    Args:
+        user_id: ID of the user performing the action
+        user_email: Email of the user (for easier querying)
+        action: Type of action (e.g., 'login', 'view_dashboard', 'run_ai_analysis')
+        details: Additional details as a dict (will be stored as JSON)
+        ip_address: IP address of the user
+
+    Returns:
+        dict with log entry ID
+    """
+    if not action:
+        return {"error": "no_action", "message": "Action is required"}
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    details_json = json.dumps(details) if details else None
+
+    c.execute('''
+        INSERT INTO activity_logs (user_id, user_email, action, details, ip_address)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (user_id, user_email, action, details_json, ip_address))
+
+    log_id = c.lastrowid
+    conn.commit()
+    conn.close()
+
+    logger.debug(f"Activity logged: {action} by {user_email or user_id}")
+
+    return {"status": "success", "log_id": log_id}
+
+
+def get_activity_logs(
+    user_id: str = None,
+    action: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get activity logs with optional filters
+
+    Args:
+        user_id: Filter by user ID
+        action: Filter by action type
+        start_date: Filter by start date (ISO format)
+        end_date: Filter by end date (ISO format)
+        limit: Maximum number of records to return
+        offset: Number of records to skip
+
+    Returns:
+        dict with logs and total count
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Build query with filters
+    where_clauses = []
+    params = []
+
+    if user_id:
+        where_clauses.append("user_id = ?")
+        params.append(user_id)
+
+    if action:
+        where_clauses.append("action = ?")
+        params.append(action)
+
+    if start_date:
+        where_clauses.append("timestamp >= ?")
+        params.append(start_date)
+
+    if end_date:
+        where_clauses.append("timestamp <= ?")
+        params.append(end_date)
+
+    where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+    # Get total count
+    c.execute(f"SELECT COUNT(*) FROM activity_logs WHERE {where_sql}", params)
+    total = c.fetchone()[0]
+
+    # Get logs
+    c.execute(f'''
+        SELECT id, timestamp, user_id, user_email, action, details, ip_address
+        FROM activity_logs
+        WHERE {where_sql}
+        ORDER BY timestamp DESC
+        LIMIT ? OFFSET ?
+    ''', params + [limit, offset])
+
+    rows = c.fetchall()
+    conn.close()
+
+    logs = []
+    for row in rows:
+        details = None
+        if row['details']:
+            try:
+                details = json.loads(row['details'])
+            except:
+                details = row['details']
+
+        logs.append({
+            "id": row['id'],
+            "timestamp": row['timestamp'],
+            "user_id": row['user_id'],
+            "user_email": row['user_email'],
+            "action": row['action'],
+            "details": details,
+            "ip_address": row['ip_address']
+        })
+
+    return {
+        "logs": logs,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+
+def get_activity_summary(days: int = 30):
+    """
+    Get summary statistics of activity logs
+
+    Args:
+        days: Number of days to look back
+
+    Returns:
+        dict with activity summary
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+    # Total actions
+    c.execute("SELECT COUNT(*) FROM activity_logs WHERE timestamp >= ?", (cutoff_date,))
+    total_actions = c.fetchone()[0]
+
+    # Actions by type
+    c.execute('''
+        SELECT action, COUNT(*) as count
+        FROM activity_logs
+        WHERE timestamp >= ?
+        GROUP BY action
+        ORDER BY count DESC
+    ''', (cutoff_date,))
+    by_action = {row['action']: row['count'] for row in c.fetchall()}
+
+    # Actions by user
+    c.execute('''
+        SELECT user_email, COUNT(*) as count
+        FROM activity_logs
+        WHERE timestamp >= ? AND user_email IS NOT NULL
+        GROUP BY user_email
+        ORDER BY count DESC
+    ''', (cutoff_date,))
+    by_user = {row['user_email']: row['count'] for row in c.fetchall()}
+
+    # Recent activity (last 10)
+    c.execute('''
+        SELECT timestamp, user_email, action
+        FROM activity_logs
+        WHERE timestamp >= ?
+        ORDER BY timestamp DESC
+        LIMIT 10
+    ''', (cutoff_date,))
+    recent = [{
+        "timestamp": row['timestamp'],
+        "user_email": row['user_email'],
+        "action": row['action']
+    } for row in c.fetchall()]
+
+    conn.close()
+
+    return {
+        "period_days": days,
+        "total_actions": total_actions,
+        "by_action": by_action,
+        "by_user": by_user,
+        "recent": recent
+    }
+
+
+def cleanup_old_activity_logs(days: int = 90):
+    """
+    Remove activity logs older than specified days
+
+    Args:
+        days: Keep logs from the last N days
+
+    Returns:
+        Number of deleted records
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+    c.execute("DELETE FROM activity_logs WHERE timestamp < ?", (cutoff_date,))
+
+    deleted = c.rowcount
+    conn.commit()
+    conn.close()
+
+    if deleted > 0:
+        logger.info(f"Cleaned up {deleted} old activity logs (older than {days} days)")
+
+    return deleted
 
 
 # Initialize on module load or explicitly
