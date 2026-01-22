@@ -840,6 +840,7 @@ function App() {
                     data={displayData}
                     isOverview={false}
                     currentRegion={currentRegion}
+                    regionsActivity={regionsActivity}
                     selectedAudience={selectedAudience}
                     audienceList={audienceList}
                   />
