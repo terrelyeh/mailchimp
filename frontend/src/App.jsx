@@ -498,34 +498,44 @@ function App() {
   }
 
   // Filter out campaigns from deleted audiences (audiences that no longer exist in Mailchimp)
-  // This ensures only campaigns from currently valid audiences are shown
-  if (!selectedAudience && audiences) {
-    // Build set of valid audience IDs from current audiences
-    let validAudienceIds;
-    if (Array.isArray(audiences)) {
-      validAudienceIds = new Set(audiences.map(a => a.id));
-    } else if (typeof audiences === 'object') {
-      validAudienceIds = new Set(
-        Object.values(audiences).flat().filter(Boolean).map(a => a.id)
-      );
-    }
-
-    if (validAudienceIds && validAudienceIds.size > 0) {
-      if (Array.isArray(displayData)) {
-        // Single region view - filter to only valid audiences
-        displayData = displayData.filter(campaign => validAudienceIds.has(campaign.audience_id));
-      } else if (typeof displayData === 'object') {
-        // Multi-region view - filter each region to only valid audiences
-        const filteredData = {};
-        Object.entries(displayData).forEach(([region, campaigns]) => {
-          if (Array.isArray(campaigns)) {
-            filteredData[region] = campaigns.filter(campaign => validAudienceIds.has(campaign.audience_id));
+  // IMPORTANT: Each region has its own Mailchimp account with independent audience IDs
+  // So we must filter per-region, comparing campaigns only against that region's audiences
+  if (!selectedAudience && audiences && typeof audiences === 'object' && !Array.isArray(audiences)) {
+    if (Array.isArray(displayData)) {
+      // Single region view - filter using that region's audiences only
+      const regionAudiences = selectedRegion ? audiences[selectedRegion] : null;
+      if (regionAudiences && Array.isArray(regionAudiences) && regionAudiences.length > 0) {
+        const validIds = new Set(regionAudiences.map(a => a.id));
+        const filtered = displayData.filter(campaign => validIds.has(campaign.audience_id));
+        // Only apply if it doesn't remove everything
+        if (filtered.length > 0 || displayData.length === 0) {
+          displayData = filtered;
+        }
+      }
+    } else if (typeof displayData === 'object') {
+      // Multi-region view - filter each region using its OWN audiences only
+      const filteredData = {};
+      Object.entries(displayData).forEach(([region, campaigns]) => {
+        if (Array.isArray(campaigns)) {
+          const regionAudiences = audiences[region];
+          if (regionAudiences && Array.isArray(regionAudiences) && regionAudiences.length > 0) {
+            const validIds = new Set(regionAudiences.map(a => a.id));
+            const filtered = campaigns.filter(campaign => validIds.has(campaign.audience_id));
+            // Only apply if it doesn't remove everything (safety check)
+            if (filtered.length > 0 || campaigns.length === 0) {
+              filteredData[region] = filtered;
+            } else {
+              filteredData[region] = campaigns;
+            }
           } else {
+            // No audiences loaded for this region, keep all campaigns
             filteredData[region] = campaigns;
           }
-        });
-        displayData = filteredData;
-      }
+        } else {
+          filteredData[region] = campaigns;
+        }
+      });
+      displayData = filteredData;
     }
   }
 
