@@ -7,9 +7,9 @@ function InfoTooltip({ children }) {
     return (
         <div className="relative group inline-flex ml-2">
             <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+            <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                 {children}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                <div className="absolute top-full right-2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
             </div>
         </div>
     );
