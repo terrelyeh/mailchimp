@@ -130,9 +130,17 @@ function calculateOverviewMetrics(data, regions, alertThresholds) {
   // Sort by score
   regionStats.sort((a, b) => b.score - a.score);
 
-  // Find best and worst
-  const bestRegion = regionStats[0];
-  const worstRegion = regionStats[regionStats.length - 1];
+  // Filter to only regions with sufficient data for best/worst comparison
+  // A region needs ≥100 sent OR ≥3 campaigns to be statistically significant
+  const regionsWithSufficientData = regionStats.filter(r =>
+    r.totalSent >= MIN_SENT_THRESHOLD || r.campaigns >= MIN_CAMPAIGNS_THRESHOLD
+  );
+
+  // Find best and worst from regions with sufficient data only
+  const bestRegion = regionsWithSufficientData.length > 0 ? regionsWithSufficientData[0] : null;
+  const worstRegion = regionsWithSufficientData.length > 1
+    ? regionsWithSufficientData[regionsWithSufficientData.length - 1]
+    : null;
 
   // Find top campaign across all regions
   let topCampaign = null;
