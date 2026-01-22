@@ -22,6 +22,7 @@ export default function ExecutiveSummary({
   data,
   isOverview = true,
   regions = [],
+  regionsActivity = {},  // Last activity info for each region (for inactive detection)
   currentRegion = null,
   selectedAudience = null,
   audienceList = [],
@@ -37,12 +38,12 @@ export default function ExecutiveSummary({
 
     if (isOverview) {
       // Overview mode - compare regions
-      return calculateOverviewMetrics(data, regions, alertThresholds);
+      return calculateOverviewMetrics(data, regions, alertThresholds, regionsActivity);
     } else {
       // Region detail mode - analyze single region
       return calculateRegionMetrics(data, currentRegion, alertThresholds);
     }
-  }, [data, isOverview, regions, currentRegion, alertThresholds]);
+  }, [data, isOverview, regions, currentRegion, alertThresholds, regionsActivity]);
 
   if (!metrics) {
     return null;
@@ -73,7 +74,7 @@ export default function ExecutiveSummary({
 }
 
 // Calculate metrics for overview (all regions)
-function calculateOverviewMetrics(data, regions, alertThresholds) {
+function calculateOverviewMetrics(data, regions, alertThresholds, regionsActivity = {}) {
   const regionStats = [];
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -164,6 +165,9 @@ function calculateOverviewMetrics(data, regions, alertThresholds) {
     ? allCampaigns.reduce((acc, c) => acc + (c.click_rate || 0), 0) / allCampaigns.length
     : 0;
 
+  // Track which regions are in the filtered data (for inactive detection)
+  const regionsInStats = new Set(regionStats.map(r => r.code));
+
   // Identify alerts
   const alerts = [];
   regionStats.forEach(r => {
@@ -187,6 +191,21 @@ function calculateOverviewMetrics(data, regions, alertThresholds) {
     }
   });
 
+  // Also add low activity alerts for regions not in the filtered data
+  // These regions have no campaigns in the current date range
+  Object.entries(regionsActivity).forEach(([regionCode, activity]) => {
+    if (!regionsInStats.has(regionCode) && activity.days_since > 30) {
+      const regionInfo = getRegionInfo(regionCode);
+      alerts.push({
+        region: regionInfo.name,
+        regionCode: regionCode,
+        type: 'lowActivity',
+        value: 0,  // 0 campaigns in the selected date range
+        severity: 'medium'
+      });
+    }
+  });
+
   // Sort alerts by severity (high first)
   alerts.sort((a, b) => {
     if (a.severity === 'high' && b.severity !== 'high') return -1;
@@ -195,8 +214,34 @@ function calculateOverviewMetrics(data, regions, alertThresholds) {
   });
 
   // Find inactive regions (>30 days since last campaign)
-  const inactiveRegions = regionStats
+  // First, get inactive regions from the filtered data
+  const inactiveFromStats = regionStats
     .filter(r => r.daysSinceLastCampaign > 30)
+    .map(r => ({
+      code: r.code,
+      info: r.info,
+      daysSinceLastCampaign: r.daysSinceLastCampaign,
+      lastCampaignDate: r.lastCampaignDate
+    }));
+
+  // Then, check regionsActivity for regions NOT in the filtered data
+  // These are regions that have no campaigns in the current date range
+  const inactiveFromActivity = Object.entries(regionsActivity)
+    .filter(([regionCode, activity]) => {
+      // Only include if:
+      // 1. Not already in regionStats (no campaigns in current date range)
+      // 2. Has activity data showing > 30 days since last campaign
+      return !regionsInStats.has(regionCode) && activity.days_since > 30;
+    })
+    .map(([regionCode, activity]) => ({
+      code: regionCode,
+      info: getRegionInfo(regionCode),
+      daysSinceLastCampaign: activity.days_since,
+      lastCampaignDate: new Date(activity.last_campaign_date)
+    }));
+
+  // Combine and sort by days since last campaign (most inactive first)
+  const inactiveRegions = [...inactiveFromStats, ...inactiveFromActivity]
     .sort((a, b) => b.daysSinceLastCampaign - a.daysSinceLastCampaign);
 
   return {

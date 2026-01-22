@@ -90,6 +90,16 @@ export const fetchRegions = async () => {
     }
 };
 
+export const fetchRegionsActivity = async () => {
+    try {
+        const response = await api.get('/regions/activity');
+        return response.data.activity || {};
+    } catch (error) {
+        console.error('Failed to fetch regions activity:', error);
+        return {};
+    }
+};
+
 export const fetchAudiences = async (region = null) => {
     try {
         const params = region ? { region } : {};

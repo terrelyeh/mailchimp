@@ -454,6 +454,18 @@ def get_regions():
         "regions_with_names": mailchimp_service.get_regions_with_names()
     }
 
+@app.get("/api/regions/activity")
+def get_regions_activity():
+    """
+    Get the last campaign activity for each region.
+    Used to detect inactive regions regardless of the selected date range.
+    """
+    activity = database.get_regions_last_activity()
+    return {
+        "status": "success",
+        "activity": activity
+    }
+
 @app.post("/api/sync")
 def trigger_sync(background_tasks: BackgroundTasks, days: int = 30):
     """Background task to sync data for all regions"""
