@@ -41,7 +41,7 @@ export default function ExecutiveSummary({
       return calculateOverviewMetrics(data, regions, alertThresholds, regionsActivity);
     } else {
       // Region detail mode - analyze single region
-      return calculateRegionMetrics(data, currentRegion, alertThresholds);
+      return calculateRegionMetrics(data, currentRegion, alertThresholds, regionsActivity);
     }
   }, [data, isOverview, regions, currentRegion, alertThresholds, regionsActivity]);
 
@@ -260,7 +260,7 @@ function calculateOverviewMetrics(data, regions, alertThresholds, regionsActivit
 }
 
 // Calculate metrics for single region detail
-function calculateRegionMetrics(data, currentRegion, thresholds) {
+function calculateRegionMetrics(data, currentRegion, thresholds, regionsActivity = {}) {
   if (!Array.isArray(data) || data.length === 0) return null;
 
   const campaigns = data;
@@ -280,9 +280,23 @@ function calculateRegionMetrics(data, currentRegion, thresholds) {
   const topCampaign = sortedByOpenRate.length > 0 ? sortedByOpenRate[0] : null;
 
   // Find last campaign date
-  const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
-  const lastCampaignDate = new Date(sortedByDate[0].send_time);
-  const daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
+  // First, try to get from regionsActivity (more accurate, not filtered by date range)
+  const regionCode = currentRegion?.code;
+  const activityInfo = regionCode ? regionsActivity[regionCode] : null;
+
+  let lastCampaignDate;
+  let daysSinceLastCampaign;
+
+  if (activityInfo && activityInfo.last_campaign_date) {
+    // Use the regionsActivity data (accurate regardless of date filter)
+    lastCampaignDate = new Date(activityInfo.last_campaign_date);
+    daysSinceLastCampaign = activityInfo.days_since;
+  } else {
+    // Fallback to calculating from filtered campaigns
+    const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
+    lastCampaignDate = new Date(sortedByDate[0].send_time);
+    daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
+  }
 
   // Find "Needs Review" campaign using configurable thresholds - only from qualified campaigns
   const campaignsNeedingReview = qualifiedCampaigns.filter(c => {

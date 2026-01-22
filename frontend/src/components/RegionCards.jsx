@@ -22,13 +22,24 @@ const getLastCampaignInfo = (data) => {
   };
 };
 
-const RegionCard = ({ region, data, onClick }) => {
+const RegionCard = ({ region, data, regionActivity, onClick }) => {
   const lastCampaign = getLastCampaignInfo(data);
 
+  // When no data in current date range, but we have activity info
   if (!data || data.length === 0) {
+    const hasActivityInfo = regionActivity && regionActivity.last_campaign_date;
+    const daysSince = regionActivity?.days_since;
+    const isInactive = daysSince > 30;
+
     return (
-      <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100/80 ring-1 ring-gray-900/5 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
-        onClick={onClick}>
+      <div
+        className={`bg-white p-6 rounded-xl shadow-md border ring-1 transition-all duration-200 cursor-pointer hover:shadow-lg hover:-translate-y-1 ${
+          hasActivityInfo && isInactive
+            ? 'border-amber-200 ring-amber-200/50 bg-amber-50/30'
+            : 'border-gray-100/80 ring-gray-900/5'
+        }`}
+        onClick={onClick}
+      >
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-3">
             <span className="text-3xl">{region.flag}</span>
@@ -37,8 +48,36 @@ const RegionCard = ({ region, data, onClick }) => {
               <p className="text-xs text-gray-500">{region.code}</p>
             </div>
           </div>
+          <ArrowRight className="w-5 h-5 text-gray-400" />
         </div>
-        <p className="text-sm text-gray-400">No data available</p>
+
+        {hasActivityInfo ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-amber-600 bg-amber-100/50 rounded-lg px-3 py-2">
+              <Clock className="w-4 h-4" />
+              <span className="text-xs font-medium">
+                No campaigns in selected date range
+              </span>
+            </div>
+
+            <div className={`flex items-center justify-between pt-2 ${isInactive ? 'text-red-600' : 'text-gray-500'}`}>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span className="text-xs">Last Campaign</span>
+              </div>
+              <span className={`text-xs font-medium ${isInactive ? 'text-red-600' : 'text-gray-600'}`}>
+                {daysSince} days ago
+                {isInactive && ' ⚠️'}
+              </span>
+            </div>
+
+            <p className="text-xs text-gray-400 pt-1">
+              Last activity: {format(new Date(regionActivity.last_campaign_date), 'MMM d, yyyy')}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">No data available</p>
+        )}
       </div>
     );
   }
@@ -144,7 +183,7 @@ const RegionCard = ({ region, data, onClick }) => {
   );
 };
 
-export default function RegionCards({ regionsData, regions, onRegionClick }) {
+export default function RegionCards({ regionsData, regions, regionsActivity = {}, onRegionClick }) {
   // 防護檢查
   if (!regions || regions.length === 0) {
     return null;
@@ -159,6 +198,7 @@ export default function RegionCards({ regionsData, regions, onRegionClick }) {
             key={region.code}
             region={region}
             data={regionsData[region.code] || []}
+            regionActivity={regionsActivity[region.code]}
             onClick={() => onRegionClick(region.code)}
           />
         ))}
