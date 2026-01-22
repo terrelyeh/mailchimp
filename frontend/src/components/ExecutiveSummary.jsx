@@ -299,7 +299,8 @@ function calculateRegionMetrics(data, currentRegion, thresholds) {
 
 // Helper to check if region has sufficient data
 function hasInsufficientData(region) {
-  return region.totalSent < MIN_SENT_THRESHOLD || region.campaigns < MIN_CAMPAIGNS_THRESHOLD;
+  // Insufficient only if BOTH conditions fail (need at least one to be sufficient)
+  return region.totalSent < MIN_SENT_THRESHOLD && region.campaigns < MIN_CAMPAIGNS_THRESHOLD;
 }
 
 // Insufficient data card component
