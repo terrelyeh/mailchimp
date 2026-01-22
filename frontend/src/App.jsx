@@ -811,6 +811,7 @@ function App() {
                   <RegionCards
                     regionsData={displayData}
                     regions={availableRegions}
+                    regionsActivity={regionsActivity}
                     onRegionClick={handleRegionClick}
                   />
                 </div>
