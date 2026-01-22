@@ -5,7 +5,7 @@
 - **測試版本**: v1.0
 - **測試日期**: ____________
 - **測試人員**: ____________
-- **應用網址**: https://your-app-url.zeabur.app
+- **應用網址**: https://edm-dashboard.zeabur.app
 
 ---
 
