@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { X, Activity, Database, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, AlertTriangle, Download } from 'lucide-react';
+import { X, Activity, Database, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, AlertTriangle, Download, Info } from 'lucide-react';
 import { fetchDiagnostics, fetchCacheStats, fetchCacheHealth, populateCache, clearCache, fetchDashboardData } from '../api';
+
+// Info tooltip component
+function InfoTooltip({ children }) {
+    return (
+        <div className="relative group inline-flex ml-2">
+            <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                {children}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+            </div>
+        </div>
+    );
+}
 
 export default function DiagnosticsDrawer({ isOpen, onClose, selectedDays, onForceRefresh }) {
     const [diagnostics, setDiagnostics] = useState(null);
@@ -243,47 +256,83 @@ export default function DiagnosticsDrawer({ isOpen, onClose, selectedDays, onFor
                             <div className="space-y-3 pt-4 border-t border-gray-200">
                                 <h3 className="font-semibold text-gray-900">Quick Actions</h3>
 
-                                <button
-                                    onClick={handlePopulateCache}
-                                    disabled={populatingCache}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {populatingCache ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Download className="w-4 h-4" />
-                                    )}
-                                    {populatingCache ? 'Populating Cache...' : 'Populate Cache from API'}
-                                </button>
+                                {/* Populate Cache */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handlePopulateCache}
+                                        disabled={populatingCache}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {populatingCache ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Download className="w-4 h-4" />
+                                        )}
+                                        {populatingCache ? 'Populating Cache...' : 'Populate Cache from API'}
+                                    </button>
+                                    <InfoTooltip>
+                                        <p className="font-medium mb-1">從 API 填充快取</p>
+                                        <p className="text-gray-300">從 Mailchimp API 抓取所有區域的 campaign 資料並儲存到本地快取。</p>
+                                        <p className="text-gray-400 mt-2">⏱ 可能需要幾分鐘</p>
+                                        <p className="text-gray-400 mt-1">📌 使用時機：初次設定、快取資料遺失或損壞時</p>
+                                    </InfoTooltip>
+                                </div>
 
-                                <button
-                                    onClick={handleForceRefresh}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                >
-                                    <RefreshCw className="w-4 h-4" />
-                                    Force Refresh All Data
-                                </button>
+                                {/* Force Refresh */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleForceRefresh}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        Force Refresh All Data
+                                    </button>
+                                    <InfoTooltip>
+                                        <p className="font-medium mb-1">強制重新整理資料</p>
+                                        <p className="text-gray-300">重新從快取載入資料並更新儀表板顯示。</p>
+                                        <p className="text-gray-400 mt-2">⚡ 速度快，使用快取資料</p>
+                                        <p className="text-gray-400 mt-1">📌 使用時機：想要刷新顯示、確認資料更新後的結果</p>
+                                    </InfoTooltip>
+                                </div>
 
-                                <button
-                                    onClick={() => handleClearCache()}
-                                    disabled={clearingCache}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {clearingCache ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Trash2 className="w-4 h-4" />
-                                    )}
-                                    Clear All Cache
-                                </button>
+                                {/* Clear Cache */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => handleClearCache()}
+                                        disabled={clearingCache}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {clearingCache ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Trash2 className="w-4 h-4" />
+                                        )}
+                                        Clear All Cache
+                                    </button>
+                                    <InfoTooltip>
+                                        <p className="font-medium mb-1">清除所有快取</p>
+                                        <p className="text-gray-300">刪除本地儲存的所有 campaign 快取資料。</p>
+                                        <p className="text-gray-400 mt-2">⚠️ 清除後需重新填充快取</p>
+                                        <p className="text-gray-400 mt-1">📌 使用時機：快取資料損壞、想要完全重新開始</p>
+                                    </InfoTooltip>
+                                </div>
 
-                                <button
-                                    onClick={loadDiagnostics}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    <RefreshCw className="w-4 h-4" />
-                                    Re-run Diagnostics
-                                </button>
+                                {/* Re-run Diagnostics */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={loadDiagnostics}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        Re-run Diagnostics
+                                    </button>
+                                    <InfoTooltip>
+                                        <p className="font-medium mb-1">重新執行診斷</p>
+                                        <p className="text-gray-300">測試各區域的 Mailchimp API 連線狀態與快取健康度。</p>
+                                        <p className="text-gray-400 mt-2">🔍 檢查 API 連線是否正常</p>
+                                        <p className="text-gray-400 mt-1">📌 使用時機：確認 API 設定、排查連線問題</p>
+                                    </InfoTooltip>
+                                </div>
                             </div>
 
                             {/* Metadata */}
