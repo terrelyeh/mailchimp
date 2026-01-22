@@ -68,6 +68,7 @@ export default function ActivityLogsManager() {
     const getActionLabel = (action) => {
         const labels = {
             'login': '登入',
+            'session_start': '開啟應用',
             'view_dashboard': '查看儀表板',
             'view_region': '查看區域',
             'run_ai_analysis': 'AI 分析',
@@ -83,8 +84,11 @@ export default function ActivityLogsManager() {
     const getActionColor = (action) => {
         const colors = {
             'login': 'bg-green-100 text-green-700',
+            'session_start': 'bg-green-100 text-green-700',
+            'view_dashboard': 'bg-blue-100 text-blue-700',
+            'view_region': 'bg-blue-100 text-blue-700',
             'run_ai_analysis': 'bg-purple-100 text-purple-700',
-            'populate_cache': 'bg-blue-100 text-blue-700',
+            'populate_cache': 'bg-cyan-100 text-cyan-700',
             'clear_cache': 'bg-red-100 text-red-700',
             'create_user': 'bg-teal-100 text-teal-700',
             'delete_user': 'bg-orange-100 text-orange-700'
@@ -149,6 +153,9 @@ export default function ActivityLogsManager() {
                 >
                     <option value="">所有動作</option>
                     <option value="login">登入</option>
+                    <option value="session_start">開啟應用</option>
+                    <option value="view_dashboard">查看儀表板</option>
+                    <option value="view_region">查看區域</option>
                     <option value="run_ai_analysis">AI 分析</option>
                     <option value="populate_cache">填充快取</option>
                     <option value="clear_cache">清除快取</option>
