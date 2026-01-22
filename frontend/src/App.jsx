@@ -499,6 +499,7 @@ function App() {
 
   // Filter out campaigns from deleted audiences (audiences that no longer exist in Mailchimp)
   // This ensures only campaigns from currently valid audiences are shown
+  // Note: Only filter if we have audience data loaded; if audiences is empty, skip filtering
   if (!selectedAudience && audiences) {
     // Build set of valid audience IDs from current audiences
     let validAudienceIds;
@@ -510,16 +511,32 @@ function App() {
       );
     }
 
+    // Only apply filter if we have a meaningful set of valid audiences
+    // This prevents filtering out all data when audiences haven't loaded yet
     if (validAudienceIds && validAudienceIds.size > 0) {
       if (Array.isArray(displayData)) {
         // Single region view - filter to only valid audiences
-        displayData = displayData.filter(campaign => validAudienceIds.has(campaign.audience_id));
+        // But keep campaigns if their audience_id exists in valid set
+        const filtered = displayData.filter(campaign => validAudienceIds.has(campaign.audience_id));
+        // Only apply filter if it doesn't remove ALL campaigns (safety check)
+        if (filtered.length > 0 || displayData.length === 0) {
+          displayData = filtered;
+        }
       } else if (typeof displayData === 'object') {
         // Multi-region view - filter each region to only valid audiences
         const filteredData = {};
         Object.entries(displayData).forEach(([region, campaigns]) => {
           if (Array.isArray(campaigns)) {
-            filteredData[region] = campaigns.filter(campaign => validAudienceIds.has(campaign.audience_id));
+            const filtered = campaigns.filter(campaign => validAudienceIds.has(campaign.audience_id));
+            // Only apply filter if it doesn't remove ALL campaigns for this region
+            // This prevents data loss when audience IDs don't match
+            if (filtered.length > 0 || campaigns.length === 0) {
+              filteredData[region] = filtered;
+            } else {
+              // Keep original if filter would remove everything (likely an ID mismatch issue)
+              filteredData[region] = campaigns;
+              console.warn(`[Audience Filter] Skipped filtering for ${region}: would remove all ${campaigns.length} campaigns`);
+            }
           } else {
             filteredData[region] = campaigns;
           }
