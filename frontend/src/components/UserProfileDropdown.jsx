@@ -25,6 +25,8 @@ const UserProfileDropdown = ({
 
     const displayName = user?.display_name || user?.email?.split('@')[0] || 'User';
     const isAdmin = user?.role === 'admin';
+    const isManager = user?.role === 'manager';
+    const isAdminOrManager = isAdmin || isManager;
     const initials = displayName.substring(0, 2).toUpperCase();
 
     const handleItemClick = (action) => {
@@ -38,7 +40,7 @@ const UserProfileDropdown = ({
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all
-                    ${isAdmin
+                    ${isAdminOrManager
                         ? 'bg-[#007C89] text-white hover:bg-[#006570]'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }
@@ -59,6 +61,11 @@ const UserProfileDropdown = ({
                             {isAdmin && (
                                 <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[#007C89]/10 text-[#007C89] rounded">
                                     Admin
+                                </span>
+                            )}
+                            {isManager && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">
+                                    Manager
                                 </span>
                             )}
                         </div>

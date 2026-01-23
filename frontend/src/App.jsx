@@ -918,8 +918,8 @@ function App() {
         currentUrl={window.location.href}
       />
 
-      {/* AI Analysis Button - Admin only, not for share link access */}
-      {isAuthenticated && user?.role === 'admin' && !isShareLinkAccess && (
+      {/* AI Analysis Button - Admin/Manager only, not for share link access */}
+      {isAuthenticated && (user?.role === 'admin' || user?.role === 'manager') && !isShareLinkAccess && (
         <AIAnalysisButton
           targetRef={exportContentRef}
           view={view}
@@ -929,7 +929,7 @@ function App() {
           selectedAudience={selectedAudience}
           audienceList={audienceList}
           onAnalysisComplete={handleAIAnalysisComplete}
-          isAdmin={user?.role === 'admin'}
+          isAdmin={user?.role === 'admin' || user?.role === 'manager'}
         />
       )}
 

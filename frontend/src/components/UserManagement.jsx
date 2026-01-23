@@ -331,6 +331,8 @@ export default function UserManagement({ currentUserId }) {
                       <div className="flex items-center gap-1">
                         {user.role === 'admin' ? (
                           <Shield className="w-4 h-4 text-[#007C89]" />
+                        ) : user.role === 'manager' ? (
+                          <Shield className="w-4 h-4 text-amber-500" />
                         ) : (
                           <Eye className="w-4 h-4 text-gray-400" />
                         )}
@@ -343,6 +345,7 @@ export default function UserManagement({ currentUserId }) {
                         className="text-sm border border-gray-200 rounded px-2 py-1 focus:ring-2 focus:ring-[#007C89] focus:border-transparent"
                       >
                         <option value="viewer">Viewer</option>
+                        <option value="manager">Manager</option>
                         <option value="admin">Admin</option>
                       </select>
                     )}
