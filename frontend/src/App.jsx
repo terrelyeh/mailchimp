@@ -371,7 +371,13 @@ function App() {
       setAvailableRegions(regionsWithMetadata);
     }
 
-    // Also load region activity for inactive detection
+    // Also load region activity on initial load
+    await loadRegionsActivity();
+  };
+
+  // Separate function to load/refresh regionsActivity
+  // Called on: initial load, after Sync, and when time range changes
+  const loadRegionsActivity = async () => {
     const activity = await fetchRegionsActivity();
     if (activity) {
       setRegionsActivity(activity);
@@ -406,13 +412,17 @@ function App() {
 
   useEffect(() => {
     loadData();
+    // Refresh regionsActivity when time range changes to ensure consistency
+    loadRegionsActivity();
   }, [selectedDays, selectedRegion]);
 
   const handleSync = async () => {
     setIsSyncing(true);
     await triggerSync(selectedDays);
-    setTimeout(() => {
+    setTimeout(async () => {
       loadData(false);
+      // Refresh regionsActivity after sync to ensure Last Campaign dates are accurate
+      await loadRegionsActivity();
       setIsSyncing(false);
     }, 2000);
   };
