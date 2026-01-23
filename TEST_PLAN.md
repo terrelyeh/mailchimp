@@ -37,8 +37,9 @@
 
 | 角色 | Email | 密碼 | 用途 |
 |------|-------|------|------|
-| Admin | terrel.yeh@senao.com | 12345678 | 測試所有功能 |
-| Viewer | viewer.test@senao.com | test1234 | 測試權限限制 |
+| Admin | [admin@example.com] | [password] | 測試所有功能 |
+| Manager | [manager@example.com] | [password] | 測試 Manager 權限（無使用者管理）|
+| Viewer | [viewer@example.com] | [password] | 測試權限限制 |
 
 ---
 
@@ -184,11 +185,11 @@
 
 ---
 
-### 4. AI 分析功能 (Admin Only)
+### 4. AI 分析功能 (Admin/Manager Only)
 
 #### TC-4.1: 執行 AI 分析
 ```
-前置條件: 以 Admin 帳號登入
+前置條件: 以 Admin 或 Manager 帳號登入
 測試步驟:
 1. 在 Dashboard 頁面
 2. 點擊「AI Analysis」按鈕
@@ -242,9 +243,9 @@
 ```
 結果: [ ] PASS  [ ] FAIL
 
-#### TC-5.3: Admin 專用 Tabs
+#### TC-5.3: 角色專用 Tabs
 ```
-前置條件: 以 Admin 帳號登入
+前置條件: 分別以 Admin、Manager、Viewer 帳號登入測試
 測試步驟:
 1. 開啟 Settings
 2. 確認可見的 tabs
@@ -252,7 +253,11 @@
 預期結果 (Admin):
 - 可看到: Alerts, AI Analysis, Excluded, Share Links, Users, Activity
 
-測試 Viewer:
+預期結果 (Manager):
+- 可看到: Alerts, AI Analysis, Excluded, Share Links, Activity
+- 不能看到: Users
+
+預期結果 (Viewer):
 - 只能看到: Alerts
 ```
 結果: [ ] PASS  [ ] FAIL
@@ -480,6 +485,92 @@
 
 ---
 
+### 12. Manager 角色權限
+
+#### TC-12.1: Manager 可執行 AI 分析
+```
+前置條件: 以 Manager 帳號登入
+測試步驟:
+1. 在 Dashboard 頁面
+2. 確認「AI Analysis」按鈕可用
+3. 點擊執行 AI 分析
+
+預期結果:
+- AI Analysis 按鈕可用
+- 可成功執行分析
+- 顯示分析報告
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-12.2: Manager 可管理 Excluded Audiences
+```
+前置條件: 以 Manager 帳號登入
+測試步驟:
+1. 開啟 Settings
+2. 點擊「Excluded」tab
+3. 嘗試新增或移除 excluded audience
+
+預期結果:
+- 可看到 Excluded tab
+- 可新增/移除 excluded audiences
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-12.3: Manager 可管理 Share Links
+```
+前置條件: 以 Manager 帳號登入
+測試步驟:
+1. 開啟 Settings
+2. 點擊「Share Links」tab
+3. 嘗試建立或刪除分享連結
+
+預期結果:
+- 可看到 Share Links tab
+- 可建立/刪除分享連結
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-12.4: Manager 可查看 Activity Logs
+```
+前置條件: 以 Manager 帳號登入
+測試步驟:
+1. 開啟 Settings
+2. 點擊「Activity」tab
+
+預期結果:
+- 可看到 Activity tab
+- 可查看活動紀錄
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-12.5: Manager 無法管理使用者
+```
+前置條件: 以 Manager 帳號登入
+測試步驟:
+1. 開啟 Settings
+2. 確認 tabs 列表
+
+預期結果:
+- 「Users」tab 不顯示
+- 無法存取使用者管理功能
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-12.6: Manager Badge 顯示
+```
+前置條件: 以 Manager 帳號登入
+測試步驟:
+1. 點擊右上角使用者頭像
+2. 查看下拉選單
+
+預期結果:
+- 下拉選單顯示使用者名稱旁有「Manager」標籤
+- 標籤為琥珀色（amber）
+```
+結果: [ ] PASS  [ ] FAIL
+
+---
+
 ## 測試結果摘要
 
 | 類別 | 總測試數 | PASS | FAIL |
@@ -495,7 +586,8 @@
 | Share Link | 2 | | |
 | 資料一致性 | 4 | | |
 | 響應式設計 | 2 | | |
-| **總計** | **28** | | |
+| Manager 角色權限 | 6 | | |
+| **總計** | **34** | | |
 
 ---
 

@@ -717,9 +717,9 @@ def create_user(email: str, role: str = 'viewer', display_name: str = None):
         return {"error": "email_exists", "message": "Email already registered"}
 
     # Validate role
-    if role not in ['admin', 'viewer']:
+    if role not in ['admin', 'manager', 'viewer']:
         conn.close()
-        return {"error": "invalid_role", "message": "Role must be 'admin' or 'viewer'"}
+        return {"error": "invalid_role", "message": "Role must be 'admin', 'manager', or 'viewer'"}
 
     # Generate user ID and temporary password
     user_id = secrets.token_urlsafe(16)
@@ -762,8 +762,8 @@ def update_user_role(user_id: str, new_role: str, admin_id: str):
     Returns:
         dict with result
     """
-    if new_role not in ['admin', 'viewer']:
-        return {"error": "invalid_role", "message": "Role must be 'admin' or 'viewer'"}
+    if new_role not in ['admin', 'manager', 'viewer']:
+        return {"error": "invalid_role", "message": "Role must be 'admin', 'manager', or 'viewer'"}
 
     # Cannot change own role
     if user_id == admin_id:

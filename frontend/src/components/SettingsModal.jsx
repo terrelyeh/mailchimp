@@ -12,6 +12,7 @@ export default function SettingsModal({ isOpen, onClose, user, onChangePassword 
   const [activeTab, setActiveTab] = useState('alerts'); // 'alerts', 'shares', or 'users'
 
   const isAdmin = user?.role === 'admin';
+  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
 
   if (!isOpen) return null;
 
@@ -140,9 +141,13 @@ export default function SettingsModal({ isOpen, onClose, user, onChangePassword 
     { id: 'ai', label: 'AI Analysis', icon: Sparkles, adminOnly: true },
     { id: 'excluded', label: 'Excluded', icon: EyeOff, adminOnly: true },
     { id: 'shares', label: 'Share Links', icon: Link2, adminOnly: true },
-    { id: 'users', label: 'Users', icon: Users, adminOnly: true },
+    { id: 'users', label: 'Users', icon: Users, userAdminOnly: true },  // Only admin, not manager
     { id: 'activity', label: 'Activity', icon: History, adminOnly: true }
-  ].filter(tab => !tab.adminOnly || isAdmin);
+  ].filter(tab => {
+    if (tab.userAdminOnly) return isAdmin;  // Users tab: admin only
+    if (tab.adminOnly) return isAdminOrManager;  // Other admin tabs: admin or manager
+    return true;  // Public tabs (alerts): everyone
+  });
 
   return (
     <div

@@ -151,9 +151,16 @@ async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(secur
 
 
 async def require_admin(user: Dict = Depends(require_auth)) -> Dict:
-    """Dependency that requires admin role"""
+    """Dependency that requires admin or manager role"""
+    if user.get("role") not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Admin or Manager access required")
+    return user
+
+
+async def require_user_admin(user: Dict = Depends(require_auth)) -> Dict:
+    """Dependency that requires admin role specifically for user management"""
     if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+        raise HTTPException(status_code=403, detail="Admin access required for user management")
     return user
 
 
@@ -255,8 +262,8 @@ def update_profile(request: UpdateProfileRequest, user: Dict = Depends(require_a
 # ============================================
 
 @app.get("/api/users")
-def list_users(user: Dict = Depends(require_admin)):
-    """List all users (admin only)"""
+def list_users(user: Dict = Depends(require_user_admin)):
+    """List all users (admin only - managers cannot access)"""
     users = database.list_users()
     return {
         "status": "success",
@@ -266,9 +273,9 @@ def list_users(user: Dict = Depends(require_admin)):
 
 
 @app.post("/api/users")
-def create_user(request: CreateUserRequest, user: Dict = Depends(require_admin)):
+def create_user(request: CreateUserRequest, user: Dict = Depends(require_user_admin)):
     """
-    Create a new user (admin only)
+    Create a new user (admin only - managers cannot access)
 
     Returns temporary password to share with the user
     """
@@ -301,8 +308,8 @@ def create_user(request: CreateUserRequest, user: Dict = Depends(require_admin))
 
 
 @app.put("/api/users/{user_id}/role")
-def update_user_role(user_id: str, request: UpdateUserRoleRequest, admin: Dict = Depends(require_admin)):
-    """Update a user's role (admin only)"""
+def update_user_role(user_id: str, request: UpdateUserRoleRequest, admin: Dict = Depends(require_user_admin)):
+    """Update a user's role (admin only - managers cannot access)"""
     result = database.update_user_role(user_id, request.role, admin["id"])
 
     if result.get("error"):
@@ -318,8 +325,8 @@ def update_user_role(user_id: str, request: UpdateUserRoleRequest, admin: Dict =
 
 
 @app.delete("/api/users/{user_id}")
-def delete_user(user_id: str, admin: Dict = Depends(require_admin)):
-    """Delete a user (admin only)"""
+def delete_user(user_id: str, admin: Dict = Depends(require_user_admin)):
+    """Delete a user (admin only - managers cannot access)"""
     # Get user info before deletion for logging
     deleted_user = database.get_user_by_id(user_id)
 
@@ -345,9 +352,9 @@ def delete_user(user_id: str, admin: Dict = Depends(require_admin)):
 
 
 @app.post("/api/users/{user_id}/reset-password")
-def reset_user_password(user_id: str, admin: Dict = Depends(require_admin)):
+def reset_user_password(user_id: str, admin: Dict = Depends(require_user_admin)):
     """
-    Reset a user's password (admin only)
+    Reset a user's password (admin only - managers cannot access)
 
     Returns new temporary password
     """
