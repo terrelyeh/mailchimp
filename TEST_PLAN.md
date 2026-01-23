@@ -37,8 +37,8 @@
 
 | 角色 | Email | 密碼 | 用途 |
 |------|-------|------|------|
-| Admin | [admin@example.com] | [password] | 測試所有功能 |
-| Viewer | [viewer@example.com] | [password] | 測試權限限制 |
+| Admin | terrel.yeh@senao.com | 12345678 | 測試所有功能 |
+| Viewer | viewer.test@senao.com | test1234 | 測試權限限制 |
 
 ---
 
