@@ -165,19 +165,33 @@ const RegionCard = ({ region, data, regionActivity, onClick }) => {
           </span>
         </div>
 
-        {/* Last Campaign */}
-        {lastCampaign && (
-          <div className={`flex items-center justify-between pt-3 mt-3 border-t border-gray-100 ${lastCampaign.isInactive ? 'text-red-600' : 'text-gray-500'}`}>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span className="text-xs">Last Campaign</span>
+        {/* Last Campaign - use regionActivity for accurate date (not affected by date filter) */}
+        {(() => {
+          // Prefer regionActivity over filtered data for Last Campaign
+          const hasActivityInfo = regionActivity && regionActivity.last_campaign_date;
+          const daysSince = hasActivityInfo ? regionActivity.days_since : lastCampaign?.daysSince;
+          const isInactive = daysSince > 30;
+          const displayDate = hasActivityInfo
+            ? (daysSince <= 7
+                ? formatDistanceToNow(new Date(regionActivity.last_campaign_date), { addSuffix: true })
+                : format(new Date(regionActivity.last_campaign_date), 'MMM d'))
+            : lastCampaign?.formatted;
+
+          if (!hasActivityInfo && !lastCampaign) return null;
+
+          return (
+            <div className={`flex items-center justify-between pt-3 mt-3 border-t border-gray-100 ${isInactive ? 'text-red-600' : 'text-gray-500'}`}>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span className="text-xs">Last Campaign</span>
+              </div>
+              <span className={`text-xs font-medium ${isInactive ? 'text-red-600' : 'text-gray-600'}`}>
+                {displayDate}
+                {isInactive && ' ⚠️'}
+              </span>
             </div>
-            <span className={`text-xs font-medium ${lastCampaign.isInactive ? 'text-red-600' : 'text-gray-600'}`}>
-              {lastCampaign.formatted}
-              {lastCampaign.isInactive && ' ⚠️'}
-            </span>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

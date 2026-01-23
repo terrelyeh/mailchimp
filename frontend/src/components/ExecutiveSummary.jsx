@@ -102,10 +102,21 @@ function calculateOverviewMetrics(data, regions, alertThresholds, regionsActivit
       (curr.open_rate || 0) > (best.open_rate || 0) ? curr : best
     , campaigns[0]);
 
-    // Find last campaign date
-    const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
-    const lastCampaignDate = new Date(sortedByDate[0].send_time);
-    const daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Find last campaign date - use regionsActivity for accuracy (not affected by date filter)
+    const activityInfo = regionsActivity[regionCode];
+    let lastCampaignDate;
+    let daysSinceLastCampaign;
+
+    if (activityInfo && activityInfo.last_campaign_date) {
+      // Use regionsActivity (accurate regardless of date filter)
+      lastCampaignDate = new Date(activityInfo.last_campaign_date);
+      daysSinceLastCampaign = activityInfo.days_since;
+    } else {
+      // Fallback to filtered data
+      const sortedByDate = [...campaigns].sort((a, b) => new Date(b.send_time) - new Date(a.send_time));
+      lastCampaignDate = new Date(sortedByDate[0].send_time);
+      daysSinceLastCampaign = Math.floor((Date.now() - lastCampaignDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
 
     regionStats.push({
       code: regionCode,

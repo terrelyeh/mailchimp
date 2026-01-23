@@ -385,9 +385,76 @@
 
 ---
 
-### 10. 響應式設計
+### 10. 資料一致性 (Data Consistency)
 
-#### TC-10.1: 桌面版 (1920x1080)
+#### TC-10.1: Last Campaign 日期一致性 - Home Dashboard
+```
+前置條件: 已登入，有至少一個 inactive region (>30 days)
+測試步驟:
+1. 選擇「Last 90 Days」時間範圍
+2. 記錄 Executive Summary 中某個區域（如 Japan）的 Last Campaign 日期
+3. 記錄 Region Cards 中相同區域的 Last Campaign 日期
+4. 切換到「Last 6 Months」
+5. 再次記錄相同區域的 Last Campaign 日期
+
+預期結果:
+- 同一區域的 Last Campaign 日期應該在所有地方顯示一致
+- 切換時間範圍後，Last Campaign 日期不應改變
+- Inactive Regions 卡片應該始終顯示（如果有 inactive region）
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-10.2: Last Campaign 日期一致性 - Region Detail
+```
+前置條件: 已登入
+測試步驟:
+1. 選擇「Last 90 Days」，進入某區域（如 Japan）詳情頁
+2. 記錄 Executive Summary 中的 Last Campaign 日期
+3. 返回 Overview
+4. 切換到「Last 6 Months」
+5. 再次進入相同區域詳情頁
+6. 記錄 Last Campaign 日期
+
+預期結果:
+- 兩次進入的 Last Campaign 日期應該相同
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-10.3: Inactive Region 卡片顯示
+```
+前置條件: 已登入，有 region 超過 30 天沒有 campaign
+測試步驟:
+1. 選擇「Last 30 Days」時間範圍
+2. 查看 Region Cards 區塊
+3. 找到 inactive region 的卡片
+
+預期結果:
+- 該卡片顯示「No campaigns in selected date range」訊息
+- 顯示 Last Campaign 日期和「X days ago」
+- 卡片有琥珀色邊框高亮顯示
+```
+結果: [ ] PASS  [ ] FAIL
+
+#### TC-10.4: Sync 後資料更新
+```
+前置條件: 已登入
+測試步驟:
+1. 記錄某區域的 Last Campaign 日期
+2. 點擊「Sync」按鈕
+3. 等待 Sync 完成
+4. 再次檢查 Last Campaign 日期
+
+預期結果:
+- Sync 後 Last Campaign 日期保持一致（或更新為最新）
+- 資料不會因 Sync 而變得不一致
+```
+結果: [ ] PASS  [ ] FAIL
+
+---
+
+### 11. 響應式設計
+
+#### TC-11.1: 桌面版 (1920x1080)
 ```
 測試步驟:
 1. 將視窗調整為 1920x1080
@@ -399,7 +466,7 @@
 ```
 結果: [ ] PASS  [ ] FAIL
 
-#### TC-10.2: 平板版 (768x1024)
+#### TC-11.2: 平板版 (768x1024)
 ```
 測試步驟:
 1. 將視窗調整為 768x1024
@@ -426,8 +493,9 @@
 | Activity Logs | 2 | | |
 | API Diagnostics | 2 | | |
 | Share Link | 2 | | |
+| 資料一致性 | 4 | | |
 | 響應式設計 | 2 | | |
-| **總計** | **24** | | |
+| **總計** | **28** | | |
 
 ---
 
