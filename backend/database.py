@@ -1503,10 +1503,10 @@ def _ensure_comparison_tables():
 
 def search_campaigns(keyword: str, region: str = None, limit: int = 50):
     """
-    Search campaigns by keyword (title) across all regions or a specific region.
+    Search campaigns by keyword (title or subject_line) across all regions or a specific region.
 
     Args:
-        keyword: Search keyword for campaign title
+        keyword: Search keyword for campaign title or subject line
         region: Optional region filter
         limit: Maximum results to return
 
@@ -1517,22 +1517,24 @@ def search_campaigns(keyword: str, region: str = None, limit: int = 50):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
+    like_pattern = f'%{keyword}%'
+
     if region:
         c.execute("""
             SELECT id, region, title, send_time, data_json
             FROM campaigns
-            WHERE title LIKE ? AND region = ?
+            WHERE (title LIKE ? OR json_extract(data_json, '$.subject_line') LIKE ?) AND region = ?
             ORDER BY send_time DESC
             LIMIT ?
-        """, (f'%{keyword}%', region, limit))
+        """, (like_pattern, like_pattern, region, limit))
     else:
         c.execute("""
             SELECT id, region, title, send_time, data_json
             FROM campaigns
-            WHERE title LIKE ?
+            WHERE (title LIKE ? OR json_extract(data_json, '$.subject_line') LIKE ?)
             ORDER BY send_time DESC
             LIMIT ?
-        """, (f'%{keyword}%', limit))
+        """, (like_pattern, like_pattern, limit))
 
     rows = c.fetchall()
     conn.close()
@@ -1541,10 +1543,15 @@ def search_campaigns(keyword: str, region: str = None, limit: int = 50):
     for row in rows:
         try:
             data = json.loads(row['data_json'])
+            title = row['title'] or ''
+            subject_line = data.get('subject_line', '')
+            # Use subject_line as display title if title is empty
+            display_title = title if title.strip() else subject_line
             results.append({
                 "id": row['id'],
                 "region": row['region'],
-                "title": row['title'],
+                "title": display_title,
+                "subject_line": subject_line,
                 "send_time": row['send_time'],
                 "open_rate": data.get('open_rate'),
                 "click_rate": data.get('click_rate'),
@@ -1689,16 +1696,24 @@ def get_comparison_group(group_id: int):
 
     items = []
     for row in item_rows:
+        title = row['title'] or ''
+        subject_line = ''
         item = {
             "campaign_id": row['campaign_id'],
             "region": row['region'],
-            "title": row['title'],
+            "title": title,
+            "subject_line": '',
             "send_time": row['send_time'],
         }
         if row['data_json']:
             try:
                 data = json.loads(row['data_json'])
+                subject_line = data.get('subject_line', '')
+                # Use subject_line as display title if title is empty
+                if not title.strip():
+                    item["title"] = subject_line
                 item.update({
+                    "subject_line": subject_line,
                     "open_rate": data.get('open_rate'),
                     "click_rate": data.get('click_rate'),
                     "emails_sent": data.get('emails_sent'),

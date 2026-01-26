@@ -244,9 +244,14 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                 >
                   {regionInfo.flag} {regionInfo.code}
                 </span>
-                <p className="text-sm font-medium text-gray-900 truncate leading-tight" title={item.title}>
-                  {item.title || '-'}
+                <p className="text-sm font-medium text-gray-900 truncate leading-tight" title={item.title || item.subject_line}>
+                  {item.title || item.subject_line || '-'}
                 </p>
+                {item.subject_line && item.title && item.subject_line !== item.title && (
+                  <p className="text-[11px] text-gray-400 truncate" title={item.subject_line}>
+                    {item.subject_line}
+                  </p>
+                )}
                 <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(item.send_time)}</p>
               </div>
 
@@ -528,7 +533,10 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                                     {selected && <Check className="w-3 h-3 text-white" />}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-gray-900 truncate">{campaign.title}</p>
+                                    <p className="text-sm text-gray-900 truncate">{campaign.title || campaign.subject_line}</p>
+                                    {campaign.subject_line && campaign.title && campaign.subject_line !== campaign.title && (
+                                      <p className="text-xs text-gray-400 truncate">{campaign.subject_line}</p>
+                                    )}
                                     <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
                                       <span>{formatDate(campaign.send_time)}</span>
                                       <span>Sent: {formatNumber(campaign.emails_sent)}</span>

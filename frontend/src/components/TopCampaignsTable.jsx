@@ -123,12 +123,14 @@ export default function TopCampaignsTable({ data, topN = 5 }) {
                   <td className="py-3 px-2">
                     <div className="max-w-xs">
                       <p className="font-semibold text-gray-900 text-sm truncate">
-                        {campaign.title}
+                        {(campaign.title && campaign.title.trim()) ? campaign.title : campaign.subject_line}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {campaign.subject_line}
-                      </p>
-                      {campaign.segment_text && (
+                      {campaign.subject_line && campaign.title && campaign.title.trim() && campaign.subject_line !== campaign.title && (
+                        <p className="text-xs text-gray-500 truncate">
+                          {campaign.subject_line}
+                        </p>
+                      )}
+                      {campaign.segment_text && !campaign.segment_text.startsWith('<') && (
                         <div className="flex items-center gap-1 text-xs text-purple-600 mt-0.5">
                           <Users className="w-3 h-3" />
                           <span className="truncate" title={campaign.segment_text}>
