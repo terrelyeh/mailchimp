@@ -8,6 +8,8 @@ venv/
 .env
 backend/.env
 backend/campaign_cache.db
+backend/dashboard.db
+*.db
 
 # Node
 node_modules/
