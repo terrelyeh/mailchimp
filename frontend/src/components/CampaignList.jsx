@@ -185,10 +185,15 @@ export default function CampaignList({ data, isExporting = false, audiences = []
 
                             // Get audience total member count for segment coverage calculation
                             const audienceMemberCount = campaign.audience_id ? audienceMemberMap[campaign.audience_id] : null;
-                            const hasSegmentCoverage = segmentName && audienceMemberCount && audienceMemberCount > 0;
-                            const segmentCoveragePercent = hasSegmentCoverage
-                                ? ((campaign.emails_sent / audienceMemberCount) * 100).toFixed(1)
+
+                            // Show coverage info if:
+                            // 1. We have a segment name, OR
+                            // 2. emails_sent is less than 95% of audience size (indicates segment/filter was used)
+                            const coveragePercent = audienceMemberCount && audienceMemberCount > 0
+                                ? ((campaign.emails_sent / audienceMemberCount) * 100)
                                 : null;
+                            const hasSegmentCoverage = audienceMemberCount && audienceMemberCount > 0 &&
+                                (segmentName || (coveragePercent && coveragePercent < 95));
 
                             return (
                                 <tr
@@ -258,7 +263,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                         {hasSegmentCoverage && (
                                             <div className="text-xs text-gray-400 tabular-nums">
                                                 of {audienceMemberCount.toLocaleString()}
-                                                <span className="text-purple-500 ml-1">({segmentCoveragePercent}%)</span>
+                                                <span className="text-purple-500 ml-1">({coveragePercent.toFixed(1)}%)</span>
                                             </div>
                                         )}
                                     </td>
