@@ -212,7 +212,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
     return (
       <div className="space-y-0">
         {/* Table Header */}
-        <div className="grid grid-cols-12 gap-0 px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <div className="grid grid-cols-12 gap-0 px-4 py-3 bg-gray-100/80 border-b-2 border-gray-300 text-xs font-semibold text-gray-500 uppercase tracking-wider">
           <div className="col-span-3">Campaign</div>
           <div className="col-span-2 text-center">Delivery</div>
           <div className="col-span-2 text-center">Open Rate</div>
@@ -322,9 +322,9 @@ export default function CompareModal({ isOpen, onClose, regions }) {
 
         {/* Summary row */}
         {items.length > 1 && (
-          <div className="grid grid-cols-12 gap-0 px-4 py-3 bg-gray-50 border-t-2 border-gray-200">
-            <div className="col-span-3">
-              <span className="text-xs font-semibold text-gray-500 uppercase">Average</span>
+          <div className="grid grid-cols-12 gap-0 px-4 py-3.5 bg-gray-100/80 border-t-2 border-gray-300">
+            <div className="col-span-3 flex items-center">
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Summary (Avg)</span>
             </div>
             <div className="col-span-2 flex flex-col items-center justify-center">
               <span className="text-sm font-semibold text-gray-700">
