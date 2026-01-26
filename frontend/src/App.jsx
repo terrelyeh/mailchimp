@@ -26,7 +26,7 @@ import {
   getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth,
   getExcludedAudiences, logActivity
 } from './api';
-import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle, Layers } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle, Layers, ChevronRight } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 // Helper function to detect share token from URL synchronously (must be outside component)
@@ -835,10 +835,16 @@ function App() {
                   <div className="mt-6">
                     <button
                       onClick={() => setCompareModalOpen(true)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 hover:border-[#007C89] hover:bg-[#007C89]/5 rounded-xl text-gray-500 hover:text-[#007C89] transition-colors group"
+                      className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200 hover:border-amber-300 rounded-xl transition-all group shadow-sm"
                     >
-                      <Layers className="w-5 h-5" />
-                      <span className="font-medium text-sm">Compare Campaigns Across Regions</span>
+                      <div className="p-2 bg-amber-100 group-hover:bg-amber-200 rounded-lg transition-colors">
+                        <Layers className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div className="text-left">
+                        <span className="font-semibold text-sm text-gray-800 block">Compare Campaigns Across Regions</span>
+                        <span className="text-xs text-gray-500">Search, compare, and save cross-region campaign performance</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-500 transition-colors ml-auto" />
                     </button>
                   </div>
                 )}
