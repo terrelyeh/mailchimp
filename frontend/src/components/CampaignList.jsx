@@ -34,10 +34,21 @@ const RateBadge = ({ value, threshold, invertWarning = false, suffix = '%' }) =>
     );
 };
 
-export default function CampaignList({ data, isExporting = false }) {
+export default function CampaignList({ data, isExporting = false, audiences = [] }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sort, setSort] = useState({ field: 'send_time', direction: 'desc' });
     const itemsPerPage = isExporting ? data.length : 15; // Show all when exporting
+
+    // Create a map of audience_id → member_count for quick lookup
+    const audienceMemberMap = useMemo(() => {
+        const map = {};
+        audiences.forEach(aud => {
+            if (aud && aud.id) {
+                map[aud.id] = aud.member_count || 0;
+            }
+        });
+        return map;
+    }, [audiences]);
 
     // Reset to page 1 when data changes
     useEffect(() => {
@@ -172,6 +183,13 @@ export default function CampaignList({ data, isExporting = false }) {
                                 ? campaign.segment_text
                                 : null;
 
+                            // Get audience total member count for segment coverage calculation
+                            const audienceMemberCount = campaign.audience_id ? audienceMemberMap[campaign.audience_id] : null;
+                            const hasSegmentCoverage = segmentName && audienceMemberCount && audienceMemberCount > 0;
+                            const segmentCoveragePercent = hasSegmentCoverage
+                                ? ((campaign.emails_sent / audienceMemberCount) * 100).toFixed(1)
+                                : null;
+
                             return (
                                 <tr
                                     key={campaign.id}
@@ -234,9 +252,15 @@ export default function CampaignList({ data, isExporting = false }) {
 
                                     {/* Emails Sent */}
                                     <td className="px-3 md:px-4 py-3 text-right">
-                                        <span className="font-semibold text-gray-900 tabular-nums">
+                                        <div className="font-semibold text-gray-900 tabular-nums">
                                             {campaign.emails_sent?.toLocaleString() || 0}
-                                        </span>
+                                        </div>
+                                        {hasSegmentCoverage && (
+                                            <div className="text-xs text-gray-400 tabular-nums">
+                                                of {audienceMemberCount.toLocaleString()}
+                                                <span className="text-purple-500 ml-1">({segmentCoveragePercent}%)</span>
+                                            </div>
+                                        )}
                                     </td>
 
                                     {/* Delivery Rate */}
