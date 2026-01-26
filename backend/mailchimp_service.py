@@ -90,13 +90,16 @@ class MailchimpClient:
             })
         return lists
 
-    def get_segment_name(self, list_id, segment_id):
-        """Fetch segment name by ID"""
+    def get_segment_info(self, list_id, segment_id):
+        """Fetch segment info (name and member_count) by ID"""
         if not list_id or not segment_id:
             return None
         data = self._get(f"/lists/{list_id}/segments/{segment_id}")
         if data:
-            return data.get('name', '')
+            return {
+                'name': data.get('name', ''),
+                'member_count': data.get('member_count', 0)
+            }
         return None
 
     def get_campaigns(self, days=30, status="sent", count=1000):
@@ -145,18 +148,27 @@ class MailchimpClient:
                     segment_opts.get('match', '')  # Fallback to match type if no name
                 )
 
-                # If we have segment_id but no text, try to fetch segment name
-                if segment_id and not segment_text:
+                # Segment member count (will be fetched if segment_id exists)
+                segment_member_count = None
+
+                # If we have segment_id, try to fetch segment info (name and member_count)
+                if segment_id:
                     # Use cache to avoid redundant API calls
                     cache_key = f"{list_id}:{segment_id}"
                     if not hasattr(self, '_segment_cache'):
                         self._segment_cache = {}
 
                     if cache_key not in self._segment_cache:
-                        segment_name = self.get_segment_name(list_id, segment_id)
-                        self._segment_cache[cache_key] = segment_name or f"Segment #{segment_id}"
+                        segment_info = self.get_segment_info(list_id, segment_id)
+                        if segment_info:
+                            self._segment_cache[cache_key] = segment_info
+                        else:
+                            self._segment_cache[cache_key] = {'name': f"Segment #{segment_id}", 'member_count': 0}
 
-                    segment_text = self._segment_cache[cache_key]
+                    cached_info = self._segment_cache[cache_key]
+                    if not segment_text:
+                        segment_text = cached_info.get('name', '')
+                    segment_member_count = cached_info.get('member_count', 0)
 
                 all_campaigns.append({
                     "id": c['id'],
@@ -171,6 +183,7 @@ class MailchimpClient:
                     "audience_name": list_name,
                     "segment_id": segment_id,
                     "segment_text": segment_text,
+                    "segment_member_count": segment_member_count,
                     "recipient_count": recipients.get('recipient_count', 0)
                 })
 

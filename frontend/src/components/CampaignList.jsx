@@ -183,12 +183,23 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                 ? campaign.segment_text
                                 : null;
 
-                            // Get audience total member count for segment coverage calculation
+                            // Get segment member count (from Mailchimp segment API) or audience member count as fallback
+                            const segmentMemberCount = campaign.segment_member_count || null;
                             const audienceMemberCount = campaign.audience_id ? audienceMemberMap[campaign.audience_id] : null;
-                            const hasSegmentCoverage = segmentName && audienceMemberCount && audienceMemberCount > 0;
-                            const segmentCoveragePercent = hasSegmentCoverage
-                                ? ((campaign.emails_sent / audienceMemberCount) * 100).toFixed(1)
+
+                            // Determine which total to use for coverage calculation:
+                            // 1. If segment_member_count exists (from Mailchimp API), use it
+                            // 2. Otherwise, fall back to audience member count
+                            const totalForCoverage = segmentMemberCount || audienceMemberCount;
+                            const coveragePercent = totalForCoverage && totalForCoverage > 0
+                                ? ((campaign.emails_sent / totalForCoverage) * 100)
                                 : null;
+
+                            // Show coverage info if:
+                            // 1. We have segment_member_count (confirmed segment), OR
+                            // 2. emails_sent is less than 95% of audience size (indicates segment/filter was used)
+                            const hasSegmentCoverage = (segmentMemberCount && segmentMemberCount > 0) ||
+                                (audienceMemberCount && audienceMemberCount > 0 && coveragePercent && coveragePercent < 95);
 
                             return (
                                 <tr
@@ -255,10 +266,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                         <div className="font-semibold text-gray-900 tabular-nums">
                                             {campaign.emails_sent?.toLocaleString() || 0}
                                         </div>
-                                        {hasSegmentCoverage && (
+                                        {hasSegmentCoverage && totalForCoverage && (
                                             <div className="text-xs text-gray-400 tabular-nums">
-                                                of {audienceMemberCount.toLocaleString()}
-                                                <span className="text-purple-500 ml-1">({segmentCoveragePercent}%)</span>
+                                                of {totalForCoverage.toLocaleString()}
+                                                <span className="text-purple-500 ml-1">({coveragePercent.toFixed(1)}%)</span>
                                             </div>
                                         )}
                                     </td>
