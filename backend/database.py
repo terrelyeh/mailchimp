@@ -1469,5 +1469,292 @@ def cleanup_old_activity_logs(days: int = 90):
     return deleted
 
 
+# ============================================
+# Comparison Groups Functions
+# ============================================
+
+def _ensure_comparison_tables():
+    """Ensure comparison tables exist"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS comparison_groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS comparison_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL,
+            campaign_id TEXT NOT NULL,
+            region TEXT NOT NULL,
+            FOREIGN KEY (group_id) REFERENCES comparison_groups(id) ON DELETE CASCADE,
+            UNIQUE(group_id, campaign_id, region)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+def search_campaigns(keyword: str, region: str = None, limit: int = 50):
+    """
+    Search campaigns by keyword (title) across all regions or a specific region.
+
+    Args:
+        keyword: Search keyword for campaign title
+        region: Optional region filter
+        limit: Maximum results to return
+
+    Returns:
+        List of matching campaign dicts with basic info
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    if region:
+        c.execute("""
+            SELECT id, region, title, send_time, data_json
+            FROM campaigns
+            WHERE title LIKE ? AND region = ?
+            ORDER BY send_time DESC
+            LIMIT ?
+        """, (f'%{keyword}%', region, limit))
+    else:
+        c.execute("""
+            SELECT id, region, title, send_time, data_json
+            FROM campaigns
+            WHERE title LIKE ?
+            ORDER BY send_time DESC
+            LIMIT ?
+        """, (f'%{keyword}%', limit))
+
+    rows = c.fetchall()
+    conn.close()
+
+    results = []
+    for row in rows:
+        try:
+            data = json.loads(row['data_json'])
+            results.append({
+                "id": row['id'],
+                "region": row['region'],
+                "title": row['title'],
+                "send_time": row['send_time'],
+                "open_rate": data.get('open_rate'),
+                "click_rate": data.get('click_rate'),
+                "emails_sent": data.get('emails_sent'),
+                "unique_opens": data.get('unique_opens'),
+                "unique_clicks": data.get('unique_clicks'),
+                "unsubscribed": data.get('unsubscribed'),
+                "bounce_rate": data.get('bounce_rate'),
+                "audience_name": data.get('audience_name', ''),
+                "segment_text": data.get('segment_text', ''),
+                "segment_member_count": data.get('segment_member_count'),
+            })
+        except Exception as e:
+            logger.warning(f"Failed to parse campaign JSON in search: {e}")
+
+    return results
+
+
+def create_comparison_group(name: str, description: str = None, created_by: str = None, campaign_items: list = None):
+    """
+    Create a new comparison group with campaign items.
+
+    Args:
+        name: Group name
+        description: Optional description
+        created_by: User ID who created it
+        campaign_items: List of dicts with campaign_id and region
+
+    Returns:
+        dict with group info
+    """
+    _ensure_comparison_tables()
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute('''
+        INSERT INTO comparison_groups (name, description, created_by)
+        VALUES (?, ?, ?)
+    ''', (name, description, created_by))
+
+    group_id = c.lastrowid
+
+    if campaign_items:
+        for item in campaign_items:
+            try:
+                c.execute('''
+                    INSERT INTO comparison_items (group_id, campaign_id, region)
+                    VALUES (?, ?, ?)
+                ''', (group_id, item['campaign_id'], item['region']))
+            except sqlite3.IntegrityError:
+                pass  # Skip duplicates
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Created comparison group '{name}' with {len(campaign_items or [])} items")
+
+    return {
+        "id": group_id,
+        "name": name,
+        "description": description,
+        "created_by": created_by,
+        "item_count": len(campaign_items or [])
+    }
+
+
+def list_comparison_groups():
+    """
+    List all comparison groups with item counts.
+
+    Returns:
+        List of comparison group dicts
+    """
+    _ensure_comparison_tables()
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute('''
+        SELECT g.id, g.name, g.description, g.created_by, g.created_at, g.updated_at,
+               COUNT(i.id) as item_count
+        FROM comparison_groups g
+        LEFT JOIN comparison_items i ON g.id = i.group_id
+        GROUP BY g.id
+        ORDER BY g.updated_at DESC
+    ''')
+
+    rows = c.fetchall()
+    conn.close()
+
+    return [{
+        "id": row['id'],
+        "name": row['name'],
+        "description": row['description'],
+        "created_by": row['created_by'],
+        "created_at": row['created_at'],
+        "updated_at": row['updated_at'],
+        "item_count": row['item_count']
+    } for row in rows]
+
+
+def get_comparison_group(group_id: int):
+    """
+    Get a comparison group with full campaign data.
+
+    Args:
+        group_id: ID of the comparison group
+
+    Returns:
+        dict with group info and campaign data, or None if not found
+    """
+    _ensure_comparison_tables()
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Get group info
+    c.execute('''
+        SELECT id, name, description, created_by, created_at, updated_at
+        FROM comparison_groups WHERE id = ?
+    ''', (group_id,))
+
+    group_row = c.fetchone()
+    if not group_row:
+        conn.close()
+        return None
+
+    # Get items with full campaign data
+    c.execute('''
+        SELECT i.campaign_id, i.region, c.title, c.send_time, c.data_json
+        FROM comparison_items i
+        LEFT JOIN campaigns c ON i.campaign_id = c.id AND i.region = c.region
+        WHERE i.group_id = ?
+        ORDER BY i.region, c.send_time DESC
+    ''', (group_id,))
+
+    item_rows = c.fetchall()
+    conn.close()
+
+    items = []
+    for row in item_rows:
+        item = {
+            "campaign_id": row['campaign_id'],
+            "region": row['region'],
+            "title": row['title'],
+            "send_time": row['send_time'],
+        }
+        if row['data_json']:
+            try:
+                data = json.loads(row['data_json'])
+                item.update({
+                    "open_rate": data.get('open_rate'),
+                    "click_rate": data.get('click_rate'),
+                    "emails_sent": data.get('emails_sent'),
+                    "unique_opens": data.get('unique_opens'),
+                    "unique_clicks": data.get('unique_clicks'),
+                    "unsubscribed": data.get('unsubscribed'),
+                    "bounce_rate": data.get('bounce_rate'),
+                    "audience_name": data.get('audience_name', ''),
+                    "segment_text": data.get('segment_text', ''),
+                    "segment_member_count": data.get('segment_member_count'),
+                })
+            except Exception as e:
+                logger.warning(f"Failed to parse campaign data: {e}")
+        items.append(item)
+
+    return {
+        "id": group_row['id'],
+        "name": group_row['name'],
+        "description": group_row['description'],
+        "created_by": group_row['created_by'],
+        "created_at": group_row['created_at'],
+        "updated_at": group_row['updated_at'],
+        "items": items
+    }
+
+
+def delete_comparison_group(group_id: int):
+    """
+    Delete a comparison group and its items.
+
+    Args:
+        group_id: ID of the comparison group
+
+    Returns:
+        True if deleted, False if not found
+    """
+    _ensure_comparison_tables()
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Delete items first
+    c.execute('DELETE FROM comparison_items WHERE group_id = ?', (group_id,))
+    # Delete group
+    c.execute('DELETE FROM comparison_groups WHERE id = ?', (group_id,))
+
+    deleted = c.rowcount > 0
+    conn.commit()
+    conn.close()
+
+    if deleted:
+        logger.info(f"Deleted comparison group {group_id}")
+
+    return deleted
+
+
 # Initialize on module load or explicitly
+_ensure_comparison_tables()
 init_db()

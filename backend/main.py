@@ -1374,3 +1374,131 @@ def cleanup_activity_logs_endpoint(
         "deleted_count": deleted,
         "message": f"Deleted logs older than {days} days"
     }
+
+
+# ============================================
+# Campaign Comparison API Endpoints
+# ============================================
+
+class CreateComparisonGroupRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    items: List[Dict[str, str]]  # [{campaign_id, region}, ...]
+
+
+@app.get("/api/campaigns/search")
+def search_campaigns_endpoint(
+    q: str,
+    region: Optional[str] = None,
+    limit: int = 50,
+    user: Dict = Depends(require_auth)
+):
+    """
+    Search campaigns by keyword across all regions or a specific region.
+
+    Query parameters:
+    - q: Search keyword (matches campaign title)
+    - region: Optional region filter
+    - limit: Max results (default 50)
+    """
+    if not q or len(q.strip()) < 1:
+        raise HTTPException(status_code=400, detail="Search query is required")
+
+    results = database.search_campaigns(q.strip(), region=region, limit=limit)
+    return {
+        "status": "success",
+        "query": q,
+        "region": region,
+        "count": len(results),
+        "campaigns": results
+    }
+
+
+@app.post("/api/comparisons")
+def create_comparison_group_endpoint(
+    request: CreateComparisonGroupRequest,
+    user: Dict = Depends(require_auth)
+):
+    """
+    Create a new comparison group with selected campaigns.
+
+    Request body:
+    - name: Group name (e.g., "Product X Launch")
+    - description: Optional description
+    - items: List of {campaign_id, region} objects
+    """
+    if not request.name.strip():
+        raise HTTPException(status_code=400, detail="Group name is required")
+    if not request.items or len(request.items) < 1:
+        raise HTTPException(status_code=400, detail="At least one campaign item is required")
+
+    result = database.create_comparison_group(
+        name=request.name.strip(),
+        description=request.description,
+        created_by=user.get("id"),
+        campaign_items=request.items
+    )
+
+    # Log activity
+    database.log_activity(
+        user_id=user["id"],
+        user_email=user["email"],
+        action="create_comparison",
+        details={"group_name": request.name, "item_count": len(request.items)}
+    )
+
+    return {
+        "status": "success",
+        "group": result
+    }
+
+
+@app.get("/api/comparisons")
+def list_comparison_groups_endpoint(user: Dict = Depends(require_auth)):
+    """
+    List all comparison groups with item counts.
+    """
+    groups = database.list_comparison_groups()
+    return {
+        "status": "success",
+        "count": len(groups),
+        "groups": groups
+    }
+
+
+@app.get("/api/comparisons/{group_id}")
+def get_comparison_group_endpoint(group_id: int, user: Dict = Depends(require_auth)):
+    """
+    Get a comparison group with full campaign data for comparison table.
+    """
+    group = database.get_comparison_group(group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Comparison group not found")
+
+    return {
+        "status": "success",
+        "group": group
+    }
+
+
+@app.delete("/api/comparisons/{group_id}")
+def delete_comparison_group_endpoint(group_id: int, user: Dict = Depends(require_auth)):
+    """
+    Delete a comparison group.
+    """
+    deleted = database.delete_comparison_group(group_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Comparison group not found")
+
+    # Log activity
+    database.log_activity(
+        user_id=user["id"],
+        user_email=user["email"],
+        action="delete_comparison",
+        details={"group_id": group_id}
+    )
+
+    return {
+        "status": "success",
+        "message": f"Comparison group {group_id} deleted"
+    }

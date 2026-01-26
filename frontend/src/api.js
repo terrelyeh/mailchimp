@@ -647,3 +647,82 @@ export const cleanupActivityLogs = async (days = 90) => {
         return { status: 'error', error: error.message };
     }
 };
+
+// ============================================
+// Campaign Comparison API Functions
+// ============================================
+
+/**
+ * Search campaigns by keyword across all regions
+ * @param {string} query - Search keyword
+ * @param {string|null} region - Optional region filter
+ * @param {number} limit - Max results (default 50)
+ */
+export const searchCampaigns = async (query, region = null, limit = 50) => {
+    try {
+        const params = { q: query, limit };
+        if (region) params.region = region;
+        const response = await api.get('/campaigns/search', { params });
+        return response.data;
+    } catch (error) {
+        console.error('Failed to search campaigns:', error);
+        return { status: 'error', campaigns: [], error: error.message };
+    }
+};
+
+/**
+ * Create a new comparison group
+ * @param {string} name - Group name
+ * @param {Array} items - Array of {campaign_id, region}
+ * @param {string|null} description - Optional description
+ */
+export const createComparisonGroup = async (name, items, description = null) => {
+    try {
+        const response = await api.post('/comparisons', { name, items, description });
+        return response.data;
+    } catch (error) {
+        console.error('Failed to create comparison group:', error);
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * List all comparison groups
+ */
+export const listComparisonGroups = async () => {
+    try {
+        const response = await api.get('/comparisons');
+        return response.data;
+    } catch (error) {
+        console.error('Failed to list comparison groups:', error);
+        return { status: 'error', groups: [], error: error.message };
+    }
+};
+
+/**
+ * Get a comparison group with full campaign data
+ * @param {number} groupId - Group ID
+ */
+export const getComparisonGroup = async (groupId) => {
+    try {
+        const response = await api.get(`/comparisons/${groupId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Failed to get comparison group:', error);
+        return { status: 'error', error: error.message };
+    }
+};
+
+/**
+ * Delete a comparison group
+ * @param {number} groupId - Group ID
+ */
+export const deleteComparisonGroup = async (groupId) => {
+    try {
+        const response = await api.delete(`/comparisons/${groupId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Failed to delete comparison group:', error);
+        return { status: 'error', error: error.message };
+    }
+};

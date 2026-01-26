@@ -17,6 +17,7 @@ import ChangePasswordModal from './components/ChangePasswordModal';
 import UserProfileDropdown from './components/UserProfileDropdown';
 import AIAnalysisButton from './components/AIAnalysisButton';
 import AIAnalysisModal from './components/AIAnalysisModal';
+import CompareModal from './components/CompareModal';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
 import {
@@ -25,7 +26,7 @@ import {
   getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth,
   getExcludedAudiences, logActivity
 } from './api';
-import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Share2, Lock, AlertTriangle, Layers } from 'lucide-react';
 import { MOCK_REGIONS_DATA, REGIONS, getRegionInfo } from './mockData';
 
 // Helper function to detect share token from URL synchronously (must be outside component)
@@ -71,6 +72,9 @@ function App() {
   const [aiContext, setAiContext] = useState(null);
   const [aiError, setAiError] = useState(null);
   const [aiScreenshot, setAiScreenshot] = useState(null);
+
+  // Compare modal state
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
 
   // Share link access states - use pre-detected token to prevent login flash
   const [shareToken, setShareToken] = useState(initialShareToken);
@@ -825,6 +829,19 @@ function App() {
                     onRegionClick={handleRegionClick}
                   />
                 </div>
+
+                {/* Compare Campaigns Entry Point */}
+                {isAuthenticated && !isShareLinkAccess && (
+                  <div className="mt-6">
+                    <button
+                      onClick={() => setCompareModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 hover:border-[#007C89] hover:bg-[#007C89]/5 rounded-xl text-gray-500 hover:text-[#007C89] transition-colors group"
+                    >
+                      <Layers className="w-5 h-5" />
+                      <span className="font-medium text-sm">Compare Campaigns Across Regions</span>
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -932,6 +949,13 @@ function App() {
           isAdmin={user?.role === 'admin' || user?.role === 'manager'}
         />
       )}
+
+      {/* Compare Modal */}
+      <CompareModal
+        isOpen={compareModalOpen}
+        onClose={() => setCompareModalOpen(false)}
+        regions={availableRegions}
+      />
 
       {/* AI Analysis Modal */}
       <AIAnalysisModal
