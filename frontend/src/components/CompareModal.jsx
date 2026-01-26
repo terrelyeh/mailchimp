@@ -6,14 +6,11 @@ import { getRegionInfo } from '../mockData';
 // Strip HTML tags from segment text
 function cleanSegmentText(text) {
   if (!text) return '';
-  // If it starts with HTML tag, it's raw HTML from Mailchimp API - skip it
   if (text.startsWith('<')) return '';
-  // Also clean any inline HTML tags
   return text.replace(/<[^>]*>/g, '').trim();
 }
 
 export default function CompareModal({ isOpen, onClose, regions }) {
-  // Tab state: 'new' or 'saved'
   const [activeTab, setActiveTab] = useState('new');
 
   // Step 1: Search & Select
@@ -50,7 +47,14 @@ export default function CompareModal({ isOpen, onClose, regions }) {
     }
   }, [isOpen]);
 
-  // Load saved groups when Saved tab is active
+  // Load saved groups immediately when modal opens (so Saved tab count is correct)
+  useEffect(() => {
+    if (isOpen) {
+      loadSavedGroups();
+    }
+  }, [isOpen]);
+
+  // Also reload when switching to saved tab
   useEffect(() => {
     if (isOpen && activeTab === 'saved') {
       loadSavedGroups();
@@ -111,6 +115,8 @@ export default function CompareModal({ isOpen, onClose, regions }) {
     const result = await createComparisonGroup(groupName.trim(), items, groupDescription.trim() || null);
     if (result.status === 'success') {
       setSaveSuccess(true);
+      // Reload saved groups so count updates
+      loadSavedGroups();
       setTimeout(() => setSaveSuccess(false), 3000);
     }
     setSaving(false);
@@ -156,11 +162,6 @@ export default function CompareModal({ isOpen, onClose, regions }) {
     return (rate * 100).toFixed(2) + '%';
   };
 
-  const formatRateValue = (rate) => {
-    if (rate == null) return 0;
-    return rate * 100;
-  };
-
   const formatNumber = (num) => {
     if (num == null) return '-';
     return num.toLocaleString();
@@ -195,182 +196,308 @@ export default function CompareModal({ isOpen, onClose, regions }) {
     if (e.target === e.currentTarget) onClose();
   };
 
-  // Redesigned comparison table with better readability
-  const renderComparisonTable = (items) => {
-    if (!items || items.length === 0) {
-      return <p className="text-gray-500 text-sm text-center py-8">No campaigns to compare.</p>;
-    }
-
-    // Compute stats for relative bars and highlighting
-    const openRates = items.map(i => i.open_rate || 0);
-    const clickRates = items.map(i => i.click_rate || 0);
-    const sentCounts = items.map(i => i.emails_sent || 0);
-    const maxOpenRate = Math.max(...openRates);
-    const maxClickRate = Math.max(...clickRates);
-    const maxSent = Math.max(...sentCounts);
+  // Mobile card layout for a single comparison item
+  const renderMobileCard = (item, idx, isBestOpen, isBestClick) => {
+    const regionInfo = getRegionInfo(item.region);
+    const segmentClean = cleanSegmentText(item.segment_text);
 
     return (
-      <div className="space-y-0">
-        {/* Table Header */}
-        <div className="grid grid-cols-12 gap-0 px-4 py-3 bg-gray-100/80 border-b-2 border-gray-300 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          <div className="col-span-3">Campaign</div>
-          <div className="col-span-2 text-center">Delivery</div>
-          <div className="col-span-2 text-center">Open Rate</div>
-          <div className="col-span-2 text-center">Click Rate</div>
-          <div className="col-span-1 text-center">Unsubs</div>
-          <div className="col-span-2">Audience / Segment</div>
+      <div
+        key={`${item.campaign_id || item.id}-${item.region}-${idx}`}
+        className={`p-4 border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+      >
+        {/* Region + Title */}
+        <div className="flex items-start gap-2 mb-3">
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0 mt-0.5"
+            style={{ backgroundColor: regionInfo.color + '15', color: regionInfo.color }}
+          >
+            {regionInfo.flag} {regionInfo.code}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-900 leading-tight" title={item.title || item.subject_line}>
+              {item.title || item.subject_line || '-'}
+            </p>
+            {item.subject_line && item.title && item.subject_line !== item.title && (
+              <p className="text-[11px] text-gray-400 truncate">{item.subject_line}</p>
+            )}
+            <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(item.send_time)}</p>
+          </div>
         </div>
 
-        {/* Table Rows */}
-        {items.map((item, idx) => {
-          const regionInfo = getRegionInfo(item.region);
-          const isBestOpen = items.length > 1 && item.open_rate && item.open_rate === maxOpenRate;
-          const isBestClick = items.length > 1 && item.click_rate && item.click_rate === maxClickRate;
-          const openPct = maxOpenRate > 0 ? ((item.open_rate || 0) / maxOpenRate) * 100 : 0;
-          const clickPct = maxClickRate > 0 ? ((item.click_rate || 0) / maxClickRate) * 100 : 0;
+        {/* Metrics grid 2x2 */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gray-50 rounded-lg p-2.5">
+            <p className="text-[10px] text-gray-500 uppercase font-medium">Sent</p>
+            <p className="text-sm font-semibold text-gray-800">{formatNumber(item.emails_sent)}</p>
+            {item.unique_opens != null && (
+              <p className="text-[10px] text-gray-400">{formatNumber(item.unique_opens)} opened</p>
+            )}
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2.5">
+            <p className="text-[10px] text-gray-500 uppercase font-medium">Open Rate</p>
+            <p className={`text-sm font-bold tabular-nums ${isBestOpen ? 'text-emerald-600' : 'text-gray-800'}`}>
+              {formatRate(item.open_rate)}
+              {isBestOpen && <span className="ml-1 text-[10px] font-medium text-emerald-500">Best</span>}
+            </p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2.5">
+            <p className="text-[10px] text-gray-500 uppercase font-medium">Click Rate</p>
+            <p className={`text-sm font-bold tabular-nums ${isBestClick ? 'text-emerald-600' : 'text-gray-800'}`}>
+              {formatRate(item.click_rate)}
+              {isBestClick && <span className="ml-1 text-[10px] font-medium text-emerald-500">Best</span>}
+            </p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2.5">
+            <p className="text-[10px] text-gray-500 uppercase font-medium">Unsubs</p>
+            <p className={`text-sm tabular-nums ${(item.unsubscribed || 0) > 5 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+              {formatNumber(item.unsubscribed)}
+            </p>
+          </div>
+        </div>
 
-          const segmentClean = cleanSegmentText(item.segment_text);
-
-          return (
-            <div
-              key={`${item.campaign_id || item.id}-${item.region}-${idx}`}
-              className={`grid grid-cols-12 gap-0 px-4 py-3 border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-            >
-              {/* Campaign + Region */}
-              <div className="col-span-3 min-w-0 pr-3">
-                <span
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold mb-1"
-                  style={{ backgroundColor: regionInfo.color + '15', color: regionInfo.color }}
-                >
-                  {regionInfo.flag} {regionInfo.code}
-                </span>
-                <p className="text-sm font-medium text-gray-900 truncate leading-tight" title={item.title || item.subject_line}>
-                  {item.title || item.subject_line || '-'}
-                </p>
-                {item.subject_line && item.title && item.subject_line !== item.title && (
-                  <p className="text-[11px] text-gray-400 truncate" title={item.subject_line}>
-                    {item.subject_line}
-                  </p>
-                )}
-                <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(item.send_time)}</p>
-              </div>
-
-              {/* Delivery */}
-              <div className="col-span-2 flex flex-col items-center justify-center">
-                <span className="text-sm font-semibold text-gray-800">{formatNumber(item.emails_sent)}</span>
-                <span className="text-[10px] text-gray-400 mt-0.5">
-                  {item.unique_opens != null ? `${formatNumber(item.unique_opens)} opened` : ''}
-                </span>
-              </div>
-
-              {/* Open Rate with bar */}
-              <div className="col-span-2 flex flex-col items-center justify-center px-2">
-                <span className={`text-sm font-bold tabular-nums ${isBestOpen ? 'text-emerald-600' : 'text-gray-800'}`}>
-                  {formatRate(item.open_rate)}
-                  {isBestOpen && <span className="ml-1 text-[10px] font-medium text-emerald-500">Best</span>}
-                </span>
-                <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${isBestOpen ? 'bg-emerald-400' : 'bg-[#007C89]/40'}`}
-                    style={{ width: `${openPct}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Click Rate with bar */}
-              <div className="col-span-2 flex flex-col items-center justify-center px-2">
-                <span className={`text-sm font-bold tabular-nums ${isBestClick ? 'text-emerald-600' : 'text-gray-800'}`}>
-                  {formatRate(item.click_rate)}
-                  {isBestClick && <span className="ml-1 text-[10px] font-medium text-emerald-500">Best</span>}
-                </span>
-                <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${isBestClick ? 'bg-emerald-400' : 'bg-amber-400/50'}`}
-                    style={{ width: `${clickPct}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Unsubs */}
-              <div className="col-span-1 flex items-center justify-center">
-                <span className={`text-sm tabular-nums ${(item.unsubscribed || 0) > 5 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
-                  {formatNumber(item.unsubscribed)}
-                </span>
-              </div>
-
-              {/* Audience / Segment */}
-              <div className="col-span-2 flex flex-col justify-center min-w-0">
-                {item.audience_name && (
-                  <p className="text-xs text-gray-600 truncate" title={item.audience_name}>
-                    {item.audience_name}
-                  </p>
-                )}
-                {segmentClean ? (
-                  <p className="text-[11px] text-gray-400 truncate mt-0.5" title={segmentClean}>
-                    {segmentClean}
-                  </p>
-                ) : null}
-                {item.segment_member_count != null && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {formatNumber(item.segment_member_count)} members
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Summary row */}
-        {items.length > 1 && (
-          <div className="grid grid-cols-12 gap-0 px-4 py-3.5 bg-gray-100/80 border-t-2 border-gray-300">
-            <div className="col-span-3 flex items-center">
-              <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Summary (Avg)</span>
-            </div>
-            <div className="col-span-2 flex flex-col items-center justify-center">
-              <span className="text-sm font-semibold text-gray-700">
-                {formatNumber(Math.round(sentCounts.reduce((a, b) => a + b, 0) / items.length))}
-              </span>
-              <span className="text-[10px] text-gray-400">avg sent</span>
-            </div>
-            <div className="col-span-2 flex flex-col items-center justify-center">
-              <span className="text-sm font-semibold text-gray-700">
-                {(openRates.reduce((a, b) => a + b, 0) / items.length * 100).toFixed(2)}%
-              </span>
-              <span className="text-[10px] text-gray-400">avg open</span>
-            </div>
-            <div className="col-span-2 flex flex-col items-center justify-center">
-              <span className="text-sm font-semibold text-gray-700">
-                {(clickRates.reduce((a, b) => a + b, 0) / items.length * 100).toFixed(2)}%
-              </span>
-              <span className="text-[10px] text-gray-400">avg click</span>
-            </div>
-            <div className="col-span-1 flex items-center justify-center">
-              <span className="text-sm font-semibold text-gray-700">
-                {formatNumber(Math.round(items.reduce((a, b) => a + (b.unsubscribed || 0), 0) / items.length))}
-              </span>
-            </div>
-            <div className="col-span-2" />
+        {/* Audience info */}
+        {(item.audience_name || segmentClean) && (
+          <div className="mt-2 pt-2 border-t border-gray-100">
+            {item.audience_name && (
+              <p className="text-xs text-gray-500">{item.audience_name}</p>
+            )}
+            {segmentClean && (
+              <p className="text-[11px] text-gray-400">{segmentClean}</p>
+            )}
+            {item.segment_member_count != null && (
+              <p className="text-[10px] text-gray-400">{formatNumber(item.segment_member_count)} members</p>
+            )}
           </div>
         )}
       </div>
     );
   };
 
+  // Comparison table / cards
+  const renderComparisonTable = (items) => {
+    if (!items || items.length === 0) {
+      return <p className="text-gray-500 text-sm text-center py-8">No campaigns to compare.</p>;
+    }
+
+    const openRates = items.map(i => i.open_rate || 0);
+    const clickRates = items.map(i => i.click_rate || 0);
+    const sentCounts = items.map(i => i.emails_sent || 0);
+    const maxOpenRate = Math.max(...openRates);
+    const maxClickRate = Math.max(...clickRates);
+
+    const renderSummary = (isMobile) => {
+      if (items.length <= 1) return null;
+      if (isMobile) {
+        return (
+          <div className="p-4 bg-gray-100/80 border-t-2 border-gray-300">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3">Summary (Avg)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-lg p-2.5">
+                <p className="text-[10px] text-gray-500 uppercase font-medium">Avg Sent</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {formatNumber(Math.round(sentCounts.reduce((a, b) => a + b, 0) / items.length))}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-2.5">
+                <p className="text-[10px] text-gray-500 uppercase font-medium">Avg Open</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {(openRates.reduce((a, b) => a + b, 0) / items.length * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-2.5">
+                <p className="text-[10px] text-gray-500 uppercase font-medium">Avg Click</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {(clickRates.reduce((a, b) => a + b, 0) / items.length * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-2.5">
+                <p className="text-[10px] text-gray-500 uppercase font-medium">Avg Unsubs</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {formatNumber(Math.round(items.reduce((a, b) => a + (b.unsubscribed || 0), 0) / items.length))}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-12 gap-0 px-4 py-3.5 bg-gray-100/80 border-t-2 border-gray-300">
+          <div className="col-span-3 flex items-center">
+            <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Summary (Avg)</span>
+          </div>
+          <div className="col-span-2 flex flex-col items-center justify-center">
+            <span className="text-sm font-semibold text-gray-700">
+              {formatNumber(Math.round(sentCounts.reduce((a, b) => a + b, 0) / items.length))}
+            </span>
+            <span className="text-[10px] text-gray-400">avg sent</span>
+          </div>
+          <div className="col-span-2 flex flex-col items-center justify-center">
+            <span className="text-sm font-semibold text-gray-700">
+              {(openRates.reduce((a, b) => a + b, 0) / items.length * 100).toFixed(2)}%
+            </span>
+            <span className="text-[10px] text-gray-400">avg open</span>
+          </div>
+          <div className="col-span-2 flex flex-col items-center justify-center">
+            <span className="text-sm font-semibold text-gray-700">
+              {(clickRates.reduce((a, b) => a + b, 0) / items.length * 100).toFixed(2)}%
+            </span>
+            <span className="text-[10px] text-gray-400">avg click</span>
+          </div>
+          <div className="col-span-1 flex items-center justify-center">
+            <span className="text-sm font-semibold text-gray-700">
+              {formatNumber(Math.round(items.reduce((a, b) => a + (b.unsubscribed || 0), 0) / items.length))}
+            </span>
+          </div>
+          <div className="col-span-2" />
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-0">
+        {/* Desktop: grid table, hidden on mobile */}
+        <div className="hidden md:block">
+          {/* Table Header */}
+          <div className="grid grid-cols-12 gap-0 px-4 py-3 bg-gray-100/80 border-b-2 border-gray-300 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="col-span-3">Campaign</div>
+            <div className="col-span-2 text-center">Delivery</div>
+            <div className="col-span-2 text-center">Open Rate</div>
+            <div className="col-span-2 text-center">Click Rate</div>
+            <div className="col-span-1 text-center">Unsubs</div>
+            <div className="col-span-2">Audience / Segment</div>
+          </div>
+
+          {/* Table Rows */}
+          {items.map((item, idx) => {
+            const regionInfo = getRegionInfo(item.region);
+            const isBestOpen = items.length > 1 && item.open_rate && item.open_rate === maxOpenRate;
+            const isBestClick = items.length > 1 && item.click_rate && item.click_rate === maxClickRate;
+            const openPct = maxOpenRate > 0 ? ((item.open_rate || 0) / maxOpenRate) * 100 : 0;
+            const clickPct = maxClickRate > 0 ? ((item.click_rate || 0) / maxClickRate) * 100 : 0;
+            const segmentClean = cleanSegmentText(item.segment_text);
+
+            return (
+              <div
+                key={`${item.campaign_id || item.id}-${item.region}-${idx}`}
+                className={`grid grid-cols-12 gap-0 px-4 py-3 border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+              >
+                {/* Campaign + Region */}
+                <div className="col-span-3 min-w-0 pr-3">
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold mb-1"
+                    style={{ backgroundColor: regionInfo.color + '15', color: regionInfo.color }}
+                  >
+                    {regionInfo.flag} {regionInfo.code}
+                  </span>
+                  <p className="text-sm font-medium text-gray-900 truncate leading-tight" title={item.title || item.subject_line}>
+                    {item.title || item.subject_line || '-'}
+                  </p>
+                  {item.subject_line && item.title && item.subject_line !== item.title && (
+                    <p className="text-[11px] text-gray-400 truncate" title={item.subject_line}>
+                      {item.subject_line}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(item.send_time)}</p>
+                </div>
+
+                {/* Delivery */}
+                <div className="col-span-2 flex flex-col items-center justify-center">
+                  <span className="text-sm font-semibold text-gray-800">{formatNumber(item.emails_sent)}</span>
+                  <span className="text-[10px] text-gray-400 mt-0.5">
+                    {item.unique_opens != null ? `${formatNumber(item.unique_opens)} opened` : ''}
+                  </span>
+                </div>
+
+                {/* Open Rate with bar */}
+                <div className="col-span-2 flex flex-col items-center justify-center px-2">
+                  <span className={`text-sm font-bold tabular-nums ${isBestOpen ? 'text-emerald-600' : 'text-gray-800'}`}>
+                    {formatRate(item.open_rate)}
+                    {isBestOpen && <span className="ml-1 text-[10px] font-medium text-emerald-500">Best</span>}
+                  </span>
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${isBestOpen ? 'bg-emerald-400' : 'bg-[#007C89]/40'}`}
+                      style={{ width: `${openPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Click Rate with bar */}
+                <div className="col-span-2 flex flex-col items-center justify-center px-2">
+                  <span className={`text-sm font-bold tabular-nums ${isBestClick ? 'text-emerald-600' : 'text-gray-800'}`}>
+                    {formatRate(item.click_rate)}
+                    {isBestClick && <span className="ml-1 text-[10px] font-medium text-emerald-500">Best</span>}
+                  </span>
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${isBestClick ? 'bg-emerald-400' : 'bg-amber-400/50'}`}
+                      style={{ width: `${clickPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Unsubs */}
+                <div className="col-span-1 flex items-center justify-center">
+                  <span className={`text-sm tabular-nums ${(item.unsubscribed || 0) > 5 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                    {formatNumber(item.unsubscribed)}
+                  </span>
+                </div>
+
+                {/* Audience / Segment */}
+                <div className="col-span-2 flex flex-col justify-center min-w-0">
+                  {item.audience_name && (
+                    <p className="text-xs text-gray-600 truncate" title={item.audience_name}>
+                      {item.audience_name}
+                    </p>
+                  )}
+                  {segmentClean ? (
+                    <p className="text-[11px] text-gray-400 truncate mt-0.5" title={segmentClean}>
+                      {segmentClean}
+                    </p>
+                  ) : null}
+                  {item.segment_member_count != null && (
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {formatNumber(item.segment_member_count)} members
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {renderSummary(false)}
+        </div>
+
+        {/* Mobile: card layout, hidden on desktop */}
+        <div className="md:hidden">
+          {items.map((item, idx) => {
+            const isBestOpen = items.length > 1 && item.open_rate && item.open_rate === maxOpenRate;
+            const isBestClick = items.length > 1 && item.click_rate && item.click_rate === maxClickRate;
+            return renderMobileCard(item, idx, isBestOpen, isBestClick);
+          })}
+          {renderSummary(true)}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 md:flex md:items-center md:justify-center z-50 md:p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+      {/* Desktop: centered modal. Mobile: full-screen page */}
+      <div className="bg-white md:rounded-xl md:shadow-2xl w-full md:max-w-6xl h-full md:h-auto md:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <Layers className="w-5 h-5 text-amber-600" />
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-amber-100 rounded-lg">
+              <Layers className="w-4 h-4 md:w-5 md:h-5 text-amber-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Campaign Comparison</h2>
-              <p className="text-xs text-gray-500">Compare campaigns across regions for product launches</p>
+              <h2 className="text-base md:text-lg font-bold text-gray-900">Campaign Comparison</h2>
+              <p className="text-[11px] md:text-xs text-gray-500 hidden sm:block">Compare campaigns across regions for product launches</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -379,10 +506,10 @@ export default function CompareModal({ isOpen, onClose, regions }) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 px-6">
+        <div className="flex border-b border-gray-200 px-4 md:px-6 flex-shrink-0">
           <button
             onClick={() => { setActiveTab('new'); setViewingGroup(null); }}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-3 md:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'new'
                 ? 'border-[#007C89] text-[#007C89]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -395,7 +522,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
           </button>
           <button
             onClick={() => { setActiveTab('saved'); setViewingGroup(null); }}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-3 md:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'saved'
                 ? 'border-[#007C89] text-[#007C89]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -409,12 +536,12 @@ export default function CompareModal({ isOpen, onClose, regions }) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {activeTab === 'new' ? (
             step === 1 ? (
               /* Step 1: Search & Select */
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700">Step 1: Search & Select Campaigns</h3>
                     <p className="text-xs text-gray-500 mt-0.5">Search by keyword to find campaigns across all regions</p>
@@ -422,7 +549,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                   {selectedCampaigns.length > 0 && (
                     <button
                       onClick={() => setStep(2)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-[#007C89] hover:bg-[#006670] text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                      className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#007C89] hover:bg-[#006670] text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                     >
                       Compare ({selectedCampaigns.length})
                       <ChevronRight className="w-4 h-4" />
@@ -437,7 +564,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search campaigns by title (e.g., product name, event)..."
+                    placeholder="Search campaigns by title..."
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#007C89] focus:border-transparent"
                     autoFocus
                   />
@@ -469,7 +596,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                             className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md text-xs border border-gray-200"
                           >
                             <span style={{ color: rInfo.color }}>{rInfo.flag}</span>
-                            <span className="max-w-[120px] truncate">{c.title}</span>
+                            <span className="max-w-[100px] sm:max-w-[120px] truncate">{c.title}</span>
                             <button
                               onClick={() => toggleCampaign(c)}
                               className="ml-0.5 text-gray-400 hover:text-red-500"
@@ -537,7 +664,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                                     {campaign.subject_line && campaign.title && campaign.subject_line !== campaign.title && (
                                       <p className="text-xs text-gray-400 truncate">{campaign.subject_line}</p>
                                     )}
-                                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500 mt-0.5">
                                       <span>{formatDate(campaign.send_time)}</span>
                                       <span>Sent: {formatNumber(campaign.emails_sent)}</span>
                                       <span>Open: {formatRate(campaign.open_rate)}</span>
@@ -558,16 +685,17 @@ export default function CompareModal({ isOpen, onClose, regions }) {
               /* Step 2: Comparison Table + Save */
               <div>
                 {/* Step 2 Header with action buttons */}
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleReselect}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-[#007C89] hover:bg-[#007C89]/5 border border-gray-200 hover:border-[#007C89]/30 rounded-lg transition-colors"
                     >
                       <ChevronLeft className="w-4 h-4" />
-                      Back to Search
+                      <span className="hidden sm:inline">Back to Search</span>
+                      <span className="sm:hidden">Back</span>
                     </button>
-                    <div className="ml-2">
+                    <div className="ml-1 md:ml-2">
                       <h3 className="text-sm font-semibold text-gray-700">Comparison Results</h3>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {selectedCampaigns.length} campaigns across {Object.keys(selectedByRegion).length} region{Object.keys(selectedByRegion).length > 1 ? 's' : ''}
@@ -600,12 +728,12 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                 </div>
 
                 {/* Save Form */}
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Save className="w-4 h-4 text-[#007C89]" />
                     Save This Comparison
                   </h4>
-                  <div className="flex items-end gap-3">
+                  <div className="flex flex-col md:flex-row md:items-end gap-3">
                     <div className="flex-1 space-y-2">
                       <input
                         type="text"
@@ -625,7 +753,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                     <button
                       onClick={handleSave}
                       disabled={saving || !groupName.trim() || saveSuccess}
-                      className={`flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap h-[38px] ${
+                      className={`flex items-center justify-center gap-1.5 px-5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap h-[38px] ${
                         saveSuccess
                           ? 'bg-green-500 text-white'
                           : saving || !groupName.trim()
@@ -658,7 +786,6 @@ export default function CompareModal({ isOpen, onClose, regions }) {
             /* Saved Tab */
             <div>
               {viewingGroup ? (
-                /* Viewing a saved group */
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <button
@@ -668,10 +795,10 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                       <ArrowLeft className="w-4 h-4" />
                       Back to List
                     </button>
-                    <div className="ml-2">
-                      <h3 className="text-sm font-semibold text-gray-700">{viewingGroup.name}</h3>
+                    <div className="ml-1 md:ml-2 min-w-0">
+                      <h3 className="text-sm font-semibold text-gray-700 truncate">{viewingGroup.name}</h3>
                       {viewingGroup.description && (
-                        <p className="text-xs text-gray-500 mt-0.5">{viewingGroup.description}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">{viewingGroup.description}</p>
                       )}
                     </div>
                   </div>
@@ -685,7 +812,6 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                   </div>
                 </div>
               ) : (
-                /* List of saved groups */
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Saved Comparisons</h3>
 
@@ -709,16 +835,16 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                           <div className="flex items-center justify-between">
                             <button
                               onClick={() => handleViewGroup(group.id)}
-                              className="flex-1 text-left"
+                              className="flex-1 text-left min-w-0"
                               disabled={loadingGroup}
                             >
                               <div className="flex items-center gap-2">
-                                <BarChart3 className="w-4 h-4 text-gray-400" />
-                                <span className="text-sm font-medium text-gray-900">{group.name}</span>
-                                <span className="text-xs text-gray-400">{group.item_count} campaigns</span>
+                                <BarChart3 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <span className="text-sm font-medium text-gray-900 truncate">{group.name}</span>
+                                <span className="text-xs text-gray-400 flex-shrink-0">{group.item_count} campaigns</span>
                               </div>
                               {group.description && (
-                                <p className="text-xs text-gray-500 mt-0.5 ml-6">{group.description}</p>
+                                <p className="text-xs text-gray-500 mt-0.5 ml-6 truncate">{group.description}</p>
                               )}
                               <p className="text-xs text-gray-400 mt-0.5 ml-6">
                                 {formatDate(group.created_at)}
@@ -727,7 +853,7 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                             <button
                               onClick={() => handleDeleteGroup(group.id)}
                               disabled={deletingId === group.id}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-2"
                               title="Delete comparison"
                             >
                               {deletingId === group.id ? (
