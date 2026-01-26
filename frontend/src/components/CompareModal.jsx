@@ -787,24 +787,21 @@ export default function CompareModal({ isOpen, onClose, regions }) {
             <div>
               {viewingGroup ? (
                 <div>
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="mb-5">
                     <button
                       onClick={() => setViewingGroup(null)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-[#007C89] hover:bg-[#007C89]/5 border border-gray-200 hover:border-[#007C89]/30 rounded-lg transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-[#007C89] hover:bg-[#007C89]/5 border border-gray-200 hover:border-[#007C89]/30 rounded-lg transition-colors mb-3"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       Back to List
                     </button>
-                    <div className="ml-1 md:ml-2 min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-700 truncate">{viewingGroup.name}</h3>
-                      {viewingGroup.description && (
-                        <p className="text-xs text-gray-500 mt-0.5 truncate">{viewingGroup.description}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-400 mb-3">
-                    Created: {formatDate(viewingGroup.created_at)} &middot; {viewingGroup.items?.length || 0} campaigns
+                    <h3 className="text-base md:text-lg font-bold text-[#1e3a5f] leading-snug">{viewingGroup.name}</h3>
+                    {viewingGroup.description && (
+                      <p className="text-sm text-gray-600 mt-1">{viewingGroup.description}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      Created: {formatDate(viewingGroup.created_at)} &middot; {viewingGroup.items?.length || 0} campaigns
+                    </p>
                   </div>
 
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -813,24 +810,24 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                 </div>
               ) : (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Saved Comparisons</h3>
+                  <h3 className="text-base font-bold text-gray-800 mb-4">Saved Comparisons</h3>
 
                   {loadingGroups ? (
                     <div className="flex items-center justify-center py-12">
-                      <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                      <Loader2 className="w-5 h-5 text-[#007C89] animate-spin" />
                     </div>
                   ) : savedGroups.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400">
-                      <Layers className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No saved comparisons yet</p>
-                      <p className="text-xs mt-1">Create a new comparison to get started</p>
+                    <div className="text-center py-12 text-gray-500">
+                      <Layers className="w-8 h-8 mx-auto mb-2 opacity-60" />
+                      <p className="text-sm font-medium">No saved comparisons yet</p>
+                      <p className="text-xs mt-1 text-gray-400">Create a new comparison to get started</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {savedGroups.map((group) => (
                         <div
                           key={group.id}
-                          className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                          className="border border-gray-200 rounded-lg p-3.5 hover:bg-gray-50 hover:border-gray-300 transition-colors"
                         >
                           <div className="flex items-center justify-between">
                             <button
@@ -839,14 +836,14 @@ export default function CompareModal({ isOpen, onClose, regions }) {
                               disabled={loadingGroup}
                             >
                               <div className="flex items-center gap-2">
-                                <BarChart3 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm font-medium text-gray-900 truncate">{group.name}</span>
-                                <span className="text-xs text-gray-400 flex-shrink-0">{group.item_count} campaigns</span>
+                                <BarChart3 className="w-4 h-4 text-[#007C89] flex-shrink-0" />
+                                <span className="text-sm font-semibold text-gray-800 truncate">{group.name}</span>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">{group.item_count} campaigns</span>
                               </div>
                               {group.description && (
-                                <p className="text-xs text-gray-500 mt-0.5 ml-6 truncate">{group.description}</p>
+                                <p className="text-xs text-gray-600 mt-1 ml-6 truncate">{group.description}</p>
                               )}
-                              <p className="text-xs text-gray-400 mt-0.5 ml-6">
+                              <p className="text-xs text-gray-500 mt-0.5 ml-6">
                                 {formatDate(group.created_at)}
                               </p>
                             </button>
