@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project Name:** EnGenius EDM Analytic Dashboard
-**Version:** 1.6
+**Version:** 1.7
 **Last Updated:** January 2026
 **Data Source:** Mailchimp Marketing API
 
@@ -20,10 +20,10 @@ The main landing page providing a global view of all regional campaign performan
 
 #### 1.1 Executive Summary
 - **Total Campaigns / Total Sent / Regions** - Overview stats bar
-- **Top Region** - Region with highest composite score (Open + Click + Delivery rates)
-- **Needs Attention** - Region with lowest composite score, with info tooltip explaining selection criteria
-- **Inactive Regions** - Regions with no campaigns in >30 days
-- **Alerts** - Region-level warnings (high bounce, high unsub, low activity, low engagement)
+- **Top Region** - Region with highest composite score (Open + Click + Delivery rates); clickable to navigate to region detail
+- **Needs Attention** - Region with lowest composite score, with info tooltip explaining selection criteria; clickable to navigate to region detail
+- **Inactive Regions** - Regions with no campaigns in >30 days (shown regardless of selected date range); clickable region names
+- **Alerts** - Region-level warnings (high bounce, high unsub, low activity, low engagement); clickable region names
 
 #### 1.2 KPI Cards
 Global aggregated metrics displayed in card format:
@@ -63,8 +63,8 @@ Detailed view for individual region performance analysis.
 - **Audience** - Currently selected audience name
 - **Last Campaign** - Most recent campaign date (warning if >30 days)
 - **Needs Review** - Campaign with lowest composite score (below Open/Click/Delivery thresholds)
-- **High Bounce Rate Campaigns** - Lists specific campaigns with >5% bounce rate
-- **High Unsubscribe Rate Campaigns** - Lists specific campaigns with >1% unsub rate
+- **High Bounce Rate Campaigns** - Lists specific campaigns with >5% bounce rate, with send date (M/d format)
+- **High Unsubscribe Rate Campaigns** - Lists specific campaigns with >1% unsub rate, with send date (M/d format)
 
 #### 2.2 KPI Cards
 Same metrics as Home Dashboard, filtered to selected region.
@@ -92,10 +92,12 @@ Detailed table of all campaigns with the following columns:
 
 **Table Features:**
 - **Clickable Campaign Titles** - Opens Mailchimp's public archive URL in new tab
+- **Segment Coverage** - Shows segment member count vs audience size as "X of Y (Z%)" when a campaign targets a segment instead of the full audience
 - Sortable columns (click header to sort)
-- Pagination (10/25/50/100 items per page)
+- Pagination (15/25/50/100 items per page)
 - Row dividers for improved readability
 - Campaign count display in header
+- Campaigns from deleted audiences are automatically filtered out
 
 ---
 
@@ -261,7 +263,8 @@ Secure access control system with role-based permissions.
 #### User Roles
 | Role | Permissions |
 |------|-------------|
-| Admin | Full access: view dashboard, manage share links, manage users |
+| Admin | Full access: view dashboard, manage share links, manage users, activity logs |
+| Manager | Near-admin access: dashboard, settings, AI analysis, share links, activity logs — but **cannot** manage users |
 | Viewer | View dashboard only, no access to Settings > Share Links or Users tabs |
 
 #### User Management (Admin Only)
@@ -271,7 +274,7 @@ Access via Settings > Users tab:
 |---------|-------------|
 | View Users | List all users with email, role, last login |
 | Create User | Add new user with email and role, generates temp password |
-| Change Role | Switch user between Admin and Viewer roles |
+| Change Role | Switch user between Admin, Manager, and Viewer roles |
 | Reset Password | Generate new temporary password for user |
 | Delete User | Remove user (cannot delete self or last admin) |
 
@@ -295,6 +298,87 @@ Access via Settings > Users tab:
 - Change default admin password immediately after first login
 - Temporary passwords are randomly generated (12 characters)
 - All password changes require old password verification (except admin reset)
+
+### 11. Campaign Comparison
+
+Cross-region campaign comparison tool for analyzing performance of the same campaign across different regions.
+
+#### Features
+| Feature | Description |
+|---------|-------------|
+| Campaign Search | Full-text search across all regions with debounced input (400ms) |
+| Multi-Select | Select multiple campaigns to compare side-by-side |
+| Comparison Table | Shows key metrics (Open Rate, Click Rate, Bounces, Unsubscribes) for selected campaigns |
+| Save Comparisons | Save named comparison groups for future reference |
+| Saved Tab | Load, view, and delete previously saved comparisons |
+
+#### Comparison Table Columns
+| Column | Description |
+|--------|-------------|
+| Campaign | Campaign title with region badge |
+| Send Time | Date and time of send |
+| Audience | Target audience name |
+| Segment Members | Segment member count (if applicable) |
+| Emails Sent | Number of emails delivered |
+| Open Rate | Opens / Delivered (%) |
+| Click Rate | Clicks / Opens (%) |
+| Bounces | Failed deliveries |
+| Unsubscribes | Opt-outs |
+
+#### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/campaigns/search` | Search campaigns by keyword (`q`), optional `region` and `limit` |
+| POST | `/api/comparisons` | Create comparison group (Admin/Manager only) |
+| GET | `/api/comparisons` | List all saved comparison groups |
+| GET | `/api/comparisons/{group_id}` | Get comparison group with full campaign data |
+| DELETE | `/api/comparisons/{group_id}` | Delete a saved comparison group |
+
+#### Access Control
+- All authenticated users can search campaigns and view comparisons
+- Only Admin and Manager roles can create and delete comparison groups
+
+### 12. Activity Logging
+
+Comprehensive user activity tracking system for audit and analytics purposes.
+
+#### Tracked Actions
+| Action | Description | Color |
+|--------|-------------|-------|
+| `login` | User authentication | Green |
+| `session_start` | Frontend app initialization | Green |
+| `view_dashboard` | Dashboard page access | Blue |
+| `view_region` | Region detail page access | Blue |
+| `run_ai_analysis` | AI analysis execution | Purple |
+| `export_report` | Report export | Cyan |
+| `populate_cache` | Cache population | Cyan |
+| `clear_cache` | Cache clearing | Red |
+| `create_user` | User creation | Teal |
+| `delete_user` | User deletion | Orange |
+
+#### Activity Logs Manager (Settings > Activity)
+| Feature | Description |
+|---------|-------------|
+| Summary Stats | Total active users and actions performed |
+| Log Table | Paginated list of activity entries (20 per page) |
+| Filter by Action | Dropdown to filter by specific action type |
+| Filter by Period | 7 / 30 / 90 day presets |
+| Cleanup | Remove logs older than 90 days |
+| Refresh | Reload latest activity data |
+
+#### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/activity/log` | Log a user activity |
+| GET | `/api/activity/logs` | Retrieve filtered logs (Admin/Manager) |
+| GET | `/api/activity/summary` | Get activity summary stats (Admin/Manager) |
+| GET | `/api/activity/actions` | List available action types (Admin/Manager) |
+| DELETE | `/api/activity/cleanup` | Remove old logs (Admin only) |
+
+#### Access Control
+- Frontend automatically logs session starts and page views
+- Activity log viewing requires Admin or Manager role
+- Log cleanup requires Admin role
 
 ---
 
@@ -431,3 +515,4 @@ Dashboard is configured to prevent search engine indexing:
 | 1.4 | Jan 2026 | Added user authentication and management system with JWT tokens, role-based permissions (admin/viewer), user CRUD operations, and secure password handling |
 | 1.5 | Jan 2026 | Added display name for users, circular avatar profile dropdown, share link read-only mode (hidden filters), auto-detect Mailchimp regions from environment variables |
 | 1.6 | Jan 2026 | Added AI Dashboard Analysis feature with Gemini AI integration, floating action button, professional markdown rendering, configurable AI settings (model, prompts, output format) |
+| 1.7 | Jan 2026 | Added campaign comparison across regions, segment coverage display, Manager role, activity logging system, clickable region names in Executive Summary, inactive region detection improvements, deleted audience filtering |

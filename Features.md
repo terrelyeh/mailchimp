@@ -17,7 +17,8 @@
 
 | 角色 | 權限 |
 |------|------|
-| **Admin** | 完整權限：管理使用者、設定排除清單、建立分享連結、編輯警示設定 |
+| **Admin** | 完整權限：管理使用者、設定排除清單、建立分享連結、編輯警示設定、活動記錄 |
+| **Manager** | 近管理員權限：儀表板、設定、AI 分析、分享連結、活動記錄 — 但**無法**管理使用者 |
 | **Viewer** | 唯讀權限：檢視儀表板、使用篩選器、匯出報表 |
 
 ### 帳號功能
@@ -143,6 +144,62 @@
 
 ---
 
+## Campaign 比較功能 (v1.7 新增)
+
+**用途**：跨區域比較同一 Campaign 的表現，分析不同地區的行銷成效
+
+### 功能特點
+- **Campaign 搜尋**：全文搜尋所有區域的 Campaign（支援防抖動輸入）
+- **多選比較**：可選擇多個 Campaign 進行並排比較
+- **比較表格**：顯示開信率、點擊率、退信、退訂等關鍵指標
+- **儲存比較**：可儲存命名的比較群組以供日後使用
+- **已儲存分頁**：快速載入、檢視或刪除先前儲存的比較
+
+### 權限控制
+- 所有已驗證使用者可搜尋及檢視比較
+- 僅 Admin 和 Manager 可建立及刪除比較群組
+
+---
+
+## Segment 覆蓋率顯示 (v1.7 新增)
+
+**用途**：在 Campaign 列表中顯示 Segment 覆蓋率，了解 Campaign 是針對完整 Audience 或特定 Segment 發送
+
+### 顯示格式
+- 顯示為「X of Y (Z%)」（如：5,000 of 45,230 (11.1%)）
+- 僅在 Campaign 使用 Segment 時顯示
+- 資料來源為 Mailchimp API 的 segment member_count
+
+---
+
+## 活動記錄系統 (v1.7 新增)
+
+**用途**：追蹤使用者操作記錄，供稽核與分析使用
+
+### 追蹤的動作
+| 動作 | 說明 |
+|------|------|
+| login | 使用者登入 |
+| session_start | 前端應用程式啟動 |
+| view_dashboard | 檢視儀表板 |
+| view_region | 檢視區域詳細頁面 |
+| run_ai_analysis | 執行 AI 分析 |
+| export_report | 匯出報表 |
+| populate_cache | 快取填充 |
+| clear_cache | 清除快取 |
+| create_user | 建立使用者 |
+| delete_user | 刪除使用者 |
+
+### 管理介面
+- 路徑：Settings > Activity
+- 摘要統計：顯示活躍使用者數與操作次數
+- 分頁式記錄表格（每頁 20 筆）
+- 可依動作類型或時間範圍篩選（7/30/90 天）
+- 清理功能：移除超過 90 天的記錄
+- 僅限 Admin 和 Manager 檢視
+
+---
+
 ## API 端點
 
 ### Dashboard API
@@ -179,6 +236,29 @@
 | POST | `/api/share-links/{token}/verify` | 驗證分享連結密碼 |
 | DELETE | `/api/share-links/{token}` | 刪除分享連結 (Admin) |
 
+### Campaign 比較 API
+| Method | Endpoint | 說明 |
+|--------|----------|------|
+| GET | `/api/campaigns/search` | 搜尋 Campaign（參數：q、region、limit） |
+| POST | `/api/comparisons` | 建立比較群組 (Admin/Manager) |
+| GET | `/api/comparisons` | 取得所有比較群組 |
+| GET | `/api/comparisons/{group_id}` | 取得比較群組詳細資料 |
+| DELETE | `/api/comparisons/{group_id}` | 刪除比較群組 |
+
+### 活動記錄 API
+| Method | Endpoint | 說明 |
+|--------|----------|------|
+| POST | `/api/activity/log` | 記錄使用者活動 |
+| GET | `/api/activity/logs` | 取得活動記錄（Admin/Manager） |
+| GET | `/api/activity/summary` | 取得活動摘要統計（Admin/Manager） |
+| GET | `/api/activity/actions` | 取得可用動作類型（Admin/Manager） |
+| DELETE | `/api/activity/cleanup` | 清除舊記錄 (Admin) |
+
+### 區域活動 API
+| Method | Endpoint | 說明 |
+|--------|----------|------|
+| GET | `/api/regions/activity` | 取得各區域最後 Campaign 日期 |
+
 ---
 
 ## 部署注意事項
@@ -204,6 +284,16 @@
 ---
 
 ## 版本歷史
+
+### v1.7 (2026-01)
+- 新增「Campaign 比較」功能：跨區域搜尋及比較 Campaign 成效
+- 新增 Segment 覆蓋率顯示：Campaign 列表顯示 Segment 覆蓋百分比
+- 新增「Manager」角色：近管理員權限但無法管理使用者
+- 新增活動記錄系統：追蹤使用者操作記錄並提供管理介面
+- 改進 Executive Summary：區域名稱可點擊導航至詳細頁面
+- 改進 High Bounce / High Unsubscribe 清單：新增 Campaign 發送日期
+- 改進閒置區域偵測：不受篩選日期範圍影響
+- 改進資料篩選：自動過濾已刪除 Audience 的 Campaign
 
 ### v1.1 (2024-01)
 - 新增「排除 Audience」功能
