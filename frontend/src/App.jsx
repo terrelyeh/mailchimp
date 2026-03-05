@@ -21,7 +21,7 @@ import CompareModal from './components/CompareModal';
 import { DashboardSkeleton } from './components/Skeleton';
 import { ThresholdProvider } from './contexts/ThresholdContext';
 import {
-  fetchDashboardData, triggerSync, fetchRegions, fetchRegionsActivity, fetchAudiences,
+  fetchDashboardData, populateCache, fetchRegions, fetchRegionsActivity, fetchAudiences,
   createShareLink, getShareLink, verifyShareLinkPassword,
   getStoredUser, getStoredToken, logout as apiLogout, setStoredAuth,
   getExcludedAudiences, logActivity
@@ -49,6 +49,7 @@ function App() {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncPhase, setSyncPhase] = useState(''); // 'fetching' | 'saving' | 'refreshing' | ''
   const [useMock, setUseMock] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [selectedDays, setSelectedDays] = useState(90);
@@ -422,13 +423,13 @@ function App() {
 
   const handleSync = async () => {
     setIsSyncing(true);
-    await triggerSync(selectedDays);
-    setTimeout(async () => {
-      loadData(false);
-      // Refresh regionsActivity after sync to ensure Last Campaign dates are accurate
-      await loadRegionsActivity();
-      setIsSyncing(false);
-    }, 2000);
+    setSyncPhase('fetching');
+    await populateCache(selectedDays);
+    setSyncPhase('refreshing');
+    await loadData(true);
+    await loadRegionsActivity();
+    setIsSyncing(false);
+    setSyncPhase('');
   };
 
   const handleRegionChange = (region) => {
@@ -482,11 +483,11 @@ function App() {
   // Get display data based on view
   let displayData = selectedRegion
     ? (Array.isArray(data)
-        ? data // Single region data (already an array)
-        : (typeof data === 'object' && data[selectedRegion])
-          ? data[selectedRegion] // Extract from multi-region object
-          : [] // Empty array if no data
-      )
+      ? data // Single region data (already an array)
+      : (typeof data === 'object' && data[selectedRegion])
+        ? data[selectedRegion] // Extract from multi-region object
+        : [] // Empty array if no data
+    )
     : (typeof data === 'object' && !Array.isArray(data))
       ? data // Multi-region object
       : {}; // Empty object
@@ -687,10 +688,14 @@ function App() {
                 <button
                   onClick={handleSync}
                   disabled={isSyncing}
-                  className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-bold shadow-sm transition-colors text-xs md:text-sm"
+                  className="flex items-center bg-[#FFE01B] hover:bg-[#FFE01B]/80 text-[#241C15] px-2 md:px-4 py-1.5 md:py-2 rounded-lg font-bold shadow-sm transition-colors text-xs md:text-sm disabled:opacity-70"
                 >
                   <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''} md:mr-2`} />
-                  <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+                  <span className="hidden md:inline">
+                    {syncPhase === 'fetching' ? 'Fetching data...' :
+                     syncPhase === 'refreshing' ? 'Refreshing...' :
+                     isSyncing ? 'Syncing...' : 'Sync'}
+                  </span>
                 </button>
               )}
 
@@ -769,6 +774,18 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* Sync progress banner */}
+        {isSyncing && (
+          <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2.5 rounded-lg mb-4 text-sm">
+            <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
+            <span>
+              {syncPhase === 'fetching'
+                ? 'Fetching latest campaigns from Mailchimp API\u2014this may take a minute…'
+                : 'Refreshing dashboard data…'}
+            </span>
+          </div>
+        )}
 
         {useMock && (
           <div className="bg-blue-50 text-blue-800 px-4 py-2 rounded-lg mb-6 text-sm border border-blue-100">
@@ -1020,11 +1037,10 @@ function App() {
                 <button
                   onClick={handleVerifySharePassword}
                   disabled={shareVerifying || !sharePassword}
-                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    shareVerifying || !sharePassword
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${shareVerifying || !sharePassword
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-[#007C89] text-white hover:bg-[#006670]'
-                  }`}
+                    }`}
                 >
                   {shareVerifying ? 'Verifying...' : 'Continue'}
                 </button>
