@@ -3,8 +3,8 @@
 ## Project Overview
 
 **Project Name:** EnGenius EDM Analytic Dashboard
-**Version:** 1.6
-**Last Updated:** January 2026
+**Version:** 1.8
+**Last Updated:** March 2026
 **Data Source:** Mailchimp Marketing API
 
 ### Purpose
@@ -136,12 +136,14 @@ Export dashboard content for reporting and sharing.
 | Format | Description |
 |--------|-------------|
 | PNG | High-resolution image (2x scale) |
+| PDF | Multi-page PDF document |
 
 #### Export Includes
 - Report header with EnGenius branding
 - Current filter selections (date range, region, audience)
 - Generation timestamp
-- All visible dashboard content
+- All visible dashboard content (Executive Summary, KPI Cards, Charts)
+- Campaign list (PDF only)
 - Footer with copyright and data source
 
 ### 6. Share Link Function
@@ -198,14 +200,31 @@ Manage all created share links from Settings > Share Links tab:
 | Delete Link | Remove/revoke individual share links |
 | Refresh | Reload the list to see latest data |
 
-### 7. Alert Settings
+### 7. Excluded Audiences (Admin Only)
+Exclude test audiences from dashboard statistics.
+
+#### Setup
+1. Click user avatar (top-right) → Settings
+2. Switch to "Excluded Audiences" tab
+3. Check audiences to exclude → Save Changes
+
+#### Behavior
+- **Global setting** — shared across all users
+- **Immediate effect** — statistics update on save
+- **Home Dashboard** — excluded audiences not counted in KPI
+- **Region Detail "All Audiences"** — excluded data hidden
+- **Subscriber count** — excluded audience subscribers not counted
+- **Individual view** — selecting a specific excluded audience still shows its data
+
+### 8. Alert Settings
 Configurable threshold alerts for key metrics:
 - Open Rate minimum threshold
 - Click Rate minimum threshold
 - Bounce Rate maximum threshold
+- Unsubscribe Rate threshold
 - Visual warnings when thresholds exceeded
 
-### 8. AI Dashboard Analysis (Admin Only)
+### 9. AI Dashboard Analysis (Admin Only)
 AI-powered analysis using Google Gemini to provide marketing insights and recommendations.
 
 #### Features
@@ -240,14 +259,35 @@ AI-powered analysis using Google Gemini to provide marketing insights and recomm
 | `GEMINI_API_KEY` | Google Gemini API key | Yes |
 | `GEMINI_MODEL` | Default model override | No |
 
-### 9. API Diagnostics
+### 10. Campaign Comparison
+Cross-region campaign comparison for performance benchmarking.
+
+#### Features
+| Feature | Description |
+|---------|-------------|
+| Cross-Region Compare | Compare campaigns across different regions side-by-side |
+| Comparison Groups | Save comparison sets for future reference |
+| Campaign Search | Search campaigns by title across all regions |
+| Saved Comparisons | View and manage previously saved comparison groups |
+| Segment Coverage | Display audience coverage percentage for each campaign |
+
+#### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/comparisons` | Create comparison group |
+| GET | `/api/comparisons` | List all comparison groups |
+| GET | `/api/comparisons/{id}` | Get specific comparison |
+| DELETE | `/api/comparisons/{id}` | Delete comparison group |
+| GET | `/api/campaigns/search` | Search campaigns by keyword |
+
+### 11. API Diagnostics
 Developer tool for troubleshooting:
 - API endpoint status
 - Response times
 - Error logging
 - Force refresh capability
 
-### 10. User Authentication & Management
+### 12. User Authentication & Management
 Secure access control system with role-based permissions.
 
 #### Authentication
@@ -351,17 +391,22 @@ Access via Settings > Users tab:
 ### Frontend Stack
 | Technology | Purpose |
 |------------|---------|
-| React 18 | UI Framework |
-| Tailwind CSS | Styling |
-| Recharts | Data visualization |
+| React 19 | UI Framework |
+| Vite 5.4 | Build tool |
+| Tailwind CSS 3.4 | Styling |
+| Recharts 3.6 | Data visualization |
 | Lucide React | Icon library |
-| html2canvas | PNG export generation |
+| html2canvas + jsPDF | PNG/PDF export generation |
+| Axios | HTTP client |
 
 ### Backend Stack
 | Technology | Purpose |
 |------------|---------|
-| Node.js | Runtime |
-| Express | API server |
+| Python 3.9+ | Runtime |
+| FastAPI + Uvicorn | ASGI web server |
+| SQLite3 | Local cache database |
+| python-jose + bcrypt | JWT auth + password hashing |
+| google-generativeai | Gemini AI integration |
 | Mailchimp Marketing API | Data source |
 
 ### Data Refresh
@@ -420,6 +465,36 @@ Dashboard is configured to prevent search engine indexing:
 
 ---
 
+## Deployment Notes
+
+### Zeabur Persistent Volume
+
+The system uses SQLite for storing settings (users, share links, excluded audiences, AI settings, activity logs). On Zeabur, persistent storage must be configured to prevent data loss on redeployment:
+
+1. In Zeabur backend service, click **Volumes**
+2. Add a Volume, set mount path to `/data`
+3. Confirm `DATA_DIR` environment variable is set to `/data` (Dockerfile default)
+
+> **Important**: Without persistent storage, all settings (including excluded audiences, user accounts, share links) will reset on every deployment.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATA_DIR` | SQLite database storage directory | `/data` |
+| `JWT_SECRET` | JWT signing key (must change in production) | Auto-generated |
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `*` |
+| `MAILCHIMP_API_KEY` | Single-account API key | - |
+| `MAILCHIMP_SERVER_PREFIX` | Server prefix (e.g., us1) | - |
+| `MAILCHIMP_API_KEY_{REGION}` | Per-region API key (US/EU/APAC/JP) | - |
+| `MAILCHIMP_SERVER_PREFIX_{REGION}` | Per-region server prefix | - |
+| `GEMINI_API_KEY` | Google Gemini AI API key | - |
+| `GEMINI_MODEL` | Gemini model override | `gemini-2.0-flash` |
+| `ADMIN_EMAIL` | Default admin email on first run | `engenius.ad@gmail.com` |
+| `ADMIN_INITIAL_PASSWORD` | Initial admin password | `admin123` |
+
+---
+
 ## Document History
 
 | Version | Date | Changes |
@@ -431,3 +506,5 @@ Dashboard is configured to prevent search engine indexing:
 | 1.4 | Jan 2026 | Added user authentication and management system with JWT tokens, role-based permissions (admin/viewer), user CRUD operations, and secure password handling |
 | 1.5 | Jan 2026 | Added display name for users, circular avatar profile dropdown, share link read-only mode (hidden filters), auto-detect Mailchimp regions from environment variables |
 | 1.6 | Jan 2026 | Added AI Dashboard Analysis feature with Gemini AI integration, floating action button, professional markdown rendering, configurable AI settings (model, prompts, output format) |
+| 1.7 | Feb 2026 | Added campaign comparison feature across regions, segment coverage display, campaign search endpoint |
+| 1.8 | Mar 2026 | Updated tech stack documentation (React 19, Python/FastAPI backend), sync button fix, UI improvements |
