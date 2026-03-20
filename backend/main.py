@@ -91,6 +91,16 @@ app = FastAPI(title="Mailchimp Dashboard API")
 
 # CORS configuration - allow specific origins or all in development
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+# Always allow Vercel frontend and localhost for development
+EXTRA_ORIGINS = [
+    "https://mailchimp-dashboard.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+for origin in EXTRA_ORIGINS:
+    if origin not in ALLOWED_ORIGINS and "*" not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(origin)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
