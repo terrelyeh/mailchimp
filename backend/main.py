@@ -35,6 +35,9 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
+class EmergencyResetRequest(BaseModel):
+    reset_secret: str
+
 class CreateUserRequest(BaseModel):
     email: str
     role: str = 'viewer'
@@ -206,6 +209,37 @@ def login(
             "must_change_password": user["must_change_password"]
         }
     }
+
+
+@app.post("/api/auth/emergency-reset")
+def emergency_reset(request: EmergencyResetRequest):
+    """
+    Emergency admin password reset using ADMIN_INITIAL_PASSWORD as secret.
+    Resets the admin account password to the initial password from env vars.
+    """
+    expected_secret = os.getenv("ADMIN_INITIAL_PASSWORD", "ChangeMe123!")
+    admin_email = os.getenv("ADMIN_EMAIL", "engenius.ad@gmail.com")
+
+    if request.reset_secret != expected_secret:
+        raise HTTPException(status_code=403, detail="Invalid reset secret")
+
+    # Reset admin password directly in database
+    conn = database.sqlite3.connect(database.DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE email = ?", (admin_email.lower(),))
+    row = c.fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Admin user not found")
+
+    new_hash = database.get_password_hash(expected_secret)
+    c.execute("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?", (new_hash, row[0]))
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Emergency password reset for admin: {admin_email}")
+    return {"status": "success", "message": f"Password reset for {admin_email}"}
 
 
 @app.get("/api/auth/me")
