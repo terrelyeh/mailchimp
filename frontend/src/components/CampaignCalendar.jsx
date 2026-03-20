@@ -157,7 +157,7 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                         </button>
                         <button
                             onClick={() => setCurrentMonth(new Date())}
-                            className="px-3 py-1 text-sm font-semibold text-gray-800 hover:bg-gray-50 rounded-lg transition-colors min-w-[140px] text-center"
+                            className="px-4 py-1.5 text-base font-bold text-gray-800 hover:bg-gray-50 rounded-lg transition-colors min-w-[160px] text-center"
                         >
                             {format(currentMonth, 'MMMM yyyy')}
                         </button>
@@ -171,22 +171,22 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                 </div>
 
                 {/* Month stats */}
-                <div className="flex items-center gap-4 text-xs">
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        <span className="text-gray-500">{monthStats.sent} Sent</span>
+                <div className="flex items-center gap-5 text-sm">
+                    <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        <span className="text-gray-600"><span className="font-semibold text-gray-800 tabular-nums">{monthStats.sent}</span> Sent</span>
                     </span>
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-500" />
-                        <span className="text-gray-500">{monthStats.scheduled} Scheduled</span>
+                    <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                        <span className="text-gray-600"><span className="font-semibold text-gray-800 tabular-nums">{monthStats.scheduled}</span> Scheduled</span>
                     </span>
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-gray-400" />
-                        <span className="text-gray-500">{monthStats.draft} Draft</span>
+                    <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                        <span className="text-gray-600"><span className="font-semibold text-gray-800 tabular-nums">{monthStats.draft}</span> Draft</span>
                     </span>
                     {loading && (
-                        <span className="flex items-center gap-1.5 text-gray-400">
-                            <div className="w-3 h-3 border-1.5 border-[#007C89] border-t-transparent rounded-full animate-spin" />
+                        <span className="flex items-center gap-1.5 text-gray-400 text-xs">
+                            <div className="w-3.5 h-3.5 border-2 border-[#007C89] border-t-transparent rounded-full animate-spin" />
                             Loading...
                         </span>
                     )}
@@ -198,7 +198,7 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                 {/* Weekday headers */}
                 <div className="grid grid-cols-7 mb-1">
                     {WEEKDAYS.map(day => (
-                        <div key={day} className="text-center text-xs font-semibold text-gray-400 uppercase tracking-wider py-2">
+                        <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase tracking-wider py-2.5">
                             {day}
                         </div>
                     ))}
@@ -217,29 +217,29 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                             <div
                                 key={i}
                                 onClick={(e) => handleDayClick(day, e)}
-                                className={`min-h-[80px] md:min-h-[100px] p-1.5 transition-colors ${
+                                className={`min-h-[90px] md:min-h-[110px] p-2 transition-colors ${
                                     isCurrentMonth ? 'bg-white' : 'bg-gray-50/70'
                                 } ${campaigns.length > 0 ? 'cursor-pointer hover:bg-blue-50/50' : ''} ${
                                     isSelected ? 'ring-2 ring-[#007C89] ring-inset' : ''
                                 }`}
                             >
                                 {/* Day number */}
-                                <div className={`text-xs font-medium mb-1 ${
+                                <div className={`text-sm font-semibold mb-1.5 ${
                                     today
-                                        ? 'w-6 h-6 rounded-full bg-[#007C89] text-white flex items-center justify-center'
-                                        : isCurrentMonth ? 'text-gray-700 pl-1' : 'text-gray-300 pl-1'
+                                        ? 'w-7 h-7 rounded-full bg-[#007C89] text-white flex items-center justify-center text-xs'
+                                        : isCurrentMonth ? 'text-gray-800 pl-0.5' : 'text-gray-300 pl-0.5'
                                 }`}>
                                     {format(day, 'd')}
                                 </div>
 
                                 {/* Campaign pills */}
-                                <div className="space-y-0.5">
+                                <div className="space-y-1">
                                     {campaigns.slice(0, 3).map((c, j) => {
                                         const status = STATUS_CONFIG[c.status] || STATUS_CONFIG.sent;
                                         return (
                                             <div
                                                 key={j}
-                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] leading-tight font-medium truncate ${status.color} text-white`}
+                                                className={`flex items-center gap-1 px-1.5 py-1 rounded text-[11px] leading-tight font-medium truncate ${status.color} text-white`}
                                                 title={`${c.title || c.subject_line} (${status.label})`}
                                             >
                                                 <span className="truncate">{c.title || c.subject_line || 'Untitled'}</span>
@@ -247,7 +247,7 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                                         );
                                     })}
                                     {campaigns.length > 3 && (
-                                        <div className="text-[10px] text-gray-400 font-medium pl-1">
+                                        <div className="text-xs text-gray-500 font-medium pl-1">
                                             +{campaigns.length - 3} more
                                         </div>
                                     )}
@@ -276,8 +276,8 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                             }}
                         >
                             {/* Popover header */}
-                            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                                <span className="text-sm font-semibold text-gray-700">
+                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                                <span className="text-sm font-bold text-gray-800">
                                     {format(selectedDay, 'EEEE, MMM d')}
                                 </span>
                                 <button
@@ -296,7 +296,7 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                                     const isSent = c.status === 'sent';
 
                                     return (
-                                        <div key={j} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                                        <div key={j} className="px-4 py-3.5 hover:bg-gray-50 transition-colors">
                                             <div className="flex items-start justify-between gap-2 mb-1.5">
                                                 <div className="min-w-0 flex-1">
                                                     {c.archive_url ? (
@@ -318,7 +318,7 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                                                         <div className="text-xs text-gray-400 truncate mt-0.5">{c.subject_line}</div>
                                                     )}
                                                 </div>
-                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border flex-shrink-0 ${status.bgLight} ${status.textColor}`}>
+                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border flex-shrink-0 ${status.bgLight} ${status.textColor}`}>
                                                     <StatusIcon className="w-3 h-3" />
                                                     {status.label}
                                                 </span>
@@ -369,10 +369,10 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                 })()}
 
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-gray-200">
                     {Object.entries(STATUS_CONFIG).filter(([k]) => k !== 'sending').map(([key, config]) => (
-                        <span key={key} className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                            <span className={`w-3 h-1.5 rounded-sm ${config.color}`} />
+                        <span key={key} className="flex items-center gap-2 text-xs text-gray-600 font-medium">
+                            <span className={`w-4 h-2.5 rounded-sm ${config.color}`} />
                             {config.label}
                         </span>
                     ))}
