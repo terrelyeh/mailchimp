@@ -237,15 +237,16 @@ class MailchimpClient:
                     segment_type = None
                     segment_member_count = None
 
+                settings = c.get('settings') or {}
                 all_campaigns.append({
-                    "id": c['id'],
-                    "web_id": c['web_id'],
-                    "title": c['settings']['title'],
-                    "subject_line": c['settings']['subject_line'],
-                    "send_time": c['send_time'],
-                    "emails_sent": c['emails_sent'],
-                    "archive_url": c['archive_url'],
-                    "report_url": f"{self.admin_url}/reports/summary?id={c['web_id']}",
+                    "id": c.get('id', ''),
+                    "web_id": c.get('web_id', 0),
+                    "title": settings.get('title', '(Untitled)'),
+                    "subject_line": settings.get('subject_line', ''),
+                    "send_time": c.get('send_time', ''),
+                    "emails_sent": c.get('emails_sent', 0),
+                    "archive_url": c.get('archive_url', ''),
+                    "report_url": f"{self.admin_url}/reports/summary?id={c.get('web_id', 0)}",
                     "audience_id": list_id,
                     "audience_name": list_name,
                     "segment_id": segment_id,
