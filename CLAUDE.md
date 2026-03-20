@@ -1,12 +1,12 @@
 # CLAUDE.md — Project Context
 
-> Last updated: 2026-03-17
+> Last updated: 2026-03-20
 
 ## Project Overview
 
 Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP）的 Mailchimp 電子報行銷數據。
 提供 KPI 總覽、區域比較圖表、Campaign 列表與比較、AI 分析報告、匯出 PDF 等功能。
-目前部署在 Zeabur（Docker 容器）。
+前端部署在 Vercel（自動部署），後端部署在 Zeabur（Docker 容器）。
 
 ## Tech Stack
 
@@ -25,8 +25,11 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
 - BackgroundTasks 背景同步、ThreadPoolExecutor 平行抓取
 
 ### 部署
-- Docker + Docker Compose
-- Zeabur 雲端平台（Persistent Volume 掛載 SQLite）
+- **Frontend**: Vercel（連結 GitHub `terrelyeh/mailchimp` 自動部署，Root Dir: `frontend`）
+  - URL: https://edm-dashboard-eg.vercel.app
+- **Backend**: Zeabur Docker 容器（Persistent Volume 掛載 SQLite）
+  - URL: https://backend-mailchimp.zeabur.app
+- Docker Compose 可用於本地完整環境
 
 ## Directory Structure
 
@@ -38,7 +41,7 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
 │   │   ├── components/          # 27 個 React 元件
 │   │   │   ├── CompareModal.jsx       # Campaign 跨區域比較（最大元件 ~41KB）
 │   │   │   ├── ExecutiveSummary.jsx   # AI 摘要報告（~39KB）
-│   │   │   ├── CampaignList.jsx       # Campaign 列表搜尋篩選
+│   │   │   ├── CampaignList.jsx       # Campaign 列表（Status 篩選、搜尋、CSV 匯出、欄位選擇器）
 │   │   │   ├── DiagnosticsDrawer.jsx  # 資料診斷工具
 │   │   │   ├── AIAnalysisModal.jsx    # Gemini AI 分析結果顯示
 │   │   │   ├── KPICards.jsx           # KPI 指標卡片
@@ -80,14 +83,31 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
 - PDF / 截圖匯出
 - 活動日誌追蹤
 - Audience 篩選 + 排除管理
-- Segment coverage 顯示
+- Segment / Tag 解析顯示（含 Advanced Segment fallback）
 - 診斷工具 Drawer
-- Zeabur Docker 部署
+- Campaign List 強化功能：
+  - Status 欄位 + 篩選器（Sent / Scheduled / Draft / Paused / All）
+  - 關鍵字搜尋（Campaign 名稱 + Subject Line）
+  - CSV 匯出（UTF-8 BOM）
+  - 欄位可見度選擇器（localStorage 持久化）
+  - 非 Sent 狀態獨立 API 取得，不影響 Dashboard KPI
+- 前端遷移至 Vercel（GitHub 自動部署）
+- 後端 CORS 支援多前端網域
+
+### 🚀 Next
+- **資料庫遷移 SQLite → Supabase**：擺脫 Persistent Volume 限制，為後續功能打基礎
+- **Content Planning / Topic Pool**：
+  - 目標：從「發送後成效分析」擴展到「發送前內容規劃」
+  - 團隊現有流程：用 Google Sheets 做 Content Planning / Topic Pool
+  - 方向：整合 Google Sheets 資料，在 Dashboard 呈現內容規劃狀態
+  - 不做完整的 Content Calendar / 排程工具，保持輕量
 
 ### ⚠️ Known Issues / Notes
 - Gemini AI 分析耗時長（30-120 秒），Serverless 平台不適用
 - SQLite 為檔案型資料庫，需要 Persistent Volume
 - 後端使用 BackgroundTasks + ThreadPoolExecutor，需長駐服務環境
+- Mailchimp API 限制：inline/advanced segments 無法取得條件細節，只有 saved segments 和 tags 能取到名稱
+- 非 Sent 狀態篩選器需後端 `/api/campaigns/list` endpoint（已實作但需部署 Zeabur 後端才完整生效）
 
 ## Development
 
@@ -111,9 +131,12 @@ docker-compose up --build
 
 ## Common Pitfalls
 
-- **CORS**：後端 `ALLOWED_ORIGINS` 預設為 `*`，生產環境需設定為前端網域
+- **CORS**：後端 `EXTRA_ORIGINS` 列表需包含所有前端網域（目前：`edm-dashboard-eg.vercel.app`、`mailchimp-dashboard.vercel.app`、`localhost`）
 - **SQLite 路徑**：Docker 內掛載 `/data` 目錄，Zeabur 需設定 Persistent Volume
 - **Gemini timeout**：AI 分析可能超過 2 分鐘，前端需有足夠的 loading 狀態處理
 - **Sync 按鈕**：已改為同步 `populateCache`（非背景 `triggerSync`），避免快取不一致
 - **JWT_SECRET**：預設值僅供開發，生產環境必須設定環境變數覆蓋
 - **多區域 API key**：env 格式為 `MAILCHIMP_API_KEY_{REGION}` + `MAILCHIMP_SERVER_PREFIX_{REGION}`
+- **Mailchimp campaign fields**：必須用 `.get()` 安全取值，部分 campaign 缺少 `subject_line`、`settings` 等欄位會導致 KeyError
+- **Vercel 部署**：專案已連結 GitHub，push 自動部署；env var `VITE_API_URL` 設在 Vercel project settings
+- **Zeabur 後端**：程式碼更新後需手動在 Zeabur Dashboard 重新部署（或透過 Git 觸發）
