@@ -312,8 +312,8 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                 onClick={() => handleStatusChange(sf.value)}
                                 className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
                                     statusFilter === sf.value
-                                        ? 'bg-white text-[#007C89] shadow-sm border border-gray-200'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                        ? 'bg-[#007C89] text-white shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
                                 {sf.label}
