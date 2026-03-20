@@ -180,9 +180,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                 ? (delivered / campaign.emails_sent * 100)
                                 : 0;
 
-                            const segmentName = campaign.segment_text && !campaign.segment_text.startsWith('<')
-                                ? campaign.segment_text
-                                : null;
+                            const segmentName = campaign.segment_text || null;
 
                             // Get segment member count (from Mailchimp segment API) or audience member count as fallback
                             const segmentMemberCount = campaign.segment_member_count || null;
@@ -267,13 +265,15 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
                                                     campaign.segment_type === 'static'
                                                         ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                                                        : 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                        : campaign.segment_type === 'saved'
+                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                            : 'bg-gray-50 text-gray-600 border border-gray-200'
                                                 }`}>
                                                     {campaign.segment_type === 'static'
                                                         ? <Tag className="w-3 h-3 flex-shrink-0" />
                                                         : <Filter className="w-3 h-3 flex-shrink-0" />
                                                     }
-                                                    <span className="truncate max-w-[120px]" title={segmentName}>{segmentName}</span>
+                                                    <span className="truncate max-w-[150px]" title={segmentName}>{segmentName}</span>
                                                 </span>
                                                 {campaign.segment_type && (
                                                     <div className="text-[10px] text-gray-400 mt-0.5 pl-0.5">

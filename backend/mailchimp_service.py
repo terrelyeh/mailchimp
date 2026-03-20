@@ -4,9 +4,17 @@ from urllib3.util.retry import Retry
 import os
 import json
 import logging
+import re
 import time
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+def strip_html(text):
+    """Strip HTML tags from a string, returning clean text"""
+    if not text:
+        return ''
+    return re.sub(r'<[^>]+>', '', text).strip()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -139,23 +147,20 @@ class MailchimpClient:
                 list_name = recipients.get('list_name', 'Unknown Audience')
 
                 # Extract segment information if available
-                segment_opts = recipients.get('segment_opts', {})
+                segment_opts = recipients.get('segment_opts', {}) or {}
                 segment_id = segment_opts.get('saved_segment_id') or segment_opts.get('prebuilt_segment_id')
+                conditions = segment_opts.get('conditions', [])
 
-                # Try multiple locations for segment text/name
-                segment_text = (
-                    recipients.get('segment_text') or  # Direct on recipients
-                    segment_opts.get('segment_text') or  # Inside segment_opts
-                    segment_opts.get('match', '')  # Fallback to match type if no name
-                )
+                # Get segment_text from API and strip HTML tags
+                raw_segment_text = recipients.get('segment_text', '')
+                segment_text = strip_html(raw_segment_text)
 
-                # Segment member count and type (will be fetched if segment_id exists)
+                # Segment member count and type
                 segment_member_count = None
-                segment_type = None  # "static" = Tag, "saved" = Segment
+                segment_type = None  # "static" = Tag, "saved" = Segment, "conditions" = ad-hoc
 
-                # If we have segment_id, try to fetch segment info (name, member_count, type)
+                # If we have segment_id, fetch segment info (name, member_count, type)
                 if segment_id:
-                    # Use cache to avoid redundant API calls
                     cache_key = f"{list_id}:{segment_id}"
                     if not hasattr(self, '_segment_cache'):
                         self._segment_cache = {}
@@ -172,6 +177,16 @@ class MailchimpClient:
                         segment_text = cached_info.get('name', '')
                     segment_member_count = cached_info.get('member_count', 0)
                     segment_type = cached_info.get('type', '')
+
+                elif conditions:
+                    # Ad-hoc conditions (no saved segment) — detect type from conditions
+                    has_static = any(
+                        cond.get('condition_type') == 'StaticSegment'
+                        for cond in conditions
+                    )
+                    segment_type = 'static' if has_static else 'saved'
+                    if not segment_text:
+                        segment_text = f"Conditions ({segment_opts.get('match', 'any')})"
 
                 all_campaigns.append({
                     "id": c['id'],
