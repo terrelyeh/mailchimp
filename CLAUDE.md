@@ -1,6 +1,6 @@
 # CLAUDE.md — Project Context
 
-> Last updated: 2026-03-20
+> Last updated: 2026-03-21
 
 ## Project Overview
 
@@ -44,6 +44,8 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
 │   │   │   ├── CampaignList.jsx       # Campaign 列表（Status 篩選、搜尋、CSV 匯出、欄位選擇器）
 │   │   │   ├── DiagnosticsDrawer.jsx  # 資料診斷工具
 │   │   │   ├── AIAnalysisModal.jsx    # Gemini AI 分析結果顯示
+│   │   │   ├── CampaignCalendar.jsx    # 月曆檢視（單一 Region，顯示所有 Status）
+│   │   │   ├── RegionCards.jsx        # 區域績效卡片 + 表格檢視（Cards/Table 切換）
 │   │   │   ├── KPICards.jsx           # KPI 指標卡片
 │   │   │   ├── TimeSeriesMetricsChart.jsx  # 時間序列圖表
 │   │   │   └── ...（其餘元件）
@@ -91,16 +93,21 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
   - CSV 匯出（UTF-8 BOM）
   - 欄位可見度選擇器（localStorage 持久化）
   - 非 Sent 狀態獨立 API 取得，不影響 Dashboard KPI
+- Campaign Calendar View（單一 Region 頁面，List/Calendar 切換）：
+  - 月曆格狀顯示所有 Status（Sent/Scheduled/Draft/Paused）
+  - 兼具輕量 Content Planning 功能——可一覽各 campaign 的排程與狀態
+  - 點擊日期顯示 campaign 詳情 popover
+- Region Performance Table View（All Regions 頁面，Cards/Table 切換）：
+  - 跨區域數字比較表格，最佳表現標記 ★
+  - 可點擊行導航至區域詳細頁
 - 前端遷移至 Vercel（GitHub 自動部署）
 - 後端 CORS 支援多前端網域
 
 ### 🚀 Next
 - **資料庫遷移 SQLite → Supabase**：擺脫 Persistent Volume 限制，為後續功能打基礎
-- **Content Planning / Topic Pool**：
-  - 目標：從「發送後成效分析」擴展到「發送前內容規劃」
-  - 團隊現有流程：用 Google Sheets 做 Content Planning / Topic Pool
-  - 方向：整合 Google Sheets 資料，在 Dashboard 呈現內容規劃狀態
-  - 不做完整的 Content Calendar / 排程工具，保持輕量
+- **Content Planning / Topic Pool**（優先級降低）：
+  - Calendar View 已部分覆蓋此需求（可看到 Draft → Scheduled → Sent 的生命週期）
+  - 若需更前期的 Topic Pool（純規劃階段），再考慮整合 Google Sheets
 
 ### ⚠️ Known Issues / Notes
 - Gemini AI 分析耗時長（30-120 秒），Serverless 平台不適用
@@ -140,3 +147,5 @@ docker-compose up --build
 - **Mailchimp campaign fields**：必須用 `.get()` 安全取值，部分 campaign 缺少 `subject_line`、`settings` 等欄位會導致 KeyError
 - **Vercel 部署**：專案已連結 GitHub，push 自動部署；env var `VITE_API_URL` 設在 Vercel project settings
 - **Zeabur 後端**：程式碼更新後需手動在 Zeabur Dashboard 重新部署（或透過 Git 觸發）
+- **Calendar 不適合 All Regions**：跨區載入太慢，已決定 Calendar 只放在單一 Region 頁面
+- **頁面架構**：All Regions = KPI → Chart → Region Cards → Compare；單一 Region = KPI → Chart → Campaign List/Calendar
