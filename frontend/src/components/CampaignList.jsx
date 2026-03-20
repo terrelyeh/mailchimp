@@ -2,6 +2,34 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter } from 'lucide-react';
 
+// Strip any remaining HTML tags (safety net)
+const stripHtml = (str) => str ? str.replace(/<[^>]+>/g, '').trim() : '';
+
+// Parse segment_text into a concise label
+const parseSegmentLabel = (text) => {
+    if (!text) return null;
+    const clean = stripHtml(text);
+    if (!clean) return null;
+
+    // Extract tag name: "Contacts match ... Tag ... is <name>"
+    const tagMatch = clean.match(/Tag[:\s]+(?:is\s+)?(.+?)(?:\s+and\s|\s+or\s|$)/i);
+    if (tagMatch) return { label: tagMatch[1].trim(), type: 'tag' };
+
+    // Extract segment name: "Segment ... is <name>"
+    const segMatch = clean.match(/Segment[:\s]+(?:is\s+)?(.+?)(?:\s+and\s|\s+or\s|$)/i);
+    if (segMatch) return { label: segMatch[1].trim(), type: 'segment' };
+
+    // "Contacts that match" patterns — show condition summary
+    const condMatch = clean.match(/(?:match|matching)\s+(?:the following|all|any)?\s*(?:conditions?)?[:\s]*(.+)/i);
+    if (condMatch) {
+        const summary = condMatch[1].trim();
+        return { label: summary.length > 40 ? summary.substring(0, 40) + '…' : summary, type: 'segment' };
+    }
+
+    // Fallback: return cleaned text, truncated
+    return { label: clean.length > 40 ? clean.substring(0, 40) + '…' : clean, type: 'segment' };
+};
+
 // Sortable column header component
 const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) => {
     const isActive = currentSort.field === field;
@@ -180,7 +208,9 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                 ? (delivered / campaign.emails_sent * 100)
                                 : 0;
 
-                            const segmentName = campaign.segment_text || null;
+                            const parsed = parseSegmentLabel(campaign.segment_text);
+                            const segmentName = parsed?.label || null;
+                            const parsedType = parsed?.type || null;
 
                             // Get segment member count (from Mailchimp segment API) or audience member count as fallback
                             const segmentMemberCount = campaign.segment_member_count || null;
@@ -260,28 +290,27 @@ export default function CampaignList({ data, isExporting = false, audiences = []
 
                                     {/* Segment / Tag */}
                                     <td className="px-3 md:px-4 py-3">
-                                        {segmentName ? (
-                                            <div>
-                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
-                                                    campaign.segment_type === 'static'
-                                                        ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                                                        : campaign.segment_type === 'saved'
-                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                            : 'bg-gray-50 text-gray-600 border border-gray-200'
-                                                }`}>
-                                                    {campaign.segment_type === 'static'
-                                                        ? <Tag className="w-3 h-3 flex-shrink-0" />
-                                                        : <Filter className="w-3 h-3 flex-shrink-0" />
-                                                    }
-                                                    <span className="truncate max-w-[150px]" title={segmentName}>{segmentName}</span>
-                                                </span>
-                                                {campaign.segment_type && (
+                                        {segmentName ? (() => {
+                                            const isTag = campaign.segment_type === 'static' || parsedType === 'tag';
+                                            return (
+                                                <div>
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                                                        isTag
+                                                            ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                                            : 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                    }`}>
+                                                        {isTag
+                                                            ? <Tag className="w-3 h-3 flex-shrink-0" />
+                                                            : <Filter className="w-3 h-3 flex-shrink-0" />
+                                                        }
+                                                        <span className="truncate max-w-[150px]" title={segmentName}>{segmentName}</span>
+                                                    </span>
                                                     <div className="text-[10px] text-gray-400 mt-0.5 pl-0.5">
-                                                        {campaign.segment_type === 'static' ? 'Tag' : 'Segment'}
+                                                        {isTag ? 'Tag' : 'Segment'}
                                                     </div>
-                                                )}
-                                            </div>
-                                        ) : (
+                                                </div>
+                                            );
+                                        })() : (
                                             <span className="text-xs text-gray-400">Full Audience</span>
                                         )}
                                     </td>

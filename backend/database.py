@@ -1,11 +1,19 @@
 import sqlite3
 import json
 import logging
+import re
 import secrets
 import hashlib
 from datetime import datetime, timedelta
 import os
 from passlib.context import CryptContext
+
+
+def strip_html(text):
+    """Strip HTML tags from a string, returning clean text"""
+    if not text:
+        return ''
+    return re.sub(r'<[^>]+>', '', text).strip()
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +175,9 @@ def get_cached_campaigns(days=30, region=None):
     for row in rows:
         try:
             camp = json.loads(row['data_json'])
+            # Clean HTML from segment_text if present
+            if camp.get('segment_text'):
+                camp['segment_text'] = strip_html(camp['segment_text'])
             results.append(camp)
         except Exception as e:
             logger.warning(f"Failed to parse campaign JSON: {e}")
@@ -1561,7 +1572,7 @@ def search_campaigns(keyword: str, region: str = None, limit: int = 50):
                 "unsubscribed": data.get('unsubscribed'),
                 "bounce_rate": data.get('bounce_rate'),
                 "audience_name": data.get('audience_name', ''),
-                "segment_text": data.get('segment_text', ''),
+                "segment_text": strip_html(data.get('segment_text', '')),
                 "segment_member_count": data.get('segment_member_count'),
             })
         except Exception as e:
@@ -1722,7 +1733,7 @@ def get_comparison_group(group_id: int):
                     "unsubscribed": data.get('unsubscribed'),
                     "bounce_rate": data.get('bounce_rate'),
                     "audience_name": data.get('audience_name', ''),
-                    "segment_text": data.get('segment_text', ''),
+                    "segment_text": strip_html(data.get('segment_text', '')),
                     "segment_member_count": data.get('segment_member_count'),
                 })
             except Exception as e:
