@@ -98,7 +98,8 @@ class MailchimpClient:
         if data:
             return {
                 'name': data.get('name', ''),
-                'member_count': data.get('member_count', 0)
+                'member_count': data.get('member_count', 0),
+                'type': data.get('type', '')  # "static" = Tag, "saved" = Segment
             }
         return None
 
@@ -148,10 +149,11 @@ class MailchimpClient:
                     segment_opts.get('match', '')  # Fallback to match type if no name
                 )
 
-                # Segment member count (will be fetched if segment_id exists)
+                # Segment member count and type (will be fetched if segment_id exists)
                 segment_member_count = None
+                segment_type = None  # "static" = Tag, "saved" = Segment
 
-                # If we have segment_id, try to fetch segment info (name and member_count)
+                # If we have segment_id, try to fetch segment info (name, member_count, type)
                 if segment_id:
                     # Use cache to avoid redundant API calls
                     cache_key = f"{list_id}:{segment_id}"
@@ -163,12 +165,13 @@ class MailchimpClient:
                         if segment_info:
                             self._segment_cache[cache_key] = segment_info
                         else:
-                            self._segment_cache[cache_key] = {'name': f"Segment #{segment_id}", 'member_count': 0}
+                            self._segment_cache[cache_key] = {'name': f"Segment #{segment_id}", 'member_count': 0, 'type': ''}
 
                     cached_info = self._segment_cache[cache_key]
                     if not segment_text:
                         segment_text = cached_info.get('name', '')
                     segment_member_count = cached_info.get('member_count', 0)
+                    segment_type = cached_info.get('type', '')
 
                 all_campaigns.append({
                     "id": c['id'],
@@ -183,6 +186,7 @@ class MailchimpClient:
                     "audience_name": list_name,
                     "segment_id": segment_id,
                     "segment_text": segment_text,
+                    "segment_type": segment_type,
                     "segment_member_count": segment_member_count,
                     "recipient_count": recipients.get('recipient_count', 0)
                 })

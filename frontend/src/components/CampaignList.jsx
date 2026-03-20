@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter } from 'lucide-react';
 
 // Sortable column header component
 const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) => {
@@ -155,11 +155,12 @@ export default function CampaignList({ data, isExporting = false, audiences = []
 
             {/* Table */}
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm min-w-[900px]">
+                <table className="w-full text-left text-sm min-w-[1050px]">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
                             <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
                             <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>
+                            <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Segment / Tag</th>
                             <SortableHeader label="Sent" field="send_time" currentSort={sort} onSort={handleSort} />
                             <SortableHeader label="Emails" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
                             <SortableHeader label="Delivery" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
@@ -257,11 +258,31 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                             {campaign.audience_name || 'N/A'}
                                         </span>
-                                        {segmentName && (
-                                            <div className="flex items-center gap-1 text-xs text-purple-600 mt-1">
-                                                <Users className="w-3 h-3 flex-shrink-0" />
-                                                <span className="truncate max-w-[100px]" title={segmentName}>{segmentName}</span>
+                                    </td>
+
+                                    {/* Segment / Tag */}
+                                    <td className="px-3 md:px-4 py-3">
+                                        {segmentName ? (
+                                            <div>
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                                                    campaign.segment_type === 'static'
+                                                        ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                                        : 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                }`}>
+                                                    {campaign.segment_type === 'static'
+                                                        ? <Tag className="w-3 h-3 flex-shrink-0" />
+                                                        : <Filter className="w-3 h-3 flex-shrink-0" />
+                                                    }
+                                                    <span className="truncate max-w-[120px]" title={segmentName}>{segmentName}</span>
+                                                </span>
+                                                {campaign.segment_type && (
+                                                    <div className="text-[10px] text-gray-400 mt-0.5 pl-0.5">
+                                                        {campaign.segment_type === 'static' ? 'Tag' : 'Segment'}
+                                                    </div>
+                                                )}
                                             </div>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">Full Audience</span>
                                         )}
                                     </td>
 
