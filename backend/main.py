@@ -435,8 +435,12 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
 
             # Auto-refresh if cache is empty
             if not data:
-                logger.info(f"Cache empty for region {region}, forcing refresh")
-                return get_dashboard_data(days=days, region=region, force_refresh=True)
+                logger.info(f"Cache empty for region {region}, trying force refresh")
+                try:
+                    return get_dashboard_data(days=days, region=region, force_refresh=True)
+                except Exception as e:
+                    logger.warning(f"Force refresh failed for {region}: {e}")
+                    return {"source": "database", "region": region, "data": []}
             return {"source": "database", "region": region, "data": data}
         else:
             # Get all regions from cache
@@ -448,8 +452,12 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
             total_campaigns = sum(len(campaigns) for campaigns in all_data.values() if campaigns)
 
             if total_campaigns < len(mailchimp_service.REGIONS):
-                logger.info(f"Cache has only {total_campaigns} campaigns, forcing refresh")
-                return get_dashboard_data(days=days, region=region, force_refresh=True)
+                logger.info(f"Cache has only {total_campaigns} campaigns, trying force refresh")
+                try:
+                    return get_dashboard_data(days=days, region=region, force_refresh=True)
+                except Exception as e:
+                    logger.warning(f"Force refresh failed: {e}")
+                    return {"source": "database", "data": all_data}
 
             return {"source": "database", "data": all_data}
 
