@@ -347,6 +347,9 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                             >
                                 <Settings2 className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">Columns</span>
+                                <span className="inline-flex items-center justify-center w-4.5 h-4.5 min-w-[18px] px-1 rounded-full bg-[#007C89] text-white text-[10px] font-bold leading-none tabular-nums">
+                                    {visibleColumns.length}
+                                </span>
                             </button>
                             {showColumnPicker && (
                                 <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
