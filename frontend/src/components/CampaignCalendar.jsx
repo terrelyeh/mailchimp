@@ -179,8 +179,8 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                     </div>
                 </div>
 
-                {/* Region quick-switch */}
-                {regions.length > 1 && (
+                {/* Region quick-switch — only in All Regions view */}
+                {!selectedRegion && regions.length > 1 && (
                     <div className="flex items-center gap-1.5 mb-3">
                         <button
                             onClick={() => setCalendarRegion(null)}
