@@ -93,6 +93,7 @@ app = FastAPI(title="Mailchimp Dashboard API")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 # Always allow Vercel frontend and localhost for development
 EXTRA_ORIGINS = [
+    "https://edm-dashboard-eg.vercel.app",
     "https://mailchimp-dashboard.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
