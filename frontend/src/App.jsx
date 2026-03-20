@@ -951,7 +951,7 @@ function App() {
                   {campaignView === 'list' || isExporting ? (
                     <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} audiences={regionAudienceList} selectedDays={selectedDays} selectedRegion={selectedRegion} />
                   ) : (
-                    <CampaignCalendar data={Array.isArray(displayData) ? displayData : []} selectedDays={selectedDays} selectedRegion={selectedRegion} />
+                    <CampaignCalendar data={Array.isArray(displayData) ? displayData : []} selectedDays={selectedDays} selectedRegion={selectedRegion} regions={availableRegions} />
                   )}
                 </div>
               </>
