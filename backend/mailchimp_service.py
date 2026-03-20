@@ -231,6 +231,23 @@ class MailchimpClient:
                         if len(labels) > 3:
                             segment_label += f' +{len(labels) - 3} more'
 
+                    # --- Case 3: Has match but no conditions (Mailchimp hides advanced segment details) ---
+                    elif segment_opts.get('match') and not conditions:
+                        raw_text = strip_html(str(recipients.get('segment_text', '') or ''))
+                        if raw_text:
+                            segment_type = 'saved'
+                            if 'custom advanced segment' in raw_text.lower():
+                                segment_label = 'Advanced Segment'
+                            elif 'subscription status' in raw_text.lower() or 'email subscription' in raw_text.lower():
+                                segment_label = 'Subscribed Only'
+                            else:
+                                # Extract meaningful part from segment_text
+                                # Remove boilerplate prefix/suffix
+                                clean = raw_text
+                                clean = re.sub(r'^Contacts that match (all|any) of the following conditions:\s*', '', clean)
+                                clean = re.sub(r'For a total of [\d,]+ emails sent\.?\s*$', '', clean)
+                                segment_label = clean.strip()[:60] if clean.strip() else 'Segment'
+
                 except Exception as e:
                     logger.warning(f"Failed to parse segment info for campaign {c.get('id')}: {e}")
                     segment_label = None
