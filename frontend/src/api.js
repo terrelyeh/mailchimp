@@ -653,6 +653,24 @@ export const cleanupActivityLogs = async (days = 90) => {
 // ============================================
 
 /**
+ * Fetch campaign list with status filter (separate from dashboard data)
+ * @param {number} days - Time range in days
+ * @param {string|null} region - Region filter
+ * @param {string} status - Campaign status: 'sent', 'schedule', 'save', 'paused', 'all'
+ */
+export const fetchCampaignList = async (days = 90, region = null, status = 'sent') => {
+    try {
+        const params = { days, status };
+        if (region) params.region = region;
+        const response = await api.get('/campaigns/list', { params });
+        return response.data;
+    } catch (error) {
+        console.error('Failed to fetch campaign list:', error);
+        return { campaigns: [], total: 0, error: error.message };
+    }
+};
+
+/**
  * Search campaigns by keyword across all regions
  * @param {string} query - Search keyword
  * @param {string|null} region - Optional region filter

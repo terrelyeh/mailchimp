@@ -419,6 +419,75 @@ def reset_user_password(user_id: str, admin: Dict = Depends(require_user_admin))
 
 
 # ============================================
+# Campaign List Endpoint (separate from dashboard)
+# ============================================
+
+@app.get("/api/campaigns/list")
+def get_campaigns_list(
+    days: int = 90,
+    region: str = None,
+    status: str = "sent",
+    user: Dict = Depends(require_auth)
+):
+    """
+    Get campaign list with support for multiple statuses.
+    This is separate from /api/dashboard to avoid affecting KPI metrics.
+
+    Parameters:
+    - days: time range (default 90)
+    - region: specific region or None for all
+    - status: 'sent', 'schedule', 'save', 'paused', or 'all'
+    """
+    logger.info(f"Campaign list API called: days={days}, region={region}, status={status}")
+
+    if status == "sent":
+        # For "sent" status, use cached dashboard data (already available)
+        if region:
+            data = database.get_cached_campaigns(days=days, region=region)
+        else:
+            data = database.get_cached_campaigns(days=days)
+        # Ensure all campaigns have a status field
+        for camp in data:
+            if 'status' not in camp:
+                camp['status'] = 'sent'
+        return {"campaigns": data, "status_filter": status, "total": len(data)}
+    else:
+        # For other statuses, fetch directly from Mailchimp API
+        all_campaigns = []
+        regions_to_fetch = [region] if region else mailchimp_service.REGIONS
+
+        for reg in regions_to_fetch:
+            client = mailchimp_service.get_client(reg)
+            if not client:
+                continue
+            try:
+                if status == "all":
+                    campaigns = client.get_campaigns_all_statuses(days=days)
+                else:
+                    campaigns = client.get_campaigns(days=days, status=status)
+
+                # For sent campaigns, fetch reports too
+                if status in ("sent", "all"):
+                    for camp in campaigns:
+                        if camp.get('status') == 'sent':
+                            try:
+                                report = client.get_campaign_report(camp['id'])
+                                if report:
+                                    camp.update(report)
+                            except Exception:
+                                pass
+
+                for camp in campaigns:
+                    camp['region'] = reg
+                all_campaigns.extend(campaigns)
+            except Exception as e:
+                logger.warning(f"Failed to fetch {status} campaigns for {reg}: {e}")
+
+        all_campaigns.sort(key=lambda x: x.get('send_time', ''), reverse=True)
+        return {"campaigns": all_campaigns, "status_filter": status, "total": len(all_campaigns)}
+
+
+# ============================================
 # General Endpoints
 # ============================================
 

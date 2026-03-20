@@ -914,7 +914,7 @@ function App() {
 
                 {/* Section 4: Campaign List */}
                 <div data-export-section="details">
-                  <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} audiences={regionAudienceList} />
+                  <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} audiences={regionAudienceList} selectedDays={selectedDays} selectedRegion={selectedRegion} />
                 </div>
               </>
             )}

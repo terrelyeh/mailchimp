@@ -258,9 +258,10 @@ class MailchimpClient:
                 all_campaigns.append({
                     "id": c.get('id', ''),
                     "web_id": c.get('web_id', 0),
+                    "status": c.get('status', status),
                     "title": settings.get('title', '(Untitled)'),
                     "subject_line": settings.get('subject_line', ''),
-                    "send_time": c.get('send_time', ''),
+                    "send_time": c.get('send_time', '') or c.get('create_time', ''),
                     "emails_sent": c.get('emails_sent', 0),
                     "archive_url": c.get('archive_url', ''),
                     "report_url": f"{self.admin_url}/reports/summary?id={c.get('web_id', 0)}",
@@ -284,6 +285,19 @@ class MailchimpClient:
             offset += batch_size
 
         logger.info(f"Total campaigns fetched for region {self.region}: {len(all_campaigns)}")
+        return all_campaigns
+
+    def get_campaigns_all_statuses(self, days=30, count=1000):
+        """Fetch campaigns of all statuses (sent, schedule, draft, paused)"""
+        all_campaigns = []
+        for status in ['sent', 'schedule', 'save', 'paused']:
+            try:
+                campaigns = self.get_campaigns(days=days, status=status, count=count)
+                all_campaigns.extend(campaigns)
+            except Exception as e:
+                logger.warning(f"Failed to fetch {status} campaigns for {self.region}: {e}")
+        # Sort by send_time/create_time descending
+        all_campaigns.sort(key=lambda x: x.get('send_time', ''), reverse=True)
         return all_campaigns
 
     def get_campaign_report(self, campaign_id):

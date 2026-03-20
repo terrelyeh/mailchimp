@@ -1,6 +1,25 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter, Search, X, Download, Clock, FileEdit, Pause, Send, CircleDot } from 'lucide-react';
+import { fetchCampaignList } from '../api';
+
+
+// Status config for display
+const STATUS_CONFIG = {
+    sent: { label: 'Sent', color: 'bg-green-50 text-green-700 border-green-200', icon: Send },
+    schedule: { label: 'Scheduled', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Clock },
+    save: { label: 'Draft', color: 'bg-gray-50 text-gray-600 border-gray-200', icon: FileEdit },
+    paused: { label: 'Paused', color: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: Pause },
+    sending: { label: 'Sending', color: 'bg-cyan-50 text-cyan-700 border-cyan-200', icon: CircleDot },
+};
+
+const STATUS_FILTERS = [
+    { value: 'sent', label: 'Sent' },
+    { value: 'schedule', label: 'Scheduled' },
+    { value: 'save', label: 'Draft' },
+    { value: 'paused', label: 'Paused' },
+    { value: 'all', label: 'All Statuses' },
+];
 
 
 // Sortable column header component
@@ -23,22 +42,15 @@ const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) =
     );
 };
 
-// Rate badge component for visual consistency
-const RateBadge = ({ value, threshold, invertWarning = false, suffix = '%' }) => {
-    const numValue = parseFloat(value);
-    const isWarning = invertWarning ? numValue < threshold : numValue > threshold;
 
-    return (
-        <span className={`font-semibold tabular-nums ${isWarning ? 'text-red-600' : 'text-gray-900'}`}>
-            {value}{suffix}
-        </span>
-    );
-};
-
-export default function CampaignList({ data, isExporting = false, audiences = [] }) {
+export default function CampaignList({ data, isExporting = false, audiences = [], selectedDays = 90, selectedRegion = null }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sort, setSort] = useState({ field: 'send_time', direction: 'desc' });
-    const itemsPerPage = isExporting ? data.length : 15; // Show all when exporting
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('sent');
+    const [extraCampaigns, setExtraCampaigns] = useState(null); // Non-sent campaigns loaded on demand
+    const [loadingExtra, setLoadingExtra] = useState(false);
+    const itemsPerPage = isExporting ? 9999 : 15;
 
     // Create a map of audience_id → member_count for quick lookup
     const audienceMemberMap = useMemo(() => {
@@ -51,10 +63,57 @@ export default function CampaignList({ data, isExporting = false, audiences = []
         return map;
     }, [audiences]);
 
-    // Reset to page 1 when data changes
+    // Reset to page 1 when data or filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [data.length]);
+    }, [data.length, searchTerm, statusFilter]);
+
+    // Clear extra campaigns when region/days change
+    useEffect(() => {
+        setExtraCampaigns(null);
+        if (statusFilter !== 'sent') {
+            setStatusFilter('sent');
+        }
+    }, [selectedRegion, selectedDays]);
+
+    // Fetch non-sent campaigns when status filter changes
+    const loadCampaignsForStatus = useCallback(async (status) => {
+        if (status === 'sent') {
+            setExtraCampaigns(null);
+            return;
+        }
+        setLoadingExtra(true);
+        try {
+            const result = await fetchCampaignList(selectedDays, selectedRegion, status);
+            setExtraCampaigns(result.campaigns || []);
+        } catch (e) {
+            console.error('Failed to load campaigns:', e);
+            setExtraCampaigns([]);
+        } finally {
+            setLoadingExtra(false);
+        }
+    }, [selectedDays, selectedRegion]);
+
+    const handleStatusChange = (newStatus) => {
+        setStatusFilter(newStatus);
+        if (newStatus !== 'sent') {
+            loadCampaignsForStatus(newStatus);
+        } else {
+            setExtraCampaigns(null);
+        }
+    };
+
+    // Determine which dataset to use
+    const baseData = useMemo(() => {
+        if (statusFilter === 'sent') {
+            // Add status field to existing dashboard data
+            return data.map(c => ({ ...c, status: c.status || 'sent' }));
+        }
+        if (extraCampaigns !== null) {
+            return extraCampaigns;
+        }
+        return [];
+    }, [data, statusFilter, extraCampaigns]);
 
     // Handle sort
     const handleSort = (field) => {
@@ -65,15 +124,25 @@ export default function CampaignList({ data, isExporting = false, audiences = []
         setCurrentPage(1);
     };
 
+    // Filter by search term
+    const filteredData = useMemo(() => {
+        if (!searchTerm.trim()) return baseData;
+        const term = searchTerm.toLowerCase().trim();
+        return baseData.filter(c =>
+            (c.title || '').toLowerCase().includes(term) ||
+            (c.subject_line || '').toLowerCase().includes(term)
+        );
+    }, [baseData, searchTerm]);
+
     // Sort data
     const sortedData = useMemo(() => {
-        return [...data].sort((a, b) => {
+        return [...filteredData].sort((a, b) => {
             let aVal, bVal;
 
             switch (sort.field) {
                 case 'send_time':
-                    aVal = new Date(a.send_time);
-                    bVal = new Date(b.send_time);
+                    aVal = new Date(a.send_time || 0);
+                    bVal = new Date(b.send_time || 0);
                     break;
                 case 'title':
                     aVal = (a.title || '').toLowerCase();
@@ -103,6 +172,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                     aVal = a.unsubscribed || 0;
                     bVal = b.unsubscribed || 0;
                     break;
+                case 'status':
+                    aVal = a.status || '';
+                    bVal = b.status || '';
+                    break;
                 default:
                     aVal = a[sort.field];
                     bVal = b[sort.field];
@@ -112,7 +185,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
             if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [data, sort]);
+    }, [filteredData, sort]);
 
     // Calculate pagination
     const totalItems = sortedData.length;
@@ -125,281 +198,442 @@ export default function CampaignList({ data, isExporting = false, audiences = []
         setCurrentPage(Math.max(1, Math.min(page, totalPages)));
     };
 
+    // CSV Export
+    const handleExportCSV = () => {
+        const headers = [
+            'Campaign Title', 'Subject Line', 'Status', 'Audience', 'Segment/Tag',
+            'Send Date', 'Emails Sent', 'Delivery Rate %', 'Open Rate %',
+            'Click Rate %', 'Bounce Rate %', 'Unsubscribes', 'Region'
+        ];
+
+        const rows = sortedData.map(c => {
+            const bounceRate = c.emails_sent > 0 ? ((c.bounces || 0) / c.emails_sent * 100) : 0;
+            const deliveryRate = c.emails_sent > 0 ? ((c.emails_sent - (c.bounces || 0)) / c.emails_sent * 100) : 0;
+            const statusLabel = STATUS_CONFIG[c.status]?.label || c.status || 'Sent';
+
+            return [
+                `"${(c.title || '').replace(/"/g, '""')}"`,
+                `"${(c.subject_line || '').replace(/"/g, '""')}"`,
+                statusLabel,
+                `"${(c.audience_name || '').replace(/"/g, '""')}"`,
+                `"${(c.segment_label || 'Full Audience').replace(/"/g, '""')}"`,
+                c.send_time ? format(new Date(c.send_time), 'yyyy-MM-dd HH:mm') : '',
+                c.emails_sent || 0,
+                deliveryRate.toFixed(1),
+                c.status === 'sent' ? ((c.open_rate || 0) * 100).toFixed(1) : '',
+                c.status === 'sent' ? ((c.click_rate || 0) * 100).toFixed(1) : '',
+                c.status === 'sent' ? bounceRate.toFixed(1) : '',
+                c.status === 'sent' ? (c.unsubscribed || 0) : '',
+                c.region || ''
+            ];
+        });
+
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `campaigns_${statusFilter}_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // Check if we're showing non-sent campaigns (metrics will be N/A)
+    const showMetrics = statusFilter === 'sent' || statusFilter === 'all';
+
     if (!data || data.length === 0) {
-        return (
-            <div className="bg-white rounded-xl shadow-layered border border-gray-100/50 p-8 text-center">
-                <Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No campaigns found</p>
-                <p className="text-gray-400 text-sm mt-1">Try adjusting your filters or date range</p>
-            </div>
-        );
+        if (statusFilter === 'sent') {
+            return (
+                <div className="bg-white rounded-xl shadow-layered border border-gray-100/50 p-8 text-center">
+                    <Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">No campaigns found</p>
+                    <p className="text-gray-400 text-sm mt-1">Try adjusting your filters or date range</p>
+                </div>
+            );
+        }
     }
 
     return (
         <div className="bg-white rounded-xl shadow-layered border border-gray-100/50 overflow-hidden">
-            {/* Header */}
-            <div className="px-4 md:px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
-                        <Mail className="w-4 h-4 text-gray-500" />
+            {/* Header with filters */}
+            <div className="px-4 md:px-6 py-4 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
+                            <Mail className="w-4 h-4 text-gray-500" />
+                        </div>
+                        <h3 className="section-title">Campaign List</h3>
                     </div>
-                    <h3 className="section-title">Recent Campaigns</h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 tabular-nums">
+                            {totalItems} campaign{totalItems !== 1 ? 's' : ''}
+                            {totalPages > 1 && <span className="text-gray-400"> · Page {currentPage}/{totalPages}</span>}
+                        </span>
+                        {/* Export Button */}
+                        <button
+                            onClick={handleExportCSV}
+                            disabled={totalItems === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Export to CSV"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Export CSV</span>
+                        </button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
+
+                {/* Filter Row */}
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* Search Input */}
+                    <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search campaigns..."
+                            className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#007C89]/20 focus:border-[#007C89] transition-all outline-none"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-0.5 border border-gray-200">
+                        {STATUS_FILTERS.map(sf => (
+                            <button
+                                key={sf.value}
+                                onClick={() => handleStatusChange(sf.value)}
+                                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                                    statusFilter === sf.value
+                                        ? 'bg-white text-[#007C89] shadow-sm border border-gray-200'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                {sf.label}
+                            </button>
+                        ))}
+                    </div>
+
                     <span className="text-xs text-gray-400 md:hidden bg-gray-100 px-2 py-1 rounded">← Scroll →</span>
-                    <span className="text-sm text-gray-500 tabular-nums">
-                        {totalItems} campaign{totalItems !== 1 ? 's' : ''}
-                        {totalPages > 1 && <span className="text-gray-400"> · Page {currentPage} of {totalPages}</span>}
-                    </span>
                 </div>
             </div>
 
+            {/* Loading state for non-sent campaigns */}
+            {loadingExtra && (
+                <div className="px-6 py-8 text-center">
+                    <div className="w-6 h-6 border-2 border-[#007C89] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Loading {STATUS_FILTERS.find(f => f.value === statusFilter)?.label || ''} campaigns...</p>
+                </div>
+            )}
+
+            {/* Empty state */}
+            {!loadingExtra && totalItems === 0 && (
+                <div className="px-6 py-8 text-center">
+                    <Mail className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">
+                        {searchTerm
+                            ? `No campaigns matching "${searchTerm}"`
+                            : `No ${STATUS_FILTERS.find(f => f.value === statusFilter)?.label || ''} campaigns found`
+                        }
+                    </p>
+                </div>
+            )}
+
             {/* Table */}
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm min-w-[1050px]">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
-                            <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>
-                            <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Segment / Tag</th>
-                            <SortableHeader label="Sent" field="send_time" currentSort={sort} onSort={handleSort} />
-                            <SortableHeader label="Emails" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Delivery" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Opens" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
-                            <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {currentData.map((campaign, idx) => {
-                            const bounceRate = campaign.emails_sent > 0
-                                ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
-                                : 0;
-                            const delivered = campaign.emails_sent - (campaign.bounces || 0);
-                            const deliveryRate = campaign.emails_sent > 0
-                                ? (delivered / campaign.emails_sent * 100)
-                                : 0;
+            {!loadingExtra && totalItems > 0 && (
+                <>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm min-w-[1100px]">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
+                                    <SortableHeader label="Status" field="status" currentSort={sort} onSort={handleSort} />
+                                    <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>
+                                    <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Segment / Tag</th>
+                                    <SortableHeader label="Sent" field="send_time" currentSort={sort} onSort={handleSort} />
+                                    <SortableHeader label="Emails" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
+                                    <SortableHeader label="Delivery" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
+                                    <SortableHeader label="Opens" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
+                                    <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
+                                    <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
+                                    <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {currentData.map((campaign) => {
+                                    const isSent = campaign.status === 'sent';
+                                    const bounceRate = campaign.emails_sent > 0
+                                        ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
+                                        : 0;
+                                    const delivered = campaign.emails_sent - (campaign.bounces || 0);
+                                    const deliveryRate = campaign.emails_sent > 0
+                                        ? (delivered / campaign.emails_sent * 100)
+                                        : 0;
 
-                            // Use backend-parsed label (clean, structured)
-                            const segmentLabel = campaign.segment_label || null;
+                                    const segmentLabel = campaign.segment_label || null;
+                                    const segmentMemberCount = campaign.segment_member_count || null;
+                                    const audienceMemberCount = campaign.audience_id ? audienceMemberMap[campaign.audience_id] : null;
+                                    const totalForCoverage = segmentMemberCount || audienceMemberCount;
+                                    const coveragePercent = totalForCoverage && totalForCoverage > 0
+                                        ? ((campaign.emails_sent / totalForCoverage) * 100)
+                                        : null;
+                                    const hasSegmentCoverage = (segmentMemberCount && segmentMemberCount > 0) ||
+                                        (audienceMemberCount && audienceMemberCount > 0 && coveragePercent && coveragePercent < 95);
 
-                            // Get segment member count (from Mailchimp segment API) or audience member count as fallback
-                            const segmentMemberCount = campaign.segment_member_count || null;
-                            const audienceMemberCount = campaign.audience_id ? audienceMemberMap[campaign.audience_id] : null;
+                                    const statusInfo = STATUS_CONFIG[campaign.status] || STATUS_CONFIG.sent;
+                                    const StatusIcon = statusInfo.icon;
 
-                            // Determine which total to use for coverage calculation:
-                            // 1. If segment_member_count exists (from Mailchimp API), use it
-                            // 2. Otherwise, fall back to audience member count
-                            const totalForCoverage = segmentMemberCount || audienceMemberCount;
-                            const coveragePercent = totalForCoverage && totalForCoverage > 0
-                                ? ((campaign.emails_sent / totalForCoverage) * 100)
-                                : null;
-
-                            // Show coverage info if:
-                            // 1. We have segment_member_count (confirmed segment), OR
-                            // 2. emails_sent is less than 95% of audience size (indicates segment/filter was used)
-                            const hasSegmentCoverage = (segmentMemberCount && segmentMemberCount > 0) ||
-                                (audienceMemberCount && audienceMemberCount > 0 && coveragePercent && coveragePercent < 95);
-
-                            return (
-                                <tr
-                                    key={campaign.id}
-                                    className="hover:bg-blue-50/50 transition-colors bg-white"
-                                >
-                                    {/* Campaign Title */}
-                                    <td className="px-3 md:px-4 py-3">
-                                        {(() => {
-                                            const displayTitle = (campaign.title && campaign.title.trim()) ? campaign.title : campaign.subject_line;
-                                            const showSubject = campaign.subject_line && campaign.title && campaign.title.trim() && campaign.subject_line !== campaign.title;
-                                            return (
-                                                <div className="min-w-0 flex-1">
-                                                    {campaign.archive_url ? (
-                                                        <a
-                                                            href={campaign.archive_url}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="group block"
-                                                            title={`${displayTitle} - Click to view campaign`}
-                                                        >
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="font-semibold text-gray-900 group-hover:text-[#007C89] text-sm truncate max-w-[200px] transition-colors">
-                                                                    {displayTitle}
-                                                                </span>
-                                                                <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-[#007C89] transition-colors flex-shrink-0" />
-                                                            </div>
-                                                            {showSubject && (
-                                                                <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
-                                                                    {campaign.subject_line}
-                                                                </div>
-                                                            )}
-                                                        </a>
-                                                    ) : (
-                                                        <div>
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="font-semibold text-gray-900 text-sm truncate max-w-[200px]" title={displayTitle}>
-                                                                    {displayTitle}
-                                                                </span>
-                                                            </div>
-                                                            {showSubject && (
-                                                                <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
-                                                                    {campaign.subject_line}
+                                    return (
+                                        <tr
+                                            key={`${campaign.id}-${campaign.region || ''}`}
+                                            className="hover:bg-blue-50/50 transition-colors bg-white"
+                                        >
+                                            {/* Campaign Title */}
+                                            <td className="px-3 md:px-4 py-3">
+                                                {(() => {
+                                                    const displayTitle = (campaign.title && campaign.title.trim()) ? campaign.title : campaign.subject_line;
+                                                    const showSubject = campaign.subject_line && campaign.title && campaign.title.trim() && campaign.subject_line !== campaign.title;
+                                                    return (
+                                                        <div className="min-w-0 flex-1">
+                                                            {campaign.archive_url ? (
+                                                                <a
+                                                                    href={campaign.archive_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="group block"
+                                                                    title={`${displayTitle} - Click to view campaign`}
+                                                                >
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="font-semibold text-gray-900 group-hover:text-[#007C89] text-sm truncate max-w-[200px] transition-colors">
+                                                                            {displayTitle}
+                                                                        </span>
+                                                                        <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-[#007C89] transition-colors flex-shrink-0" />
+                                                                    </div>
+                                                                    {showSubject && (
+                                                                        <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
+                                                                            {campaign.subject_line}
+                                                                        </div>
+                                                                    )}
+                                                                </a>
+                                                            ) : (
+                                                                <div>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="font-semibold text-gray-900 text-sm truncate max-w-[200px]" title={displayTitle}>
+                                                                            {displayTitle}
+                                                                        </span>
+                                                                    </div>
+                                                                    {showSubject && (
+                                                                        <div className="text-xs text-gray-400 truncate max-w-[220px]" title={campaign.subject_line}>
+                                                                            {campaign.subject_line}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })()}
-                                    </td>
+                                                    );
+                                                })()}
+                                            </td>
 
-                                    {/* Audience */}
-                                    <td className="px-3 md:px-4 py-3">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                            {campaign.audience_name || 'N/A'}
-                                        </span>
-                                    </td>
+                                            {/* Status */}
+                                            <td className="px-3 md:px-4 py-3">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${statusInfo.color}`}>
+                                                    <StatusIcon className="w-3 h-3" />
+                                                    {statusInfo.label}
+                                                </span>
+                                            </td>
 
-                                    {/* Segment / Tag */}
-                                    <td className="px-3 md:px-4 py-3">
-                                        {segmentLabel ? (() => {
-                                            const isTag = campaign.segment_type === 'static';
-                                            return (
-                                                <div>
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
-                                                        isTag
-                                                            ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                                                            : 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                    }`}>
-                                                        {isTag
-                                                            ? <Tag className="w-3 h-3 flex-shrink-0" />
-                                                            : <Filter className="w-3 h-3 flex-shrink-0" />
-                                                        }
-                                                        <span className="truncate max-w-[150px]" title={segmentLabel}>{segmentLabel}</span>
+                                            {/* Audience */}
+                                            <td className="px-3 md:px-4 py-3">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                    {campaign.audience_name || 'N/A'}
+                                                </span>
+                                            </td>
+
+                                            {/* Segment / Tag */}
+                                            <td className="px-3 md:px-4 py-3">
+                                                {segmentLabel ? (() => {
+                                                    const isTag = campaign.segment_type === 'static';
+                                                    return (
+                                                        <div>
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                                                                isTag
+                                                                    ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                                                    : 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                            }`}>
+                                                                {isTag
+                                                                    ? <Tag className="w-3 h-3 flex-shrink-0" />
+                                                                    : <Filter className="w-3 h-3 flex-shrink-0" />
+                                                                }
+                                                                <span className="truncate max-w-[150px]" title={segmentLabel}>{segmentLabel}</span>
+                                                            </span>
+                                                            <div className="text-[10px] text-gray-400 mt-0.5 pl-0.5">
+                                                                {isTag ? 'Tag' : 'Segment'}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })() : (
+                                                    <span className="text-xs text-gray-400">Full Audience</span>
+                                                )}
+                                            </td>
+
+                                            {/* Send Time */}
+                                            <td className="px-3 md:px-4 py-3 text-gray-600 tabular-nums text-sm">
+                                                {campaign.send_time ? (
+                                                    <>
+                                                        <div>{format(new Date(campaign.send_time), 'MMM dd')}</div>
+                                                        <div className="text-xs text-gray-400">{format(new Date(campaign.send_time), 'HH:mm')}</div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
+
+                                            {/* Emails Sent */}
+                                            <td className="px-3 md:px-4 py-3 text-right">
+                                                {isSent ? (
+                                                    <>
+                                                        <div className="font-semibold text-gray-900 tabular-nums">
+                                                            {campaign.emails_sent?.toLocaleString() || 0}
+                                                        </div>
+                                                        {hasSegmentCoverage && totalForCoverage && (
+                                                            <div className="text-xs text-gray-400 tabular-nums">
+                                                                of {totalForCoverage.toLocaleString()}
+                                                                <span className="text-purple-500 ml-1">({coveragePercent.toFixed(1)}%)</span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
+
+                                            {/* Delivery Rate */}
+                                            <td className="px-3 md:px-4 py-3 text-right">
+                                                {isSent ? (
+                                                    <>
+                                                        <div className="font-semibold text-gray-900 tabular-nums">{deliveryRate.toFixed(1)}%</div>
+                                                        <div className="text-xs text-gray-400 tabular-nums">{delivered.toLocaleString()}</div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
+
+                                            {/* Open Rate */}
+                                            <td className="px-3 md:px-4 py-3 text-right">
+                                                {isSent ? (
+                                                    <>
+                                                        <div className="font-semibold text-gray-900 tabular-nums">{(campaign.open_rate * 100).toFixed(1)}%</div>
+                                                        <div className="text-xs text-gray-400 tabular-nums">{campaign.opens?.toLocaleString()}</div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
+
+                                            {/* Click Rate */}
+                                            <td className="px-3 md:px-4 py-3 text-right">
+                                                {isSent ? (
+                                                    <>
+                                                        <div className="font-semibold text-gray-900 tabular-nums">{(campaign.click_rate * 100).toFixed(1)}%</div>
+                                                        <div className="text-xs text-gray-400 tabular-nums">{campaign.clicks?.toLocaleString()}</div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
+
+                                            {/* Bounce Rate */}
+                                            <td className="px-3 md:px-4 py-3 text-right">
+                                                {isSent ? (
+                                                    <span className={`font-semibold tabular-nums ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
+                                                        {bounceRate.toFixed(1)}%
                                                     </span>
-                                                    <div className="text-[10px] text-gray-400 mt-0.5 pl-0.5">
-                                                        {isTag ? 'Tag' : 'Segment'}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })() : (
-                                            <span className="text-xs text-gray-400">Full Audience</span>
-                                        )}
-                                    </td>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
 
-                                    {/* Send Time */}
-                                    <td className="px-3 md:px-4 py-3 text-gray-600 tabular-nums text-sm">
-                                        <div>{format(new Date(campaign.send_time), 'MMM dd')}</div>
-                                        <div className="text-xs text-gray-400">{format(new Date(campaign.send_time), 'HH:mm')}</div>
-                                    </td>
-
-                                    {/* Emails Sent */}
-                                    <td className="px-3 md:px-4 py-3 text-right">
-                                        <div className="font-semibold text-gray-900 tabular-nums">
-                                            {campaign.emails_sent?.toLocaleString() || 0}
-                                        </div>
-                                        {hasSegmentCoverage && totalForCoverage && (
-                                            <div className="text-xs text-gray-400 tabular-nums">
-                                                of {totalForCoverage.toLocaleString()}
-                                                <span className="text-purple-500 ml-1">({coveragePercent.toFixed(1)}%)</span>
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Delivery Rate */}
-                                    <td className="px-3 md:px-4 py-3 text-right">
-                                        <div className="font-semibold text-gray-900 tabular-nums">{deliveryRate.toFixed(1)}%</div>
-                                        <div className="text-xs text-gray-400 tabular-nums">{delivered.toLocaleString()}</div>
-                                    </td>
-
-                                    {/* Open Rate */}
-                                    <td className="px-3 md:px-4 py-3 text-right">
-                                        <div className="font-semibold text-gray-900 tabular-nums">{(campaign.open_rate * 100).toFixed(1)}%</div>
-                                        <div className="text-xs text-gray-400 tabular-nums">{campaign.opens?.toLocaleString()}</div>
-                                    </td>
-
-                                    {/* Click Rate */}
-                                    <td className="px-3 md:px-4 py-3 text-right">
-                                        <div className="font-semibold text-gray-900 tabular-nums">{(campaign.click_rate * 100).toFixed(1)}%</div>
-                                        <div className="text-xs text-gray-400 tabular-nums">{campaign.clicks?.toLocaleString()}</div>
-                                    </td>
-
-                                    {/* Bounce Rate */}
-                                    <td className="px-3 md:px-4 py-3 text-right">
-                                        <span className={`font-semibold tabular-nums ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
-                                            {bounceRate.toFixed(1)}%
-                                        </span>
-                                    </td>
-
-                                    {/* Unsubscribes */}
-                                    <td className="px-3 md:px-4 py-3 text-right">
-                                        <span className={`font-semibold tabular-nums ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
-                                            {campaign.unsubscribed?.toLocaleString() || 0}
-                                        </span>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Pagination - hidden when exporting */}
-            {totalPages > 1 && !isExporting && (
-                <div className="px-4 md:px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-                    <div className="text-sm text-gray-500 tabular-nums">
-                        Showing <span className="font-medium text-gray-700">{startIndex + 1}-{Math.min(endIndex, totalItems)}</span> of <span className="font-medium text-gray-700">{totalItems}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <button
-                            onClick={() => goToPage(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            title="Previous page"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-
-                        <div className="flex items-center gap-1">
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                                if (
-                                    page === 1 ||
-                                    page === totalPages ||
-                                    (page >= currentPage - 1 && page <= currentPage + 1)
-                                ) {
-                                    return (
-                                        <button
-                                            key={page}
-                                            onClick={() => goToPage(page)}
-                                            className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${
-                                                page === currentPage
-                                                    ? 'bg-[#007C89] text-white shadow-sm'
-                                                    : 'text-gray-600 hover:bg-white border border-transparent hover:border-gray-200'
-                                            }`}
-                                        >
-                                            {page}
-                                        </button>
+                                            {/* Unsubscribes */}
+                                            <td className="px-3 md:px-4 py-3 text-right">
+                                                {isSent ? (
+                                                    <span className={`font-semibold tabular-nums ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                                                        {campaign.unsubscribed?.toLocaleString() || 0}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
+                                        </tr>
                                     );
-                                } else if (
-                                    page === currentPage - 2 ||
-                                    page === currentPage + 2
-                                ) {
-                                    return <span key={page} className="px-1 text-gray-300">···</span>;
-                                }
-                                return null;
-                            })}
-                        </div>
-
-                        <button
-                            onClick={() => goToPage(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            title="Next page"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
+                                })}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && !isExporting && (
+                        <div className="px-4 md:px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <div className="text-sm text-gray-500 tabular-nums">
+                                Showing <span className="font-medium text-gray-700">{startIndex + 1}-{Math.min(endIndex, totalItems)}</span> of <span className="font-medium text-gray-700">{totalItems}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => goToPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                        if (
+                                            page === 1 ||
+                                            page === totalPages ||
+                                            (page >= currentPage - 1 && page <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={page}
+                                                    onClick={() => goToPage(page)}
+                                                    className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${
+                                                        page === currentPage
+                                                            ? 'bg-[#007C89] text-white shadow-sm'
+                                                            : 'text-gray-600 hover:bg-white border border-transparent hover:border-gray-200'
+                                                    }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            );
+                                        } else if (
+                                            page === currentPage - 2 ||
+                                            page === currentPage + 2
+                                        ) {
+                                            return <span key={page} className="px-1 text-gray-300">···</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => goToPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
