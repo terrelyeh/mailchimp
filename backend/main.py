@@ -418,6 +418,40 @@ def reset_user_password(user_id: str, admin: Dict = Depends(require_user_admin))
 
 
 # ============================================
+# Debug Endpoints (temporary)
+# ============================================
+
+@app.get("/api/debug/campaign-segments/{region}")
+def debug_campaign_segments(region: str, limit: int = 5):
+    """Temporary debug: show raw segment_opts from Mailchimp API for a region"""
+    service = mailchimp_service.get_service(region)
+    if not service:
+        raise HTTPException(status_code=404, detail=f"Region {region} not configured")
+
+    try:
+        url = f"{service.api_url}/campaigns"
+        params = {"count": limit, "status": "sent", "sort_field": "send_time", "sort_dir": "DESC"}
+        resp = service.session.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        campaigns = resp.json().get('campaigns', [])
+
+        results = []
+        for c in campaigns:
+            recipients = c.get('recipients', {})
+            results.append({
+                "id": c.get('id'),
+                "title": c.get('settings', {}).get('title', ''),
+                "emails_sent": c.get('emails_sent', 0),
+                "segment_opts": recipients.get('segment_opts'),
+                "segment_text": recipients.get('segment_text', ''),
+                "recipient_count": recipients.get('recipient_count', 0),
+            })
+        return {"region": region, "campaigns": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
 # General Endpoints
 # ============================================
 
