@@ -422,13 +422,25 @@ def reset_user_password(user_id: str, admin: Dict = Depends(require_user_admin))
 # ============================================
 
 @app.get("/api/debug/campaign-segments/{region}")
-def debug_campaign_segments(region: str, limit: int = 5):
+def debug_campaign_segments(region: str, limit: int = 5, campaign_id: str = None):
     """Temporary debug: show raw segment_opts from Mailchimp API for a region"""
     client = mailchimp_service.get_client(region)
     if not client:
         raise HTTPException(status_code=404, detail=f"Region {region} not configured")
 
     try:
+        # If a specific campaign ID is given, fetch its full detail
+        if campaign_id:
+            detail = client._get(f"/campaigns/{campaign_id}")
+            if not detail:
+                raise HTTPException(status_code=404, detail="Campaign not found")
+            recipients = detail.get('recipients', {})
+            return {
+                "id": campaign_id,
+                "title": detail.get('settings', {}).get('title', ''),
+                "recipients": recipients,
+            }
+
         data = client._get("/campaigns", params={"count": limit, "status": "sent", "sort_field": "send_time", "sort_dir": "DESC"})
         if not data:
             raise HTTPException(status_code=500, detail="Failed to fetch campaigns from Mailchimp API")
@@ -446,6 +458,8 @@ def debug_campaign_segments(region: str, limit: int = 5):
                 "recipient_count": recipients.get('recipient_count', 0),
             })
         return {"region": region, "campaigns": results}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
