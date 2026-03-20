@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter, Search, X, Download, Clock, FileEdit, Pause, Send, CircleDot } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter, Search, X, Download, Clock, FileEdit, Pause, Send, CircleDot, Settings2, Eye, EyeOff } from 'lucide-react';
 import { fetchCampaignList } from '../api';
 
 
@@ -21,6 +21,24 @@ const STATUS_FILTERS = [
     { value: 'all', label: 'All Statuses' },
 ];
 
+
+// Column definitions for visibility toggle
+const COLUMN_DEFS = [
+    { key: 'campaign', label: 'Campaign', required: true },
+    { key: 'status', label: 'Status', default: true },
+    { key: 'audience', label: 'Audience', default: true },
+    { key: 'segment', label: 'Segment / Tag', default: true },
+    { key: 'send_time', label: 'Sent / Scheduled', default: true },
+    { key: 'emails_sent', label: 'Emails Sent', default: true },
+    { key: 'delivery', label: 'Delivery Rate', default: true },
+    { key: 'opens', label: 'Open Rate', default: true },
+    { key: 'clicks', label: 'Click Rate', default: true },
+    { key: 'bounce', label: 'Bounce Rate', default: false },
+    { key: 'unsubs', label: 'Unsubscribes', default: false },
+    { key: 'region', label: 'Region', default: false },
+];
+
+const DEFAULT_VISIBLE = COLUMN_DEFS.filter(c => c.required || c.default).map(c => c.key);
 
 // Sortable column header component
 const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) => {
@@ -48,9 +66,45 @@ export default function CampaignList({ data, isExporting = false, audiences = []
     const [sort, setSort] = useState({ field: 'send_time', direction: 'desc' });
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('sent');
+    const [visibleColumns, setVisibleColumns] = useState(() => {
+        try {
+            const saved = localStorage.getItem('campaign_visible_columns');
+            if (saved) return JSON.parse(saved);
+        } catch {}
+        return DEFAULT_VISIBLE;
+    });
+    const [showColumnPicker, setShowColumnPicker] = useState(false);
+    const columnPickerRef = React.useRef(null);
     const [extraCampaigns, setExtraCampaigns] = useState(null); // Non-sent campaigns loaded on demand
     const [loadingExtra, setLoadingExtra] = useState(false);
     const itemsPerPage = isExporting ? 9999 : 15;
+
+    // Toggle column visibility
+    const toggleColumn = (key) => {
+        setVisibleColumns(prev => {
+            const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
+            localStorage.setItem('campaign_visible_columns', JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const resetColumns = () => {
+        setVisibleColumns(DEFAULT_VISIBLE);
+        localStorage.setItem('campaign_visible_columns', JSON.stringify(DEFAULT_VISIBLE));
+    };
+
+    const isColVisible = (key) => visibleColumns.includes(key);
+
+    // Close column picker on click outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (columnPickerRef.current && !columnPickerRef.current.contains(e.target)) {
+                setShowColumnPicker(false);
+            }
+        };
+        if (showColumnPicker) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showColumnPicker]);
 
     // Create a map of audience_id → member_count for quick lookup
     const audienceMemberMap = useMemo(() => {
@@ -279,6 +333,53 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                             <Download className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Export CSV</span>
                         </button>
+
+                        {/* Column Picker */}
+                        <div className="relative" ref={columnPickerRef}>
+                            <button
+                                onClick={() => setShowColumnPicker(prev => !prev)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-lg transition-colors ${
+                                    showColumnPicker
+                                        ? 'text-[#007C89] bg-[#007C89]/5 border-[#007C89]/30'
+                                        : 'text-gray-600 bg-gray-50 hover:bg-gray-100 border-gray-200'
+                                }`}
+                                title="Choose columns"
+                            >
+                                <Settings2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Columns</span>
+                            </button>
+                            {showColumnPicker && (
+                                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                                    <div className="px-3 py-1.5 flex items-center justify-between border-b border-gray-100 mb-1">
+                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Show Columns</span>
+                                        <button
+                                            onClick={resetColumns}
+                                            className="text-[10px] text-[#007C89] hover:underline font-medium"
+                                        >
+                                            Reset
+                                        </button>
+                                    </div>
+                                    {COLUMN_DEFS.map(col => (
+                                        <label
+                                            key={col.key}
+                                            className={`flex items-center gap-2.5 px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                                                col.required ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={visibleColumns.includes(col.key)}
+                                                disabled={col.required}
+                                                onChange={() => !col.required && toggleColumn(col.key)}
+                                                className="w-3.5 h-3.5 rounded border-gray-300 text-[#007C89] focus:ring-[#007C89]/20 accent-[#007C89]"
+                                            />
+                                            <span className="text-gray-700">{col.label}</span>
+                                            {col.required && <span className="text-[10px] text-gray-400 ml-auto">Always on</span>}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -354,16 +455,17 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                             <thead className="bg-gray-50 border-b border-gray-200">
                                 <tr>
                                     <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
-                                    <SortableHeader label="Status" field="status" currentSort={sort} onSort={handleSort} />
-                                    <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>
-                                    <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Segment / Tag</th>
-                                    <SortableHeader label="Sent" field="send_time" currentSort={sort} onSort={handleSort} />
-                                    <SortableHeader label="Emails" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />
-                                    <SortableHeader label="Delivery" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />
-                                    <SortableHeader label="Opens" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />
-                                    <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />
-                                    <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />
-                                    <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />
+                                    {isColVisible('status') && <SortableHeader label="Status" field="status" currentSort={sort} onSort={handleSort} />}
+                                    {isColVisible('audience') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>}
+                                    {isColVisible('segment') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Segment / Tag</th>}
+                                    {isColVisible('send_time') && <SortableHeader label={statusFilter === 'schedule' ? 'Scheduled' : 'Sent'} field="send_time" currentSort={sort} onSort={handleSort} />}
+                                    {isColVisible('emails_sent') && <SortableHeader label="Emails" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('delivery') && <SortableHeader label="Delivery" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('opens') && <SortableHeader label="Opens" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('clicks') && <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('bounce') && <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('unsubs') && <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('region') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Region</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
@@ -442,21 +544,26 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                             </td>
 
                                             {/* Status */}
+                                            {isColVisible('status') && (
                                             <td className="px-3 md:px-4 py-3">
                                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${statusInfo.color}`}>
                                                     <StatusIcon className="w-3 h-3" />
                                                     {statusInfo.label}
                                                 </span>
                                             </td>
+                                            )}
 
                                             {/* Audience */}
+                                            {isColVisible('audience') && (
                                             <td className="px-3 md:px-4 py-3">
                                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                                     {campaign.audience_name || 'N/A'}
                                                 </span>
                                             </td>
+                                            )}
 
                                             {/* Segment / Tag */}
+                                            {isColVisible('segment') && (
                                             <td className="px-3 md:px-4 py-3">
                                                 {segmentLabel ? (() => {
                                                     const isTag = campaign.segment_type === 'static';
@@ -482,20 +589,32 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     <span className="text-xs text-gray-400">Full Audience</span>
                                                 )}
                                             </td>
+                                            )}
 
-                                            {/* Send Time */}
+                                            {/* Send Time / Scheduled Time */}
+                                            {isColVisible('send_time') && (
                                             <td className="px-3 md:px-4 py-3 text-gray-600 tabular-nums text-sm">
                                                 {campaign.send_time ? (
                                                     <>
                                                         <div>{format(new Date(campaign.send_time), 'MMM dd')}</div>
                                                         <div className="text-xs text-gray-400">{format(new Date(campaign.send_time), 'HH:mm')}</div>
+                                                        {campaign.status === 'schedule' && (
+                                                            <div className="text-[10px] text-blue-500 font-medium mt-0.5">Scheduled</div>
+                                                        )}
+                                                    </>
+                                                ) : campaign.create_time ? (
+                                                    <>
+                                                        <div className="text-gray-400">{format(new Date(campaign.create_time), 'MMM dd')}</div>
+                                                        <div className="text-[10px] text-gray-400">Created</div>
                                                     </>
                                                 ) : (
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
                                             </td>
+                                            )}
 
                                             {/* Emails Sent */}
+                                            {isColVisible('emails_sent') && (
                                             <td className="px-3 md:px-4 py-3 text-right">
                                                 {isSent ? (
                                                     <>
@@ -513,8 +632,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
                                             </td>
+                                            )}
 
                                             {/* Delivery Rate */}
+                                            {isColVisible('delivery') && (
                                             <td className="px-3 md:px-4 py-3 text-right">
                                                 {isSent ? (
                                                     <>
@@ -525,8 +646,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
                                             </td>
+                                            )}
 
                                             {/* Open Rate */}
+                                            {isColVisible('opens') && (
                                             <td className="px-3 md:px-4 py-3 text-right">
                                                 {isSent ? (
                                                     <>
@@ -537,8 +660,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
                                             </td>
+                                            )}
 
                                             {/* Click Rate */}
+                                            {isColVisible('clicks') && (
                                             <td className="px-3 md:px-4 py-3 text-right">
                                                 {isSent ? (
                                                     <>
@@ -549,8 +674,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
                                             </td>
+                                            )}
 
                                             {/* Bounce Rate */}
+                                            {isColVisible('bounce') && (
                                             <td className="px-3 md:px-4 py-3 text-right">
                                                 {isSent ? (
                                                     <span className={`font-semibold tabular-nums ${bounceRate > 5 ? 'text-red-600' : 'text-gray-900'}`}>
@@ -560,8 +687,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
                                             </td>
+                                            )}
 
                                             {/* Unsubscribes */}
+                                            {isColVisible('unsubs') && (
                                             <td className="px-3 md:px-4 py-3 text-right">
                                                 {isSent ? (
                                                     <span className={`font-semibold tabular-nums ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
@@ -571,6 +700,16 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
                                             </td>
+                                            )}
+
+                                            {/* Region */}
+                                            {isColVisible('region') && (
+                                            <td className="px-3 md:px-4 py-3">
+                                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                                                    {(campaign.region || '').toUpperCase()}
+                                                </span>
+                                            </td>
+                                            )}
                                         </tr>
                                     );
                                 })}
