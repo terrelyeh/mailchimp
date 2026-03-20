@@ -424,14 +424,14 @@ def reset_user_password(user_id: str, admin: Dict = Depends(require_user_admin))
 @app.get("/api/debug/campaign-segments/{region}")
 def debug_campaign_segments(region: str, limit: int = 5):
     """Temporary debug: show raw segment_opts from Mailchimp API for a region"""
-    service = mailchimp_service.get_service(region)
-    if not service:
+    client = mailchimp_service.get_client(region)
+    if not client:
         raise HTTPException(status_code=404, detail=f"Region {region} not configured")
 
     try:
-        url = f"{service.api_url}/campaigns"
+        url = f"{client.api_url}/campaigns"
         params = {"count": limit, "status": "sent", "sort_field": "send_time", "sort_dir": "DESC"}
-        resp = service.session.get(url, params=params, timeout=30)
+        resp = client.session.get(url, params=params, timeout=30)
         resp.raise_for_status()
         campaigns = resp.json().get('campaigns', [])
 
