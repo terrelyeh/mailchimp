@@ -178,6 +178,9 @@ def get_cached_campaigns(days=30, region=None):
             # Clean HTML from segment_text if present
             if camp.get('segment_text'):
                 camp['segment_text'] = strip_html(camp['segment_text'])
+            # Ensure segment_label exists (may be missing in older cached data)
+            if not camp.get('segment_label') and camp.get('segment_text'):
+                camp['segment_label'] = camp['segment_text']
             results.append(camp)
         except Exception as e:
             logger.warning(f"Failed to parse campaign JSON: {e}")

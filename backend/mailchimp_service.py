@@ -151,42 +151,86 @@ class MailchimpClient:
                 segment_id = segment_opts.get('saved_segment_id') or segment_opts.get('prebuilt_segment_id')
                 conditions = segment_opts.get('conditions', [])
 
-                # Get segment_text from API and strip HTML tags
-                raw_segment_text = recipients.get('segment_text', '')
-                segment_text = strip_html(raw_segment_text)
-
-                # Segment member count and type
+                # Initialize segment fields
+                segment_label = None   # Clean, display-ready label
+                segment_type = None    # "static" = Tag, "saved" = Segment
                 segment_member_count = None
-                segment_type = None  # "static" = Tag, "saved" = Segment, "conditions" = ad-hoc
 
-                # If we have segment_id, fetch segment info (name, member_count, type)
+                if not hasattr(self, '_segment_cache'):
+                    self._segment_cache = {}
+
+                # --- Case 1: Has a saved_segment_id → fetch name & type from API ---
                 if segment_id:
                     cache_key = f"{list_id}:{segment_id}"
-                    if not hasattr(self, '_segment_cache'):
-                        self._segment_cache = {}
-
                     if cache_key not in self._segment_cache:
                         segment_info = self.get_segment_info(list_id, segment_id)
-                        if segment_info:
-                            self._segment_cache[cache_key] = segment_info
-                        else:
-                            self._segment_cache[cache_key] = {'name': f"Segment #{segment_id}", 'member_count': 0, 'type': ''}
+                        self._segment_cache[cache_key] = segment_info or {
+                            'name': f"Segment #{segment_id}", 'member_count': 0, 'type': ''
+                        }
 
-                    cached_info = self._segment_cache[cache_key]
-                    if not segment_text:
-                        segment_text = cached_info.get('name', '')
-                    segment_member_count = cached_info.get('member_count', 0)
-                    segment_type = cached_info.get('type', '')
+                    cached = self._segment_cache[cache_key]
+                    segment_label = cached.get('name', '')
+                    segment_member_count = cached.get('member_count', 0)
+                    segment_type = cached.get('type', '')
 
+                # --- Case 2: No saved_segment_id but has conditions → parse them ---
                 elif conditions:
-                    # Ad-hoc conditions (no saved segment) — detect type from conditions
-                    has_static = any(
-                        cond.get('condition_type') == 'StaticSegment'
-                        for cond in conditions
-                    )
-                    segment_type = 'static' if has_static else 'saved'
-                    if not segment_text:
-                        segment_text = f"Conditions ({segment_opts.get('match', 'any')})"
+                    labels = []
+                    for cond in conditions:
+                        ct = cond.get('condition_type', '')
+                        value = cond.get('value', '')
+
+                        if ct == 'StaticSegment':
+                            # Tag — try to resolve name via API
+                            tag_id = value
+                            if tag_id and list_id:
+                                tag_cache_key = f"{list_id}:{tag_id}"
+                                if tag_cache_key not in self._segment_cache:
+                                    tag_info = self.get_segment_info(list_id, tag_id)
+                                    self._segment_cache[tag_cache_key] = tag_info or {
+                                        'name': f"Tag #{tag_id}", 'member_count': 0, 'type': 'static'
+                                    }
+                                cached_tag = self._segment_cache[tag_cache_key]
+                                labels.append(cached_tag.get('name', f'Tag #{tag_id}'))
+                                segment_type = 'static'
+                                if not segment_member_count:
+                                    segment_member_count = cached_tag.get('member_count', 0)
+                            else:
+                                labels.append(f'Tag #{tag_id}')
+                                segment_type = 'static'
+
+                        elif ct == 'Interests':
+                            labels.append('Interest Group')
+                        elif ct in ('TextMerge', 'SelectMerge'):
+                            field = cond.get('field', '')
+                            op = cond.get('op', '')
+                            labels.append(f'{field} {op} {value}' if field else 'Merge Field')
+                        elif ct == 'Aim':
+                            labels.append('Campaign Activity')
+                        elif ct == 'CampaignSegment':
+                            labels.append('Campaign Engagement')
+                        elif ct == 'DateMerge':
+                            labels.append('Date Condition')
+                        elif ct == 'IPGeoIn' or ct == 'IPGeoCountryState':
+                            labels.append('Location')
+                        elif ct == 'Language':
+                            labels.append(f'Language: {value}' if value else 'Language')
+                        elif ct == 'NewSubscribers':
+                            labels.append('New Subscribers')
+                        elif ct == 'VIP':
+                            labels.append('VIP')
+                        elif ct == 'Automation':
+                            labels.append('Automation')
+                        elif ct == 'EmailAddress':
+                            labels.append('Email Filter')
+                        else:
+                            labels.append(ct if ct else 'Filter')
+
+                    if not segment_type:
+                        segment_type = 'saved'
+                    segment_label = ' + '.join(labels[:3])  # Max 3 conditions shown
+                    if len(labels) > 3:
+                        segment_label += f' +{len(labels) - 3} more'
 
                 all_campaigns.append({
                     "id": c['id'],
@@ -200,7 +244,8 @@ class MailchimpClient:
                     "audience_id": list_id,
                     "audience_name": list_name,
                     "segment_id": segment_id,
-                    "segment_text": segment_text,
+                    "segment_text": strip_html(recipients.get('segment_text', '')),
+                    "segment_label": segment_label,
                     "segment_type": segment_type,
                     "segment_member_count": segment_member_count,
                     "recipient_count": recipients.get('recipient_count', 0)
