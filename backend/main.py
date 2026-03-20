@@ -429,11 +429,10 @@ def debug_campaign_segments(region: str, limit: int = 5):
         raise HTTPException(status_code=404, detail=f"Region {region} not configured")
 
     try:
-        url = f"{client.api_url}/campaigns"
-        params = {"count": limit, "status": "sent", "sort_field": "send_time", "sort_dir": "DESC"}
-        resp = client.session.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        campaigns = resp.json().get('campaigns', [])
+        data = client._get("/campaigns", params={"count": limit, "status": "sent", "sort_field": "send_time", "sort_dir": "DESC"})
+        if not data:
+            raise HTTPException(status_code=500, detail="Failed to fetch campaigns from Mailchimp API")
+        campaigns = data.get('campaigns', [])
 
         results = []
         for c in campaigns:
