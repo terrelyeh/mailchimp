@@ -836,7 +836,7 @@ function App() {
 
                 {/* Section 3: Chart */}
                 <div data-export-section="chart">
-                  <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
+                  <TimeSeriesMetricsChart regionsData={displayData} />
                 </div>
 
                 {/* Section 4: Region Cards */}
@@ -847,11 +847,6 @@ function App() {
                     regionsActivity={regionsActivity}
                     onRegionClick={handleRegionClick}
                   />
-                </div>
-
-                {/* Section 5: Campaign Calendar (All Regions) */}
-                <div data-export-section="campaigns">
-                  <CampaignCalendar data={Array.isArray(displayData) ? displayData : []} selectedDays={selectedDays} selectedRegion={selectedRegion} regions={availableRegions} />
                 </div>
 
                 {/* Compare Campaigns Entry Point */}
@@ -956,7 +951,7 @@ function App() {
                   {campaignView === 'list' || isExporting ? (
                     <CampaignList data={Array.isArray(displayData) ? displayData : []} isExporting={isExporting} audiences={regionAudienceList} selectedDays={selectedDays} selectedRegion={selectedRegion} />
                   ) : (
-                    <CampaignCalendar data={Array.isArray(displayData) ? displayData : []} selectedDays={selectedDays} selectedRegion={selectedRegion} regions={availableRegions} />
+                    <CampaignCalendar data={Array.isArray(displayData) ? displayData : []} selectedDays={selectedDays} selectedRegion={selectedRegion} />
                   )}
                 </div>
               </>

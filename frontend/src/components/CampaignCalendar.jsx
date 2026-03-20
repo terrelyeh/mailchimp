@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isSameDay, isToday } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, Send, Clock, FileEdit, Pause, CircleDot, ExternalLink, X, Users, Globe } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Send, Clock, FileEdit, Pause, CircleDot, ExternalLink, X, Users } from 'lucide-react';
 import { fetchCampaignList } from '../api';
 
 // Status config matching CampaignList
@@ -21,23 +21,14 @@ const REGION_COLORS = {
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export default function CampaignCalendar({ data = [], selectedDays = 90, selectedRegion = null, regions = [] }) {
+export default function CampaignCalendar({ data = [], selectedDays = 90, selectedRegion = null }) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [allCampaigns, setAllCampaigns] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
     const [popoverPos, setPopoverPos] = useState(null);
-    const [calendarRegion, setCalendarRegion] = useState(selectedRegion); // Internal region for calendar
     const popoverRef = useRef(null);
     const calendarRef = useRef(null);
-
-    // Sync with parent's selectedRegion when it changes
-    useEffect(() => {
-        setCalendarRegion(selectedRegion);
-    }, [selectedRegion]);
-
-    // The effective region used for fetching
-    const effectiveRegion = calendarRegion;
 
     // Fetch all-status campaigns
     useEffect(() => {
@@ -45,7 +36,7 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
         const load = async () => {
             setLoading(true);
             try {
-                const result = await fetchCampaignList(selectedDays, effectiveRegion, 'all');
+                const result = await fetchCampaignList(selectedDays, selectedRegion, 'all');
                 if (!cancelled) {
                     setAllCampaigns(result.campaigns || []);
                 }
@@ -61,7 +52,7 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
         };
         load();
         return () => { cancelled = true; };
-    }, [selectedDays, effectiveRegion, data]);
+    }, [selectedDays, selectedRegion, data]);
 
     // Group campaigns by date
     const campaignsByDate = useMemo(() => {
@@ -178,37 +169,6 @@ export default function CampaignCalendar({ data = [], selectedDays = 90, selecte
                         </button>
                     </div>
                 </div>
-
-                {/* Region quick-switch — only in All Regions view */}
-                {!selectedRegion && regions.length > 1 && (
-                    <div className="flex items-center gap-1.5 mb-3">
-                        <button
-                            onClick={() => setCalendarRegion(null)}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
-                                calendarRegion === null
-                                    ? 'bg-[#007C89] text-white shadow-sm'
-                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
-                            }`}
-                        >
-                            <Globe className="w-3 h-3" />
-                            All
-                        </button>
-                        {regions.map(r => (
-                            <button
-                                key={r.code}
-                                onClick={() => setCalendarRegion(r.code)}
-                                className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
-                                    calendarRegion === r.code
-                                        ? 'bg-[#007C89] text-white shadow-sm'
-                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
-                                }`}
-                            >
-                                <span className="text-sm leading-none">{r.flag}</span>
-                                {r.code}
-                            </button>
-                        ))}
-                    </div>
-                )}
 
                 {/* Month stats */}
                 <div className="flex items-center gap-5 text-sm">
