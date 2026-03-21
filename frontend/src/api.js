@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// In production (Zeabur), use VITE_API_URL environment variable
+// In production (Vercel), use VITE_API_URL environment variable
 // In development, use localhost
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
