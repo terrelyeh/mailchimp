@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList, Link2, Users, Key, EyeOff, Sparkles, History } from 'lucide-react';
+import { X, Settings, RotateCcw, AlertTriangle, TrendingDown, Activity, ClipboardList, Link2, Users, Key, EyeOff, History } from 'lucide-react';
 import { useThresholds } from '../contexts/ThresholdContext';
 import ShareLinksManager from './ShareLinksManager';
 import UserManagement from './UserManagement';
 import ExcludedAudiencesManager from './ExcludedAudiencesManager';
-import AISettingsManager from './AISettingsManager';
 import ActivityLogsManager from './ActivityLogsManager';
 
 export default function SettingsModal({ isOpen, onClose, user, onChangePassword }) {
@@ -138,7 +137,6 @@ export default function SettingsModal({ isOpen, onClose, user, onChangePassword 
 
   const tabs = [
     { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
-    { id: 'ai', label: 'AI Analysis', icon: Sparkles, adminOnly: true },
     { id: 'excluded', label: 'Excluded', icon: EyeOff, adminOnly: true },
     { id: 'shares', label: 'Share Links', icon: Link2, adminOnly: true },
     { id: 'users', label: 'Users', icon: Users, userAdminOnly: true },  // Only admin, not manager
@@ -272,7 +270,6 @@ export default function SettingsModal({ isOpen, onClose, user, onChangePassword 
               ))}
             </div>
           )}
-          {activeTab === 'ai' && <AISettingsManager />}
           {activeTab === 'excluded' && <ExcludedAudiencesManager />}
           {activeTab === 'shares' && <ShareLinksManager />}
           {activeTab === 'users' && <UserManagement currentUserId={user?.id} />}

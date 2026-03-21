@@ -71,7 +71,6 @@ export default function ActivityLogsManager() {
             'session_start': '開啟應用',
             'view_dashboard': '查看儀表板',
             'view_region': '查看區域',
-            'run_ai_analysis': 'AI 分析',
             'export_report': '匯出報告',
             'populate_cache': '填充快取',
             'clear_cache': '清除快取',
@@ -87,7 +86,6 @@ export default function ActivityLogsManager() {
             'session_start': 'bg-green-100 text-green-700',
             'view_dashboard': 'bg-blue-100 text-blue-700',
             'view_region': 'bg-blue-100 text-blue-700',
-            'run_ai_analysis': 'bg-purple-100 text-purple-700',
             'populate_cache': 'bg-cyan-100 text-cyan-700',
             'clear_cache': 'bg-red-100 text-red-700',
             'create_user': 'bg-teal-100 text-teal-700',
@@ -112,12 +110,6 @@ export default function ActivityLogsManager() {
                             {Object.keys(summary.by_user || {}).length}
                         </div>
                         <div className="text-xs text-green-600">活躍使用者</div>
-                    </div>
-                    <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
-                        <div className="text-2xl font-bold text-purple-700">
-                            {summary.by_action?.['run_ai_analysis'] || 0}
-                        </div>
-                        <div className="text-xs text-purple-600">AI 分析次數</div>
                     </div>
                 </div>
             )}
@@ -156,7 +148,6 @@ export default function ActivityLogsManager() {
                     <option value="session_start">開啟應用</option>
                     <option value="view_dashboard">查看儀表板</option>
                     <option value="view_region">查看區域</option>
-                    <option value="run_ai_analysis">AI 分析</option>
                     <option value="populate_cache">填充快取</option>
                     <option value="clear_cache">清除快取</option>
                     <option value="create_user">建立使用者</option>
