@@ -1,4 +1,3 @@
-import sqlite3
 import json
 import logging
 import re
@@ -7,6 +6,7 @@ import hashlib
 from datetime import datetime, timedelta
 import os
 from passlib.context import CryptContext
+from supabase import create_client
 
 
 def strip_html(text):
@@ -15,266 +15,108 @@ def strip_html(text):
         return ''
     return re.sub(r'<[^>]+>', '', text).strip()
 
+
 logger = logging.getLogger(__name__)
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 使用環境變數設定資料庫路徑，預設為當前目錄
-DATA_DIR = os.getenv("DATA_DIR", ".")
-DB_PATH = os.path.join(DATA_DIR, "campaign_cache.db")
+# Supabase client (REST API — no pooler needed)
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 
-# 確保資料目錄存在
-if DATA_DIR != ".":
-    os.makedirs(DATA_DIR, exist_ok=True)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError(
+        "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) are required."
+    )
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    # Create table if not exists with region support
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS campaigns (
-            id TEXT,
-            region TEXT,
-            title TEXT,
-            send_time TEXT,
-            data_json TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id, region)
-        )
-    ''')
-    # Create shared_links table for share link feature
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS shared_links (
-            token TEXT PRIMARY KEY,
-            filter_state TEXT,
-            password_hash TEXT,
-            expires_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            access_count INTEGER DEFAULT 0
-        )
-    ''')
-    # Create users table for authentication
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            display_name TEXT,
-            role TEXT DEFAULT 'viewer',
-            must_change_password INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_login TIMESTAMP
-        )
-    ''')
-
-    # Create excluded_audiences table for filtering out test audiences
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS excluded_audiences (
-            audience_id TEXT PRIMARY KEY,
-            audience_name TEXT,
-            region TEXT,
-            excluded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-
-    # Create activity_logs table for tracking user actions
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS activity_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            user_id TEXT,
-            user_email TEXT,
-            action TEXT NOT NULL,
-            details TEXT,
-            ip_address TEXT
-        )
-    ''')
-
-    # Migration: Add display_name column if it doesn't exist
-    c.execute("PRAGMA table_info(users)")
-    columns = [col[1] for col in c.fetchall()]
-    if 'display_name' not in columns:
-        c.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
-
-    # Migration: Add name column to shared_links if it doesn't exist
-    c.execute("PRAGMA table_info(shared_links)")
-    share_columns = [col[1] for col in c.fetchall()]
-    if 'name' not in share_columns:
-        c.execute("ALTER TABLE shared_links ADD COLUMN name TEXT")
-
-    conn.commit()
-    conn.close()
-
-    # Initialize default admin if no users exist
+    """Initialize database — tables are managed by Supabase migrations.
+    Only seeds default admin if no users exist."""
     _init_default_admin()
 
+
+# ============================================
+# Campaign Functions
+# ============================================
+
 def upsert_campaigns(campaigns_data, region='US'):
-    """
-    Insert or update multiple campaigns with region support.
-    campaigns_data: list of dicts (merged info)
-    region: one of 'US', 'EU', 'APAC', 'JP'
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    """Insert or update multiple campaigns with region support."""
+    if not campaigns_data:
+        return
 
+    rows = []
     for camp in campaigns_data:
-        # Extract fields
-        c_id = camp.get('id')
-        title = camp.get('title')
-        send_time = camp.get('send_time')
-        # Add region to the campaign data
         camp['region'] = region
-        data_json = json.dumps(camp)
+        rows.append({
+            'id': camp.get('id'),
+            'region': region,
+            'title': camp.get('title'),
+            'send_time': camp.get('send_time'),
+            'data_json': camp,
+            'updated_at': datetime.utcnow().isoformat(),
+        })
 
-        c.execute('''
-            INSERT INTO campaigns (id, region, title, send_time, data_json, updated_at)
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(id, region) DO UPDATE SET
-                title=excluded.title,
-                send_time=excluded.send_time,
-                data_json=excluded.data_json,
-                updated_at=CURRENT_TIMESTAMP
-        ''', (c_id, region, title, send_time, data_json))
+    # Supabase upsert (on_conflict uses the table's unique constraint)
+    supabase.table('campaigns').upsert(rows, on_conflict='id,region').execute()
 
-    conn.commit()
-    conn.close()
 
 def get_cached_campaigns(days=30, region=None):
-    """
-    Retrieve campaigns from local DB
-    region: 'US', 'EU', 'APAC', 'JP', or None for all regions
-    days: filter campaigns from the last N days
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    # Calculate cutoff date
+    """Retrieve campaigns from DB."""
     cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
 
-    # Fetch campaigns with date and optional region filter
-    if region:
-        c.execute("""
-            SELECT data_json FROM campaigns
-            WHERE region = ? AND send_time >= ?
-            ORDER BY send_time DESC
-            LIMIT 1000
-        """, (region, cutoff_date))
-    else:
-        c.execute("""
-            SELECT data_json FROM campaigns
-            WHERE send_time >= ?
-            ORDER BY send_time DESC
-            LIMIT 1000
-        """, (cutoff_date,))
+    query = supabase.table('campaigns').select('data_json')
 
-    rows = c.fetchall()
+    if region:
+        query = query.eq('region', region)
+
+    query = query.gte('send_time', cutoff_date).order('send_time', desc=True).limit(1000)
+    response = query.execute()
 
     results = []
-    for row in rows:
+    for row in response.data:
         try:
-            camp = json.loads(row['data_json'])
-            # Clean HTML from segment_text if present
+            camp = row['data_json']
+            if isinstance(camp, str):
+                camp = json.loads(camp)
             if camp.get('segment_text'):
                 camp['segment_text'] = strip_html(camp['segment_text'])
-            # Ensure segment_label exists (may be missing in older cached data)
             if not camp.get('segment_label') and camp.get('segment_text'):
                 camp['segment_label'] = camp['segment_text']
             results.append(camp)
         except Exception as e:
             logger.warning(f"Failed to parse campaign JSON: {e}")
 
-    conn.close()
     logger.info(f"Retrieved {len(results)} campaigns from cache (region={region}, days={days})")
     return results
 
-def clear_cache(region=None):
-    """
-    Clear cached campaigns
-    region: specific region to clear, or None to clear all regions
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
 
+def clear_cache(region=None):
+    """Clear cached campaigns."""
     if region:
-        c.execute("DELETE FROM campaigns WHERE region = ?", (region,))
+        response = supabase.table('campaigns').delete().eq('region', region).execute()
         logger.info(f"Cleared cache for region: {region}")
     else:
-        c.execute("DELETE FROM campaigns")
+        response = supabase.table('campaigns').delete().neq('id', '').execute()
         logger.info("Cleared all cached campaigns")
 
-    conn.commit()
-    deleted_count = c.rowcount
-    conn.close()
-    return deleted_count
+    return len(response.data)
+
 
 def get_cache_stats():
-    """Get statistics about cached campaigns"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    """Get statistics about cached campaigns (via RPC)."""
+    response = supabase.rpc('get_cache_stats').execute()
+    return response.data or {"total": 0, "by_region": {}}
 
-    # Total campaigns
-    c.execute("SELECT COUNT(*) FROM campaigns")
-    total = c.fetchone()[0]
-
-    # Campaigns by region
-    c.execute("SELECT region, COUNT(*) as count FROM campaigns GROUP BY region ORDER BY count DESC")
-    by_region = dict(c.fetchall())
-
-    conn.close()
-    return {
-        "total": total,
-        "by_region": by_region
-    }
 
 def get_regions_last_activity():
-    """
-    Get the last campaign date for each region (regardless of date filter).
-    Used for detecting inactive regions.
+    """Get the last campaign date for each region (via RPC)."""
+    response = supabase.rpc('get_regions_last_activity').execute()
+    return response.data or {}
 
-    Returns:
-        dict: {region_code: {"last_campaign_date": ISO string, "days_since": int}}
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    # Get the most recent campaign for each region
-    c.execute("""
-        SELECT region, MAX(send_time) as last_send_time
-        FROM campaigns
-        GROUP BY region
-    """)
-
-    rows = c.fetchall()
-    conn.close()
-
-    result = {}
-    now = datetime.utcnow()
-
-    for row in rows:
-        region = row['region']
-        last_send_time = row['last_send_time']
-
-        if last_send_time:
-            try:
-                # Parse the ISO format date string
-                last_date = datetime.fromisoformat(last_send_time.replace('Z', '+00:00').replace('+00:00', ''))
-                days_since = (now - last_date).days
-                result[region] = {
-                    "last_campaign_date": last_send_time,
-                    "days_since": days_since
-                }
-            except Exception as e:
-                logger.warning(f"Failed to parse date for region {region}: {e}")
-                result[region] = {
-                    "last_campaign_date": last_send_time,
-                    "days_since": None
-                }
-
-    logger.info(f"Retrieved last activity for {len(result)} regions")
-    return result
 
 # ============================================
 # Shared Links Functions
@@ -284,369 +126,258 @@ def generate_token(length=8):
     """Generate a random URL-safe token"""
     return secrets.token_urlsafe(length)[:length]
 
+
 def hash_password(password):
     """Hash a password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
+
 def create_shared_link(filter_state, password=None, expires_days=None, name=None):
-    """
-    Create a new shared link
-
-    Args:
-        filter_state: dict of filter settings
-        password: optional password string
-        expires_days: optional expiration in days (None = never expires)
-        name: optional descriptive name for the link
-
-    Returns:
-        dict with token and link info
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
+    """Create a new shared link."""
     # Generate unique token
     token = generate_token()
-
-    # Ensure token is unique
     while True:
-        c.execute("SELECT 1 FROM shared_links WHERE token = ?", (token,))
-        if not c.fetchone():
+        check = supabase.table('shared_links').select('token').eq('token', token).execute()
+        if not check.data:
             break
         token = generate_token()
 
-    # Hash password if provided
     password_hash = hash_password(password) if password else None
-
-    # Calculate expiration time
     expires_at = None
     if expires_days:
         expires_at = (datetime.utcnow() + timedelta(days=expires_days)).isoformat()
 
-    # Store filter state as JSON
-    filter_json = json.dumps(filter_state)
+    supabase.table('shared_links').insert({
+        'token': token,
+        'filter_state': filter_state,
+        'password_hash': password_hash,
+        'expires_at': expires_at,
+        'name': name,
+    }).execute()
 
-    c.execute('''
-        INSERT INTO shared_links (token, filter_state, password_hash, expires_at, name)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (token, filter_json, password_hash, expires_at, name))
-
-    conn.commit()
-    conn.close()
-
-    logger.info(f"Created shared link: {token}, name: {name}, expires: {expires_at}, has_password: {bool(password)}")
+    logger.info(f"Created shared link: {token}, name: {name}, expires: {expires_at}")
 
     return {
         "token": token,
         "name": name,
         "has_password": bool(password),
-        "expires_at": expires_at
+        "expires_at": expires_at,
     }
 
+
 def get_shared_link(token):
-    """
-    Get shared link info (without incrementing access count)
+    """Get shared link info (without incrementing access count)."""
+    response = supabase.table('shared_links').select(
+        'token, filter_state, password_hash, expires_at, created_at, access_count'
+    ).eq('token', token).execute()
 
-    Returns:
-        dict with link info or None if not found/expired
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT token, filter_state, password_hash, expires_at, created_at, access_count
-        FROM shared_links WHERE token = ?
-    ''', (token,))
-
-    row = c.fetchone()
-    conn.close()
-
-    if not row:
+    if not response.data:
         return None
+
+    row = response.data[0]
 
     # Check expiration
     if row['expires_at']:
-        expires_at = datetime.fromisoformat(row['expires_at'])
+        expires_at = datetime.fromisoformat(str(row['expires_at']).replace('Z', '+00:00').replace('+00:00', ''))
         if datetime.utcnow() > expires_at:
             logger.info(f"Shared link {token} has expired")
-            return {"error": "expired", "expired_at": row['expires_at']}
+            return {"error": "expired", "expired_at": str(row['expires_at'])}
 
     return {
         "token": row['token'],
         "has_password": bool(row['password_hash']),
-        "expires_at": row['expires_at'],
-        "created_at": row['created_at'],
-        "access_count": row['access_count']
+        "expires_at": str(row['expires_at']) if row['expires_at'] else None,
+        "created_at": str(row['created_at']) if row['created_at'] else None,
+        "access_count": row['access_count'],
     }
 
+
 def verify_shared_link_password(token, password):
-    """
-    Verify password for a shared link
+    """Verify password for a shared link."""
+    response = supabase.table('shared_links').select(
+        'filter_state, password_hash, expires_at'
+    ).eq('token', token).execute()
 
-    Returns:
-        filter_state dict if password is correct, None otherwise
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT filter_state, password_hash, expires_at
-        FROM shared_links WHERE token = ?
-    ''', (token,))
-
-    row = c.fetchone()
-
-    if not row:
-        conn.close()
+    if not response.data:
         return None
 
-    # Check expiration
+    row = response.data[0]
+
     if row['expires_at']:
-        expires_at = datetime.fromisoformat(row['expires_at'])
+        expires_at = datetime.fromisoformat(str(row['expires_at']).replace('Z', '+00:00').replace('+00:00', ''))
         if datetime.utcnow() > expires_at:
-            conn.close()
             return {"error": "expired"}
 
-    # Verify password
     if row['password_hash']:
         if hash_password(password) != row['password_hash']:
-            conn.close()
             return {"error": "invalid_password"}
 
     # Increment access count
-    c.execute('''
-        UPDATE shared_links SET access_count = access_count + 1 WHERE token = ?
-    ''', (token,))
-    conn.commit()
+    supabase.table('shared_links').update(
+        {'access_count': row.get('access_count', 0) + 1}
+    ).eq('token', token).execute()
 
-    filter_state = json.loads(row['filter_state'])
-    conn.close()
+    filter_state = row['filter_state']
+    if isinstance(filter_state, str):
+        filter_state = json.loads(filter_state)
 
     logger.info(f"Shared link {token} accessed successfully")
     return {"filter_state": filter_state}
 
+
 def access_shared_link(token):
-    """
-    Access a shared link without password (for links without password protection)
+    """Access a shared link without password."""
+    response = supabase.table('shared_links').select(
+        'filter_state, password_hash, expires_at, access_count'
+    ).eq('token', token).execute()
 
-    Returns:
-        filter_state dict if no password required, error otherwise
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT filter_state, password_hash, expires_at
-        FROM shared_links WHERE token = ?
-    ''', (token,))
-
-    row = c.fetchone()
-
-    if not row:
-        conn.close()
+    if not response.data:
         return None
 
-    # Check expiration
+    row = response.data[0]
+
     if row['expires_at']:
-        expires_at = datetime.fromisoformat(row['expires_at'])
+        expires_at = datetime.fromisoformat(str(row['expires_at']).replace('Z', '+00:00').replace('+00:00', ''))
         if datetime.utcnow() > expires_at:
-            conn.close()
             return {"error": "expired"}
 
-    # Check if password is required
     if row['password_hash']:
-        conn.close()
         return {"error": "password_required"}
 
-    # Increment access count
-    c.execute('''
-        UPDATE shared_links SET access_count = access_count + 1 WHERE token = ?
-    ''', (token,))
-    conn.commit()
+    supabase.table('shared_links').update(
+        {'access_count': row.get('access_count', 0) + 1}
+    ).eq('token', token).execute()
 
-    filter_state = json.loads(row['filter_state'])
-    conn.close()
+    filter_state = row['filter_state']
+    if isinstance(filter_state, str):
+        filter_state = json.loads(filter_state)
 
     logger.info(f"Shared link {token} accessed successfully (no password)")
     return {"filter_state": filter_state}
 
+
 def cleanup_expired_links():
-    """Remove expired shared links"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
+    """Remove expired shared links."""
     now = datetime.utcnow().isoformat()
-    c.execute('''
-        DELETE FROM shared_links
-        WHERE expires_at IS NOT NULL AND expires_at < ?
-    ''', (now,))
-
-    deleted = c.rowcount
-    conn.commit()
-    conn.close()
-
+    response = supabase.table('shared_links').delete().not_.is_('expires_at', 'null').lt('expires_at', now).execute()
+    deleted = len(response.data)
     if deleted > 0:
         logger.info(f"Cleaned up {deleted} expired shared links")
-
     return deleted
 
+
 def list_shared_links():
-    """
-    List all shared links for management
-
-    Returns:
-        list of shared link info dicts
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT token, filter_state, password_hash, expires_at, created_at, access_count, name
-        FROM shared_links
-        ORDER BY created_at DESC
-    ''')
-
-    rows = c.fetchall()
-    conn.close()
+    """List all shared links for management."""
+    response = supabase.table('shared_links').select(
+        'token, filter_state, password_hash, expires_at, created_at, access_count, name'
+    ).order('created_at', desc=True).execute()
 
     now = datetime.utcnow()
     results = []
 
-    for row in rows:
-        # Check if expired
+    for row in response.data:
         is_expired = False
         if row['expires_at']:
-            expires_at = datetime.fromisoformat(row['expires_at'])
-            is_expired = now > expires_at
+            try:
+                expires_at = datetime.fromisoformat(str(row['expires_at']).replace('Z', '+00:00').replace('+00:00', ''))
+                is_expired = now > expires_at
+            except Exception:
+                pass
 
-        # Parse filter state to show summary
-        try:
-            filter_state = json.loads(row['filter_state'])
-        except:
+        filter_state = row['filter_state']
+        if isinstance(filter_state, str):
+            try:
+                filter_state = json.loads(filter_state)
+            except Exception:
+                filter_state = {}
+        if not isinstance(filter_state, dict):
             filter_state = {}
 
         results.append({
             "token": row['token'],
             "name": row['name'],
             "has_password": bool(row['password_hash']),
-            "expires_at": row['expires_at'],
+            "expires_at": str(row['expires_at']) if row['expires_at'] else None,
             "is_expired": is_expired,
-            "created_at": row['created_at'],
+            "created_at": str(row['created_at']) if row['created_at'] else None,
             "access_count": row['access_count'],
             "filter_summary": {
                 "days": filter_state.get('days'),
                 "region": filter_state.get('region'),
                 "audience": filter_state.get('audience'),
-                "view": filter_state.get('view')
-            }
+                "view": filter_state.get('view'),
+            },
         })
 
     return results
 
+
 def delete_shared_link(token):
-    """
-    Delete a shared link by token
-
-    Returns:
-        True if deleted, False if not found
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute('DELETE FROM shared_links WHERE token = ?', (token,))
-
-    deleted = c.rowcount > 0
-    conn.commit()
-    conn.close()
-
+    """Delete a shared link by token."""
+    response = supabase.table('shared_links').delete().eq('token', token).execute()
+    deleted = len(response.data) > 0
     if deleted:
         logger.info(f"Deleted shared link: {token}")
-
     return deleted
+
 
 # ============================================
 # User Authentication Functions
 # ============================================
 
 def _init_default_admin():
-    """Initialize default admin user if no users exist"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Check if any users exist
-    c.execute("SELECT COUNT(*) FROM users")
-    count = c.fetchone()[0]
-
-    if count == 0:
-        # Get admin credentials from environment
+    """Initialize default admin user if no users exist."""
+    response = supabase.table('users').select('id', count='exact').limit(1).execute()
+    if response.count == 0:
         admin_email = os.getenv("ADMIN_EMAIL", "engenius.ad@gmail.com")
         admin_password = os.getenv("ADMIN_INITIAL_PASSWORD", "ChangeMe123!")
         admin_name = os.getenv("ADMIN_DISPLAY_NAME", "Admin")
 
-        # Create default admin
         user_id = secrets.token_urlsafe(16)
-        password_hash = get_password_hash(admin_password)
+        password_hash_val = get_password_hash(admin_password)
 
-        c.execute('''
-            INSERT INTO users (id, email, password_hash, display_name, role, must_change_password)
-            VALUES (?, ?, ?, ?, 'admin', 1)
-        ''', (user_id, admin_email, password_hash, admin_name))
+        supabase.table('users').insert({
+            'id': user_id,
+            'email': admin_email,
+            'password_hash': password_hash_val,
+            'display_name': admin_name,
+            'role': 'admin',
+            'must_change_password': True,
+        }).execute()
 
-        conn.commit()
         logger.info(f"Created default admin user: {admin_email}")
-
-    conn.close()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash (bcrypt has 72 byte limit)"""
-    # Truncate to 72 bytes to match hashing
+    """Verify a password against its hash (bcrypt has 72 byte limit)."""
     password_bytes = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
     return pwd_context.verify(password_bytes, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password (bcrypt has 72 byte limit)"""
-    # Truncate to 72 bytes to avoid bcrypt limit
+    """Hash a password (bcrypt has 72 byte limit)."""
     password_bytes = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
     return pwd_context.hash(password_bytes)
 
 
 def authenticate_user(email: str, password: str):
-    """
-    Authenticate user by email and password
+    """Authenticate user by email and password."""
+    response = supabase.table('users').select(
+        'id, email, password_hash, display_name, role, must_change_password, created_at, last_login'
+    ).eq('email', email.lower()).execute()
 
-    Returns:
-        User dict if authentication successful, None otherwise
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT id, email, password_hash, display_name, role, must_change_password, created_at, last_login
-        FROM users WHERE email = ?
-    ''', (email.lower(),))
-
-    row = c.fetchone()
-
-    if not row:
-        conn.close()
+    if not response.data:
         return None
 
+    row = response.data[0]
+
     if not verify_password(password, row['password_hash']):
-        conn.close()
         return None
 
     # Update last login time
-    c.execute('''
-        UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?
-    ''', (row['id'],))
-    conn.commit()
-    conn.close()
+    supabase.table('users').update(
+        {'last_login': datetime.utcnow().isoformat()}
+    ).eq('id', row['id']).execute()
 
     return {
         "id": row['id'],
@@ -654,103 +385,77 @@ def authenticate_user(email: str, password: str):
         "display_name": row['display_name'],
         "role": row['role'],
         "must_change_password": bool(row['must_change_password']),
-        "created_at": row['created_at'],
-        "last_login": row['last_login']
+        "created_at": str(row['created_at']) if row['created_at'] else None,
+        "last_login": str(row['last_login']) if row['last_login'] else None,
     }
 
 
 def get_user_by_id(user_id: str):
-    """Get user by ID"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    """Get user by ID."""
+    response = supabase.table('users').select(
+        'id, email, display_name, role, must_change_password, created_at, last_login'
+    ).eq('id', user_id).execute()
 
-    c.execute('''
-        SELECT id, email, display_name, role, must_change_password, created_at, last_login
-        FROM users WHERE id = ?
-    ''', (user_id,))
-
-    row = c.fetchone()
-    conn.close()
-
-    if not row:
+    if not response.data:
         return None
 
+    row = response.data[0]
     return {
         "id": row['id'],
         "email": row['email'],
         "display_name": row['display_name'],
         "role": row['role'],
         "must_change_password": bool(row['must_change_password']),
-        "created_at": row['created_at'],
-        "last_login": row['last_login']
+        "created_at": str(row['created_at']) if row['created_at'] else None,
+        "last_login": str(row['last_login']) if row['last_login'] else None,
     }
 
 
 def get_user_by_email(email: str):
-    """Get user by email"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    """Get user by email."""
+    response = supabase.table('users').select(
+        'id, email, role, must_change_password, created_at, last_login'
+    ).eq('email', email.lower()).execute()
 
-    c.execute('''
-        SELECT id, email, role, must_change_password, created_at, last_login
-        FROM users WHERE email = ?
-    ''', (email.lower(),))
-
-    row = c.fetchone()
-    conn.close()
-
-    if not row:
+    if not response.data:
         return None
 
+    row = response.data[0]
     return {
         "id": row['id'],
         "email": row['email'],
         "role": row['role'],
         "must_change_password": bool(row['must_change_password']),
-        "created_at": row['created_at'],
-        "last_login": row['last_login']
+        "created_at": str(row['created_at']) if row['created_at'] else None,
+        "last_login": str(row['last_login']) if row['last_login'] else None,
     }
 
 
 def create_user(email: str, role: str = 'viewer', display_name: str = None):
-    """
-    Create a new user with a temporary password
-
-    Returns:
-        dict with user info and temporary password
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
+    """Create a new user with a temporary password."""
     # Check if email already exists
-    c.execute("SELECT 1 FROM users WHERE email = ?", (email.lower(),))
-    if c.fetchone():
-        conn.close()
+    check = supabase.table('users').select('id').eq('email', email.lower()).execute()
+    if check.data:
         return {"error": "email_exists", "message": "Email already registered"}
 
-    # Validate role
     if role not in ['admin', 'manager', 'viewer']:
-        conn.close()
         return {"error": "invalid_role", "message": "Role must be 'admin', 'manager', or 'viewer'"}
 
-    # Generate user ID and temporary password
     user_id = secrets.token_urlsafe(16)
     temp_password = secrets.token_urlsafe(8)
-    password_hash = get_password_hash(temp_password)
+    password_hash_val = get_password_hash(temp_password)
 
-    # Use email prefix as default display name if not provided
     if not display_name:
         display_name = email.split('@')[0]
 
-    c.execute('''
-        INSERT INTO users (id, email, password_hash, display_name, role, must_change_password)
-        VALUES (?, ?, ?, ?, ?, 1)
-    ''', (user_id, email.lower(), password_hash, display_name, role))
-
-    conn.commit()
-    conn.close()
+    supabase.table('users').insert({
+        'id': user_id,
+        'email': email.lower(),
+        'password_hash': password_hash_val,
+        'display_name': display_name,
+        'role': role,
+        'must_change_password': True,
+    }).execute()
 
     logger.info(f"Created new user: {email} with role: {role}")
 
@@ -760,113 +465,54 @@ def create_user(email: str, role: str = 'viewer', display_name: str = None):
         "display_name": display_name,
         "role": role,
         "temp_password": temp_password,
-        "must_change_password": True
+        "must_change_password": True,
     }
 
 
 def update_user_role(user_id: str, new_role: str, admin_id: str):
-    """
-    Update a user's role
-
-    Args:
-        user_id: ID of user to update
-        new_role: New role ('admin' or 'viewer')
-        admin_id: ID of admin making the change
-
-    Returns:
-        dict with result
-    """
+    """Update a user's role."""
     if new_role not in ['admin', 'manager', 'viewer']:
         return {"error": "invalid_role", "message": "Role must be 'admin', 'manager', or 'viewer'"}
 
-    # Cannot change own role
     if user_id == admin_id:
         return {"error": "self_modification", "message": "Cannot change your own role"}
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Check if user exists
-    c.execute("SELECT email FROM users WHERE id = ?", (user_id,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
+    check = supabase.table('users').select('email').eq('id', user_id).execute()
+    if not check.data:
         return {"error": "not_found", "message": "User not found"}
 
-    c.execute('''
-        UPDATE users SET role = ? WHERE id = ?
-    ''', (new_role, user_id))
-
-    conn.commit()
-    conn.close()
+    supabase.table('users').update({'role': new_role}).eq('id', user_id).execute()
 
     logger.info(f"Updated user {user_id} role to {new_role}")
-
-    return {"status": "success", "email": row[0], "new_role": new_role}
+    return {"status": "success", "email": check.data[0]['email'], "new_role": new_role}
 
 
 def delete_user(user_id: str, admin_id: str):
-    """
-    Delete a user
-
-    Args:
-        user_id: ID of user to delete
-        admin_id: ID of admin making the deletion
-
-    Returns:
-        dict with result
-    """
-    # Cannot delete self
+    """Delete a user."""
     if user_id == admin_id:
         return {"error": "self_deletion", "message": "Cannot delete your own account"}
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Check if this is the last admin
-    c.execute("SELECT role FROM users WHERE id = ?", (user_id,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
+    check = supabase.table('users').select('role').eq('id', user_id).execute()
+    if not check.data:
         return {"error": "not_found", "message": "User not found"}
 
-    user_role = row[0]
+    user_role = check.data[0]['role']
     if user_role == 'admin':
-        # Count remaining admins
-        c.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND id != ?", (user_id,))
-        admin_count = c.fetchone()[0]
-        if admin_count == 0:
-            conn.close()
+        admin_check = supabase.table('users').select('id', count='exact').eq('role', 'admin').neq('id', user_id).execute()
+        if admin_check.count == 0:
             return {"error": "last_admin", "message": "Cannot delete the last admin user"}
 
-    c.execute("DELETE FROM users WHERE id = ?", (user_id,))
-    conn.commit()
-    conn.close()
+    supabase.table('users').delete().eq('id', user_id).execute()
 
     logger.info(f"Deleted user {user_id}")
-
     return {"status": "success"}
 
 
 def list_users():
-    """
-    List all users
-
-    Returns:
-        List of user dicts
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT id, email, display_name, role, must_change_password, created_at, last_login
-        FROM users
-        ORDER BY created_at DESC
-    ''')
-
-    rows = c.fetchall()
-    conn.close()
+    """List all users."""
+    response = supabase.table('users').select(
+        'id, email, display_name, role, must_change_password, created_at, last_login'
+    ).order('created_at', desc=True).execute()
 
     return [{
         "id": row['id'],
@@ -874,119 +520,72 @@ def list_users():
         "display_name": row['display_name'],
         "role": row['role'],
         "must_change_password": bool(row['must_change_password']),
-        "created_at": row['created_at'],
-        "last_login": row['last_login']
-    } for row in rows]
+        "created_at": str(row['created_at']) if row['created_at'] else None,
+        "last_login": str(row['last_login']) if row['last_login'] else None,
+    } for row in response.data]
 
 
 def change_password(user_id: str, old_password: str, new_password: str):
-    """
-    Change user's password
+    """Change user's password."""
+    response = supabase.table('users').select('password_hash').eq('id', user_id).execute()
 
-    Returns:
-        dict with result
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
-    row = c.fetchone()
-
-    if not row:
-        conn.close()
+    if not response.data:
         return {"error": "not_found", "message": "User not found"}
 
-    # Verify old password
-    if not verify_password(old_password, row['password_hash']):
-        conn.close()
+    if not verify_password(old_password, response.data[0]['password_hash']):
         return {"error": "invalid_password", "message": "Current password is incorrect"}
 
-    # Validate new password
     if len(new_password) < 8:
-        conn.close()
         return {"error": "weak_password", "message": "Password must be at least 8 characters"}
 
-    # Update password
     new_hash = get_password_hash(new_password)
-    c.execute('''
-        UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?
-    ''', (new_hash, user_id))
-
-    conn.commit()
-    conn.close()
+    supabase.table('users').update({
+        'password_hash': new_hash,
+        'must_change_password': False,
+    }).eq('id', user_id).execute()
 
     logger.info(f"User {user_id} changed password")
-
     return {"status": "success"}
 
 
 def reset_user_password(user_id: str, admin_id: str):
-    """
-    Reset a user's password (admin action)
-
-    Returns:
-        dict with new temporary password
-    """
+    """Reset a user's password (admin action)."""
     if user_id == admin_id:
         return {"error": "self_reset", "message": "Cannot reset your own password this way. Use change password."}
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Check if user exists
-    c.execute("SELECT email FROM users WHERE id = ?", (user_id,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
+    check = supabase.table('users').select('email').eq('id', user_id).execute()
+    if not check.data:
         return {"error": "not_found", "message": "User not found"}
 
-    # Generate new temporary password
     temp_password = secrets.token_urlsafe(8)
-    password_hash = get_password_hash(temp_password)
+    password_hash_val = get_password_hash(temp_password)
 
-    c.execute('''
-        UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?
-    ''', (password_hash, user_id))
-
-    conn.commit()
-    conn.close()
+    supabase.table('users').update({
+        'password_hash': password_hash_val,
+        'must_change_password': True,
+    }).eq('id', user_id).execute()
 
     logger.info(f"Admin {admin_id} reset password for user {user_id}")
 
     return {
         "status": "success",
-        "email": row[0],
-        "temp_password": temp_password
+        "email": check.data[0]['email'],
+        "temp_password": temp_password,
     }
 
 
 def update_user_profile(user_id: str, display_name: str = None):
-    """
-    Update user's profile (display_name)
-
-    Returns:
-        dict with result
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Check if user exists
-    c.execute("SELECT id FROM users WHERE id = ?", (user_id,))
-    if not c.fetchone():
-        conn.close()
+    """Update user's profile (display_name)."""
+    check = supabase.table('users').select('id').eq('id', user_id).execute()
+    if not check.data:
         return {"error": "not_found", "message": "User not found"}
 
     if display_name is not None:
-        c.execute('''
-            UPDATE users SET display_name = ? WHERE id = ?
-        ''', (display_name.strip(), user_id))
-
-    conn.commit()
-    conn.close()
+        supabase.table('users').update(
+            {'display_name': display_name.strip()}
+        ).eq('id', user_id).execute()
 
     logger.info(f"User {user_id} updated their profile")
-
     return {"status": "success", "display_name": display_name}
 
 
@@ -995,269 +594,47 @@ def update_user_profile(user_id: str, display_name: str = None):
 # ============================================
 
 def get_excluded_audiences():
-    """
-    Get list of excluded audience IDs
-
-    Returns:
-        List of excluded audience dicts
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT audience_id, audience_name, region, excluded_at
-        FROM excluded_audiences
-        ORDER BY region, audience_name
-    ''')
-
-    rows = c.fetchall()
-    conn.close()
+    """Get list of excluded audience dicts."""
+    response = supabase.table('excluded_audiences').select(
+        'audience_id, audience_name, region, excluded_at'
+    ).order('region').order('audience_name').execute()
 
     return [{
         "audience_id": row['audience_id'],
         "audience_name": row['audience_name'],
         "region": row['region'],
-        "excluded_at": row['excluded_at']
-    } for row in rows]
+        "excluded_at": str(row['excluded_at']) if row['excluded_at'] else None,
+    } for row in response.data]
 
 
 def get_excluded_audience_ids():
-    """
-    Get just the list of excluded audience IDs (for filtering)
-
-    Returns:
-        Set of excluded audience IDs
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute('SELECT audience_id FROM excluded_audiences')
-    rows = c.fetchall()
-    conn.close()
-
-    return set(row[0] for row in rows)
+    """Get just the set of excluded audience IDs (for filtering)."""
+    response = supabase.table('excluded_audiences').select('audience_id').execute()
+    return set(row['audience_id'] for row in response.data)
 
 
 def set_excluded_audiences(audiences):
-    """
-    Set the list of excluded audiences (replaces existing)
+    """Set the list of excluded audiences (replaces existing)."""
+    # Delete all existing
+    supabase.table('excluded_audiences').delete().neq('audience_id', '').execute()
 
-    Args:
-        audiences: List of dicts with audience_id, audience_name, region
-
-    Returns:
-        dict with result
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Clear existing exclusions
-    c.execute('DELETE FROM excluded_audiences')
-
-    # Insert new exclusions
-    for aud in audiences:
-        c.execute('''
-            INSERT INTO excluded_audiences (audience_id, audience_name, region)
-            VALUES (?, ?, ?)
-        ''', (aud['audience_id'], aud.get('audience_name', ''), aud.get('region', '')))
-
-    conn.commit()
-    conn.close()
+    # Insert new ones
+    if audiences:
+        rows = [{
+            'audience_id': aud['audience_id'],
+            'audience_name': aud.get('audience_name', ''),
+            'region': aud.get('region', ''),
+        } for aud in audiences]
+        supabase.table('excluded_audiences').insert(rows).execute()
 
     logger.info(f"Updated excluded audiences: {len(audiences)} audiences excluded")
-
     return {"status": "success", "count": len(audiences)}
 
 
 def is_audience_excluded(audience_id):
-    """
-    Check if an audience is excluded
-
-    Args:
-        audience_id: The audience ID to check
-
-    Returns:
-        True if excluded, False otherwise
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute('SELECT 1 FROM excluded_audiences WHERE audience_id = ?', (audience_id,))
-    result = c.fetchone() is not None
-    conn.close()
-
-    return result
-
-
-# ============================================
-# AI Settings Functions
-# ============================================
-
-DEFAULT_AI_SETTINGS = {
-    "enabled": True,
-    "model": "models/gemini-2.0-flash",
-    "system_prompt": """你是一位「實戰派行銷策略顧問」，專注於協助中小企業（SME）透過數據改善業績。
-你具備 10+ 年的 Email Marketing 分析經驗，擅長解讀行銷儀表板並提供可落地執行的建議。
-
-你的分析風格：
-- 數據驅動且具體（引用實際數字）
-- 可執行且實用
-- 按影響力排序優先順序
-- 為行銷經理撰寫，而非技術人員""",
-    "output_format": """請嚴格依照以下結構輸出分析報告：
-
-## 1️⃣ 現況診斷 (The Reality Check)
-分析目前發生了什麼事：
-
-### ✅ 亮點 (The Good)
-數據中值得肯定的 2-3 個部分，請引用具體數字。
-
-### ⚠️ 痛點 (The Bad)
-流量在哪個環節流失？（例如：開信率過低、點擊率不足、轉換瓶頸）
-
-### 🚨 風險 (The Ugly)
-是否有長期隱憂？（例如：名單品質惡化、退訂率上升、網域信譽風險）
-
----
-
-## 2️⃣ 核心洞察與理由 (The "Why" & Strategy)
-解釋為什麼會這樣，以及應該怎麼做：
-
-### 🔍 深度歸因
-數據不佳的根本原因是什麼？（用戶疲乏？內容價值不足？發送頻率問題？市場因素？）
-
-### 💡 策略邏輯
-建議背後的商業思考（例如：為什麼要先清洗名單而不是先改設計？）
-
----
-
-## 3️⃣ 本週執行清單 (Action Items)
-將建議整理成具體的 To-Do List：
-
-### 📣 行銷/小編 (Marketing)
-- [ ] (立即) 需調整的設定
-- [ ] (測試) 下一檔活動的 A/B Test 項目
-
-### 💼 業務/銷售 (Sales)
-- [ ] (跟進) 如何利用這份報表跟進客戶？
-
-### ⚙️ 技術/自動化 (Auto/Dev)
-- [ ] (流程) 需要串接或自動處理的資料任務
-
----
-
-## 4️⃣ 自動化建議 (Automation Tips)
-若問題適合自動化解決，請提供 GAS 或 n8n 的簡要建議（觸發條件 → 執行動作的流程描述）。
-
----
-
-請確保分析具體、可執行，並優先處理影響最大的問題。"""
-}
-
-
-def _ensure_settings_table():
-    """Ensure settings table exists"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-
-def get_ai_settings():
-    """
-    Get AI settings from database
-
-    Returns:
-        dict with AI settings
-    """
-    _ensure_settings_table()
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute("SELECT value FROM settings WHERE key = 'ai_settings'")
-    row = c.fetchone()
-    conn.close()
-
-    if row:
-        try:
-            return json.loads(row['value'])
-        except:
-            pass
-
-    return DEFAULT_AI_SETTINGS.copy()
-
-
-def update_ai_settings(settings):
-    """
-    Update AI settings in database
-
-    Args:
-        settings: dict with AI settings (enabled, model, system_prompt, output_format)
-
-    Returns:
-        dict with result
-    """
-    _ensure_settings_table()
-
-    # Merge with defaults to ensure all keys exist
-    current = get_ai_settings()
-    current.update(settings)
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO settings (key, value, updated_at)
-        VALUES ('ai_settings', ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET
-            value = excluded.value,
-            updated_at = CURRENT_TIMESTAMP
-    ''', (json.dumps(current),))
-
-    conn.commit()
-    conn.close()
-
-    logger.info("Updated AI settings")
-
-    return {"status": "success", "settings": current}
-
-
-def reset_ai_settings():
-    """
-    Reset AI settings to defaults
-
-    Returns:
-        dict with default settings
-    """
-    _ensure_settings_table()
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO settings (key, value, updated_at)
-        VALUES ('ai_settings', ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET
-            value = excluded.value,
-            updated_at = CURRENT_TIMESTAMP
-    ''', (json.dumps(DEFAULT_AI_SETTINGS),))
-
-    conn.commit()
-    conn.close()
-
-    logger.info("Reset AI settings to defaults")
-
-    return {"status": "success", "settings": DEFAULT_AI_SETTINGS}
+    """Check if an audience is excluded."""
+    response = supabase.table('excluded_audiences').select('audience_id').eq('audience_id', audience_id).limit(1).execute()
+    return len(response.data) > 0
 
 
 # ============================================
@@ -1265,38 +642,20 @@ def reset_ai_settings():
 # ============================================
 
 def log_activity(user_id: str = None, user_email: str = None, action: str = None, details: dict = None, ip_address: str = None):
-    """
-    Log a user activity
-
-    Args:
-        user_id: ID of the user performing the action
-        user_email: Email of the user (for easier querying)
-        action: Type of action (e.g., 'login', 'view_dashboard', 'run_ai_analysis')
-        details: Additional details as a dict (will be stored as JSON)
-        ip_address: IP address of the user
-
-    Returns:
-        dict with log entry ID
-    """
+    """Log a user activity."""
     if not action:
         return {"error": "no_action", "message": "Action is required"}
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    response = supabase.table('activity_logs').insert({
+        'user_id': user_id,
+        'user_email': user_email,
+        'action': action,
+        'details': details,
+        'ip_address': ip_address,
+    }).execute()
 
-    details_json = json.dumps(details) if details else None
-
-    c.execute('''
-        INSERT INTO activity_logs (user_id, user_email, action, details, ip_address)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (user_id, user_email, action, details_json, ip_address))
-
-    log_id = c.lastrowid
-    conn.commit()
-    conn.close()
-
+    log_id = response.data[0]['id'] if response.data else None
     logger.debug(f"Activity logged: {action} by {user_email or user_id}")
-
     return {"status": "success", "log_id": log_id}
 
 
@@ -1308,178 +667,82 @@ def get_activity_logs(
     limit: int = 100,
     offset: int = 0
 ):
-    """
-    Get activity logs with optional filters
-
-    Args:
-        user_id: Filter by user ID
-        action: Filter by action type
-        start_date: Filter by start date (ISO format)
-        end_date: Filter by end date (ISO format)
-        limit: Maximum number of records to return
-        offset: Number of records to skip
-
-    Returns:
-        dict with logs and total count
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    # Build query with filters
-    where_clauses = []
-    params = []
-
+    """Get activity logs with optional filters."""
+    # Count query
+    count_query = supabase.table('activity_logs').select('id', count='exact')
     if user_id:
-        where_clauses.append("user_id = ?")
-        params.append(user_id)
-
+        count_query = count_query.eq('user_id', user_id)
     if action:
-        where_clauses.append("action = ?")
-        params.append(action)
-
+        count_query = count_query.eq('action', action)
     if start_date:
-        where_clauses.append("timestamp >= ?")
-        params.append(start_date)
-
+        count_query = count_query.gte('timestamp', start_date)
     if end_date:
-        where_clauses.append("timestamp <= ?")
-        params.append(end_date)
+        count_query = count_query.lte('timestamp', end_date)
+    count_response = count_query.execute()
+    total = count_response.count or 0
 
-    where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+    # Data query
+    query = supabase.table('activity_logs').select(
+        'id, timestamp, user_id, user_email, action, details, ip_address'
+    )
+    if user_id:
+        query = query.eq('user_id', user_id)
+    if action:
+        query = query.eq('action', action)
+    if start_date:
+        query = query.gte('timestamp', start_date)
+    if end_date:
+        query = query.lte('timestamp', end_date)
 
-    # Get total count
-    c.execute(f"SELECT COUNT(*) FROM activity_logs WHERE {where_sql}", params)
-    total = c.fetchone()[0]
-
-    # Get logs
-    c.execute(f'''
-        SELECT id, timestamp, user_id, user_email, action, details, ip_address
-        FROM activity_logs
-        WHERE {where_sql}
-        ORDER BY timestamp DESC
-        LIMIT ? OFFSET ?
-    ''', params + [limit, offset])
-
-    rows = c.fetchall()
-    conn.close()
+    query = query.order('timestamp', desc=True).range(offset, offset + limit - 1)
+    response = query.execute()
 
     logs = []
-    for row in rows:
-        details = None
-        if row['details']:
+    for row in response.data:
+        details_val = row['details']
+        if isinstance(details_val, str):
             try:
-                details = json.loads(row['details'])
-            except:
-                details = row['details']
+                details_val = json.loads(details_val)
+            except Exception:
+                pass
 
         logs.append({
             "id": row['id'],
-            "timestamp": row['timestamp'],
+            "timestamp": str(row['timestamp']) if row['timestamp'] else None,
             "user_id": row['user_id'],
             "user_email": row['user_email'],
             "action": row['action'],
-            "details": details,
-            "ip_address": row['ip_address']
+            "details": details_val,
+            "ip_address": row['ip_address'],
         })
 
     return {
         "logs": logs,
         "total": total,
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }
 
 
 def get_activity_summary(days: int = 30):
-    """
-    Get summary statistics of activity logs
-
-    Args:
-        days: Number of days to look back
-
-    Returns:
-        dict with activity summary
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-
-    # Total actions
-    c.execute("SELECT COUNT(*) FROM activity_logs WHERE timestamp >= ?", (cutoff_date,))
-    total_actions = c.fetchone()[0]
-
-    # Actions by type
-    c.execute('''
-        SELECT action, COUNT(*) as count
-        FROM activity_logs
-        WHERE timestamp >= ?
-        GROUP BY action
-        ORDER BY count DESC
-    ''', (cutoff_date,))
-    by_action = {row['action']: row['count'] for row in c.fetchall()}
-
-    # Actions by user
-    c.execute('''
-        SELECT user_email, COUNT(*) as count
-        FROM activity_logs
-        WHERE timestamp >= ? AND user_email IS NOT NULL
-        GROUP BY user_email
-        ORDER BY count DESC
-    ''', (cutoff_date,))
-    by_user = {row['user_email']: row['count'] for row in c.fetchall()}
-
-    # Recent activity (last 10)
-    c.execute('''
-        SELECT timestamp, user_email, action
-        FROM activity_logs
-        WHERE timestamp >= ?
-        ORDER BY timestamp DESC
-        LIMIT 10
-    ''', (cutoff_date,))
-    recent = [{
-        "timestamp": row['timestamp'],
-        "user_email": row['user_email'],
-        "action": row['action']
-    } for row in c.fetchall()]
-
-    conn.close()
-
-    return {
+    """Get summary statistics of activity logs (via RPC)."""
+    response = supabase.rpc('get_activity_summary', {'p_days': days}).execute()
+    return response.data or {
         "period_days": days,
-        "total_actions": total_actions,
-        "by_action": by_action,
-        "by_user": by_user,
-        "recent": recent
+        "total_actions": 0,
+        "by_action": {},
+        "by_user": {},
+        "recent": [],
     }
 
 
 def cleanup_old_activity_logs(days: int = 90):
-    """
-    Remove activity logs older than specified days
-
-    Args:
-        days: Keep logs from the last N days
-
-    Returns:
-        Number of deleted records
-    """
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
+    """Remove activity logs older than specified days."""
     cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-
-    c.execute("DELETE FROM activity_logs WHERE timestamp < ?", (cutoff_date,))
-
-    deleted = c.rowcount
-    conn.commit()
-    conn.close()
-
+    response = supabase.table('activity_logs').delete().lt('timestamp', cutoff_date).execute()
+    deleted = len(response.data)
     if deleted > 0:
         logger.info(f"Cleaned up {deleted} old activity logs (older than {days} days)")
-
     return deleted
 
 
@@ -1487,86 +750,33 @@ def cleanup_old_activity_logs(days: int = 90):
 # Comparison Groups Functions
 # ============================================
 
-def _ensure_comparison_tables():
-    """Ensure comparison tables exist"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS comparison_groups (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            created_by TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS comparison_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id INTEGER NOT NULL,
-            campaign_id TEXT NOT NULL,
-            region TEXT NOT NULL,
-            FOREIGN KEY (group_id) REFERENCES comparison_groups(id) ON DELETE CASCADE,
-            UNIQUE(group_id, campaign_id, region)
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-
 def search_campaigns(keyword: str, region: str = None, limit: int = 50):
-    """
-    Search campaigns by keyword (title or subject_line) across all regions or a specific region.
-
-    Args:
-        keyword: Search keyword for campaign title or subject line
-        region: Optional region filter
-        limit: Maximum results to return
-
-    Returns:
-        List of matching campaign dicts with basic info
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    like_pattern = f'%{keyword}%'
+    """Search campaigns by keyword (title or subject_line)."""
+    query = supabase.table('campaigns').select('id, region, title, send_time, data_json')
 
     if region:
-        c.execute("""
-            SELECT id, region, title, send_time, data_json
-            FROM campaigns
-            WHERE (title LIKE ? OR json_extract(data_json, '$.subject_line') LIKE ?) AND region = ?
-            ORDER BY send_time DESC
-            LIMIT ?
-        """, (like_pattern, like_pattern, region, limit))
-    else:
-        c.execute("""
-            SELECT id, region, title, send_time, data_json
-            FROM campaigns
-            WHERE (title LIKE ? OR json_extract(data_json, '$.subject_line') LIKE ?)
-            ORDER BY send_time DESC
-            LIMIT ?
-        """, (like_pattern, like_pattern, limit))
+        query = query.eq('region', region)
 
-    rows = c.fetchall()
-    conn.close()
+    # PostgREST: search title with ILIKE
+    query = query.ilike('title', f'%{keyword}%')
+    query = query.order('send_time', desc=True).limit(limit)
+    response = query.execute()
 
     results = []
-    for row in rows:
+    for row in response.data:
         try:
-            data = json.loads(row['data_json'])
+            data = row['data_json']
+            if isinstance(data, str):
+                data = json.loads(data)
             title = row['title'] or ''
             subject_line = data.get('subject_line', '')
-            # Use subject_line as display title if title is empty
             display_title = title if title.strip() else subject_line
             results.append({
                 "id": row['id'],
                 "region": row['region'],
                 "title": display_title,
                 "subject_line": subject_line,
-                "send_time": row['send_time'],
+                "send_time": str(row['send_time']) if row['send_time'] else None,
                 "open_rate": data.get('open_rate'),
                 "click_rate": data.get('click_rate'),
                 "emails_sent": data.get('emails_sent'),
@@ -1585,42 +795,24 @@ def search_campaigns(keyword: str, region: str = None, limit: int = 50):
 
 
 def create_comparison_group(name: str, description: str = None, created_by: str = None, campaign_items: list = None):
-    """
-    Create a new comparison group with campaign items.
+    """Create a new comparison group with campaign items."""
+    response = supabase.table('comparison_groups').insert({
+        'name': name,
+        'description': description,
+        'created_by': created_by,
+    }).execute()
 
-    Args:
-        name: Group name
-        description: Optional description
-        created_by: User ID who created it
-        campaign_items: List of dicts with campaign_id and region
-
-    Returns:
-        dict with group info
-    """
-    _ensure_comparison_tables()
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO comparison_groups (name, description, created_by)
-        VALUES (?, ?, ?)
-    ''', (name, description, created_by))
-
-    group_id = c.lastrowid
+    group_id = response.data[0]['id']
 
     if campaign_items:
-        for item in campaign_items:
-            try:
-                c.execute('''
-                    INSERT INTO comparison_items (group_id, campaign_id, region)
-                    VALUES (?, ?, ?)
-                ''', (group_id, item['campaign_id'], item['region']))
-            except sqlite3.IntegrityError:
-                pass  # Skip duplicates
-
-    conn.commit()
-    conn.close()
+        rows = [{
+            'group_id': group_id,
+            'campaign_id': item['campaign_id'],
+            'region': item['region'],
+        } for item in campaign_items]
+        supabase.table('comparison_items').upsert(
+            rows, on_conflict='group_id,campaign_id,region'
+        ).execute()
 
     logger.info(f"Created comparison group '{name}' with {len(campaign_items or [])} items")
 
@@ -1629,101 +821,58 @@ def create_comparison_group(name: str, description: str = None, created_by: str 
         "name": name,
         "description": description,
         "created_by": created_by,
-        "item_count": len(campaign_items or [])
+        "item_count": len(campaign_items or []),
     }
 
 
 def list_comparison_groups():
-    """
-    List all comparison groups with item counts.
+    """List all comparison groups with item counts (via RPC)."""
+    response = supabase.rpc('list_comparison_groups_with_counts').execute()
+    data = response.data or []
 
-    Returns:
-        List of comparison group dicts
-    """
-    _ensure_comparison_tables()
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    c.execute('''
-        SELECT g.id, g.name, g.description, g.created_by, g.created_at, g.updated_at,
-               COUNT(i.id) as item_count
-        FROM comparison_groups g
-        LEFT JOIN comparison_items i ON g.id = i.group_id
-        GROUP BY g.id
-        ORDER BY g.updated_at DESC
-    ''')
-
-    rows = c.fetchall()
-    conn.close()
-
-    return [{
-        "id": row['id'],
-        "name": row['name'],
-        "description": row['description'],
-        "created_by": row['created_by'],
-        "created_at": row['created_at'],
-        "updated_at": row['updated_at'],
-        "item_count": row['item_count']
-    } for row in rows]
+    if isinstance(data, list):
+        return [{
+            "id": row['id'],
+            "name": row['name'],
+            "description": row['description'],
+            "created_by": row['created_by'],
+            "created_at": str(row['created_at']) if row['created_at'] else None,
+            "updated_at": str(row['updated_at']) if row['updated_at'] else None,
+            "item_count": row['item_count'],
+        } for row in data]
+    return []
 
 
 def get_comparison_group(group_id: int):
-    """
-    Get a comparison group with full campaign data.
+    """Get a comparison group with full campaign data (via RPC)."""
+    response = supabase.rpc('get_comparison_group_full', {'p_group_id': group_id}).execute()
 
-    Args:
-        group_id: ID of the comparison group
-
-    Returns:
-        dict with group info and campaign data, or None if not found
-    """
-    _ensure_comparison_tables()
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    # Get group info
-    c.execute('''
-        SELECT id, name, description, created_by, created_at, updated_at
-        FROM comparison_groups WHERE id = ?
-    ''', (group_id,))
-
-    group_row = c.fetchone()
-    if not group_row:
-        conn.close()
+    if not response.data:
         return None
 
-    # Get items with full campaign data
-    c.execute('''
-        SELECT i.campaign_id, i.region, c.title, c.send_time, c.data_json
-        FROM comparison_items i
-        LEFT JOIN campaigns c ON i.campaign_id = c.id AND i.region = c.region
-        WHERE i.group_id = ?
-        ORDER BY i.region, c.send_time DESC
-    ''', (group_id,))
+    group = response.data
+    if isinstance(group, list):
+        # RPC might return a list with one item
+        return None if not group else group[0] if len(group) == 1 else group
 
-    item_rows = c.fetchall()
-    conn.close()
-
-    items = []
-    for row in item_rows:
-        title = row['title'] or ''
-        subject_line = ''
+    # Process items to add derived fields
+    items = group.get('items', [])
+    processed_items = []
+    for row in items:
+        title = row.get('title', '') or ''
         item = {
             "campaign_id": row['campaign_id'],
             "region": row['region'],
             "title": title,
             "subject_line": '',
-            "send_time": row['send_time'],
+            "send_time": str(row['send_time']) if row.get('send_time') else None,
         }
-        if row['data_json']:
+        if row.get('data_json'):
+            data = row['data_json']
+            if isinstance(data, str):
+                data = json.loads(data)
             try:
-                data = json.loads(row['data_json'])
                 subject_line = data.get('subject_line', '')
-                # Use subject_line as display title if title is empty
                 if not title.strip():
                     item["title"] = subject_line
                 item.update({
@@ -1741,49 +890,22 @@ def get_comparison_group(group_id: int):
                 })
             except Exception as e:
                 logger.warning(f"Failed to parse campaign data: {e}")
-        items.append(item)
+        processed_items.append(item)
 
-    return {
-        "id": group_row['id'],
-        "name": group_row['name'],
-        "description": group_row['description'],
-        "created_by": group_row['created_by'],
-        "created_at": group_row['created_at'],
-        "updated_at": group_row['updated_at'],
-        "items": items
-    }
+    group['items'] = processed_items
+    return group
 
 
 def delete_comparison_group(group_id: int):
-    """
-    Delete a comparison group and its items.
+    """Delete a comparison group and its items."""
+    supabase.table('comparison_items').delete().eq('group_id', group_id).execute()
+    response = supabase.table('comparison_groups').delete().eq('id', group_id).execute()
 
-    Args:
-        group_id: ID of the comparison group
-
-    Returns:
-        True if deleted, False if not found
-    """
-    _ensure_comparison_tables()
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Delete items first
-    c.execute('DELETE FROM comparison_items WHERE group_id = ?', (group_id,))
-    # Delete group
-    c.execute('DELETE FROM comparison_groups WHERE id = ?', (group_id,))
-
-    deleted = c.rowcount > 0
-    conn.commit()
-    conn.close()
-
+    deleted = len(response.data) > 0
     if deleted:
         logger.info(f"Deleted comparison group {group_id}")
-
     return deleted
 
 
-# Initialize on module load or explicitly
-_ensure_comparison_tables()
+# Initialize on module load
 init_db()

@@ -1,11 +1,10 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import os
 import logging
-import base64
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from jose import JWTError, jwt
@@ -13,10 +12,6 @@ from mailchimp_service import mailchimp_service
 import database
 
 load_dotenv()
-
-# Gemini AI Configuration
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/gemini-2.0-flash")
 
 # JWT Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
@@ -68,17 +63,6 @@ class ExcludedAudienceItem(BaseModel):
 
 class SetExcludedAudiencesRequest(BaseModel):
     audiences: list[ExcludedAudienceItem]
-
-# Pydantic models for AI analysis
-class AIAnalysisContext(BaseModel):
-    view: str  # 'overview' or 'region-detail'
-    region: Optional[str] = None
-    timeRange: str
-    audience: Optional[str] = None
-
-class AIAnalysisRequest(BaseModel):
-    image: str  # base64 encoded image
-    context: AIAnalysisContext
 
 # Configure logging
 logging.basicConfig(
@@ -235,19 +219,17 @@ def emergency_reset(request: EmergencyResetRequest):
         raise HTTPException(status_code=403, detail="Invalid reset secret")
 
     # Reset admin password directly in database
-    conn = database.sqlite3.connect(database.DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE email = ?", (admin_email.lower(),))
-    row = c.fetchone()
+    user_check = database.supabase.table('users').select('id').eq('email', admin_email.lower()).execute()
 
-    if not row:
-        conn.close()
+    if not user_check.data:
         raise HTTPException(status_code=404, detail="Admin user not found")
 
+    user_id = user_check.data[0]['id']
     new_hash = database.get_password_hash(expected_secret)
-    c.execute("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?", (new_hash, row[0]))
-    conn.commit()
-    conn.close()
+    database.supabase.table('users').update({
+        'password_hash': new_hash,
+        'must_change_password': False,
+    }).eq('id', user_id).execute()
 
     logger.info(f"Emergency password reset for admin: {admin_email}")
     return {"status": "success", "message": f"Password reset for {admin_email}"}
@@ -597,17 +579,16 @@ def get_regions_activity():
     }
 
 @app.post("/api/sync")
-def trigger_sync(background_tasks: BackgroundTasks, days: int = 30):
-    """Background task to sync data for all regions"""
-    def sync():
-        logger.info("Starting background sync for all regions")
-        all_data = mailchimp_service.get_dashboard_data(days=days)
-        for region, campaigns in all_data.items():
-            database.upsert_campaigns(campaigns, region=region)
-        logger.info("Sync complete")
-
-    background_tasks.add_task(sync)
-    return {"status": "Sync started for all regions"}
+def trigger_sync(days: int = 30):
+    """Synchronously sync data for all regions (Vercel Serverless compatible)"""
+    logger.info("Starting sync for all regions")
+    all_data = mailchimp_service.get_dashboard_data(days=days)
+    total = 0
+    for region, campaigns in all_data.items():
+        database.upsert_campaigns(campaigns, region=region)
+        total += len(campaigns)
+    logger.info(f"Sync complete: {total} campaigns across {len(all_data)} regions")
+    return {"status": "success", "campaigns_synced": total, "regions": list(all_data.keys())}
 
 @app.get("/api/audiences")
 def get_audiences(region: str = None):
@@ -727,26 +708,17 @@ def check_cache_health():
             "has_data": bool(cached_campaigns)
         }
 
-    # 4. 檢查資料庫檔案
-    import os
-    db_exists = os.path.exists(database.DB_PATH)
-    db_size = os.path.getsize(database.DB_PATH) if db_exists else 0
-
-    # 5. 判斷健康狀況
+    # 4. 判斷健康狀況
     total_campaigns = cache_stats.get('total', 0)
     is_healthy = total_campaigns >= len(configured_regions)
 
     issues = []
-    if not db_exists:
-        issues.append("Database file does not exist")
-    elif db_size == 0:
-        issues.append("Database file is empty")
-    elif total_campaigns == 0:
+    if total_campaigns == 0:
         issues.append("No campaigns in cache")
     elif total_campaigns < len(configured_regions):
         issues.append(f"Cache has only {total_campaigns} campaigns for {len(configured_regions)} regions")
 
-    # 6. 建議
+    # 5. 建議
     recommendations = []
     if not is_healthy:
         recommendations.append("Run force refresh to populate cache")
@@ -758,9 +730,8 @@ def check_cache_health():
         "configured_regions": configured_regions,
         "region_details": region_details,
         "database": {
-            "path": database.DB_PATH,
-            "exists": db_exists,
-            "size_bytes": db_size
+            "type": "PostgreSQL (Supabase)",
+            "connected": True
         },
         "issues": issues,
         "recommendations": recommendations,
@@ -1189,175 +1160,6 @@ def set_excluded_audiences(request: SetExcludedAudiencesRequest, user: Dict = De
         "count": result["count"],
         "message": f"{result['count']} audiences excluded"
     }
-
-
-# ============================================
-# AI Dashboard Analysis API Endpoints
-# ============================================
-
-@app.post("/api/ai/analyze-dashboard")
-async def analyze_dashboard(request: AIAnalysisRequest, user: Dict = Depends(require_admin)):
-    """
-    Analyze dashboard screenshot using Gemini AI (admin only)
-
-    Accepts a base64 encoded image and context, returns AI-generated insights
-    """
-    if not GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="AI analysis is not configured. Please set GEMINI_API_KEY environment variable."
-        )
-
-    try:
-        import google.generativeai as genai
-
-        # Configure Gemini
-        genai.configure(api_key=GEMINI_API_KEY)
-
-        # Decode base64 image
-        image_data = request.image
-        if image_data.startswith('data:'):
-            # Remove data URL prefix (e.g., "data:image/jpeg;base64,")
-            image_data = image_data.split(',', 1)[1]
-
-        image_bytes = base64.b64decode(image_data)
-
-        # Get AI settings from database
-        ai_settings = database.get_ai_settings()
-
-        # Check if AI is enabled
-        if not ai_settings.get("enabled", True):
-            raise HTTPException(status_code=503, detail="AI analysis is disabled")
-
-        # Get model from settings (fallback to env var)
-        model_name = ai_settings.get("model") or GEMINI_MODEL
-        model = genai.GenerativeModel(model_name)
-
-        # Build context string
-        context = request.context
-        view_type = "Overview Dashboard" if context.view == "overview" else f"Region Detail ({context.region})"
-        audience_info = context.audience if context.audience else "All Audiences"
-
-        # Get prompts from settings
-        system_prompt = ai_settings.get("system_prompt", "")
-        output_format = ai_settings.get("output_format", "")
-
-        # Build user prompt with context
-        user_prompt = f"""請分析這張 EDM 行銷儀表板截圖，並以繁體中文提供完整的策略分析報告。
-
-**目前檢視的內容：**
-- 儀表板類型：{view_type}
-- 時間區間：{context.timeRange}
-- 受眾篩選：{audience_info}
-
-{output_format}"""
-
-        # Create image part for Gemini
-        image_part = {
-            "mime_type": "image/png",
-            "data": image_bytes
-        }
-
-        # Generate response
-        response = model.generate_content(
-            [system_prompt, image_part, user_prompt],
-            generation_config={
-                "temperature": 0.7,
-                "top_p": 0.95,
-                "max_output_tokens": 8192,
-            }
-        )
-
-        # Parse the response
-        analysis_text = response.text
-
-        logger.info(f"AI analysis completed for user {user.get('email')}")
-
-        # Log activity
-        database.log_activity(
-            user_id=user["id"],
-            user_email=user["email"],
-            action="run_ai_analysis",
-            details={
-                "view": context.view,
-                "region": context.region,
-                "time_range": context.timeRange,
-                "model": model_name
-            }
-        )
-
-        return {
-            "status": "success",
-            "analysis": analysis_text,
-            "model": model_name,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
-    except ImportError:
-        raise HTTPException(
-            status_code=503,
-            detail="Google Generative AI library is not installed"
-        )
-    except Exception as e:
-        logger.error(f"AI analysis error: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"AI analysis failed: {str(e)}"
-        )
-
-
-@app.get("/api/ai/status")
-def get_ai_status(user: Dict = Depends(require_auth)):
-    """
-    Check if AI analysis is available
-    """
-    ai_settings = database.get_ai_settings()
-    return {
-        "status": "success",
-        "ai_enabled": bool(GEMINI_API_KEY) and ai_settings.get("enabled", True),
-        "model": ai_settings.get("model", GEMINI_MODEL) if GEMINI_API_KEY else None
-    }
-
-
-@app.get("/api/ai/settings")
-def get_ai_settings(user: Dict = Depends(require_admin)):
-    """
-    Get AI settings (admin only)
-    """
-    settings = database.get_ai_settings()
-    return {
-        "status": "success",
-        "settings": settings,
-        "api_key_configured": bool(GEMINI_API_KEY)
-    }
-
-
-@app.put("/api/ai/settings")
-def update_ai_settings(
-    settings: Dict[str, Any],
-    user: Dict = Depends(require_admin)
-):
-    """
-    Update AI settings (admin only)
-    """
-    # Validate settings
-    allowed_keys = {"enabled", "model", "system_prompt", "output_format"}
-    filtered_settings = {k: v for k, v in settings.items() if k in allowed_keys}
-
-    if not filtered_settings:
-        raise HTTPException(status_code=400, detail="No valid settings provided")
-
-    result = database.update_ai_settings(filtered_settings)
-    return result
-
-
-@app.post("/api/ai/settings/reset")
-def reset_ai_settings(user: Dict = Depends(require_admin)):
-    """
-    Reset AI settings to defaults (admin only)
-    """
-    result = database.reset_ai_settings()
-    return result
 
 
 # ============================================
