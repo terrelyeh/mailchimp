@@ -1,10 +1,10 @@
 # CLAUDE.md — Project Context
 
-> Last updated: 2026-03-22
+> Last updated: 2026-03-24
 
 ## Project Overview
 
-Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP）的 Mailchimp 電子報行銷數據。
+Mailchimp Multi-Region Dashboard — 管理 6 個分公司（US / EU / APAC / JP / TW / INDIA）的 Mailchimp 電子報行銷數據。
 提供 KPI 總覽、區域比較圖表、Campaign 列表與比較、匯出 PDF 等功能。
 前後端皆部署在 Vercel，資料庫使用 Supabase（PostgreSQL）。
 
@@ -61,7 +61,7 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
 │   ├── vercel.json              # Vercel 路由設定
 │   ├── .env.example             # 環境變數範例
 │   └── Dockerfile               # Python 3.9 slim（本地 Docker 用）
-├── docs/                        # 部署指南、功能文件、AI 分析規格
+├── docs/                        # 部署指南（DEPLOYMENT.md/html）、功能文件
 ├── docker-compose.yml           # 前後端容器編排
 └── deploy.sh                    # 一鍵部署腳本
 ```
@@ -107,7 +107,6 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
 - 後端 CORS 支援多前端網域
 
 ### 🚀 Next
-- **Vercel 後端加入 Mailchimp API keys**：需在 Vercel project settings 設定環境變數以啟用資料同步
 - **Google Social Login**：利用 Supabase Auth 加入 Google OAuth（白名單制）
 - **啟用 RLS**：目前 Supabase 未啟用 Row Level Security，生產環境應啟用並使用 service_role key
 - **Content Planning / Topic Pool**（優先級降低）：
@@ -146,8 +145,9 @@ cd backend && vercel --prod  # 後端手動部署到 Vercel
 - **Vercel Deployment Protection**：後端 Vercel 專案需關閉 Deployment Protection，否則 API 會被攔截
 - **Sync 操作**：已改為同步（非 BackgroundTasks），Vercel Serverless 不支援背景任務
 - **JWT_SECRET**：預設值僅供開發，生產環境必須設定環境變數覆蓋（Vercel 已設定）
-- **多區域 API key**：env 格式為 `MAILCHIMP_API_KEY_{REGION}` + `MAILCHIMP_SERVER_PREFIX_{REGION}`
+- **多區域 API key**：env 格式為 `MAILCHIMP_API_KEY_{REGION}` + `MAILCHIMP_SERVER_PREFIX_{REGION}`（6 區：US/EU/APAC/JP/TW/INDIA）
 - **Mailchimp campaign fields**：必須用 `.get()` 安全取值，部分 campaign 缺少 `subject_line`、`settings` 等欄位
+- **A/B test archive**：舊版 A/B test（variate+template）的父層 archive 是空殼，後端已自動替換為 variant archive URL
 - **Vercel 前端**：push 自動部署；`VITE_API_URL` 設在 Vercel project settings → `https://edm-dashboard-api.vercel.app/api`
 - **Vercel 後端**：需從 `backend/` 目錄執行 `vercel --prod` 手動部署（非 GitHub 自動部署）
 - **Calendar 不適合 All Regions**：跨區載入太慢，Calendar 只放在單一 Region 頁面
