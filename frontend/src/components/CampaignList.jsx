@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter, Search, X, Download, Clock, FileEdit, Pause, Send, CircleDot, Settings2, Eye, EyeOff } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, Users, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Tag, Filter, Search, X, Download, Clock, FileEdit, Pause, Send, CircleDot, Settings2, Eye, EyeOff, Archive } from 'lucide-react';
 import { fetchCampaignList } from '../api';
 
 
@@ -35,6 +35,7 @@ const COLUMN_DEFS = [
     { key: 'clicks', label: 'Click Rate', default: true },
     { key: 'bounce', label: 'Bounce Rate', default: false },
     { key: 'unsubs', label: 'Unsubscribes', default: false },
+    { key: 'archive', label: 'Archive', default: true },
     { key: 'region', label: 'Region', default: false },
 ];
 
@@ -257,7 +258,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
         const headers = [
             'Campaign Title', 'Subject Line', 'Status', 'Audience', 'Segment/Tag',
             'Send Date', 'Emails Sent', 'Delivery Rate %', 'Open Rate %',
-            'Click Rate %', 'Bounce Rate %', 'Unsubscribes', 'Region'
+            'Click Rate %', 'Bounce Rate %', 'Unsubscribes', 'Archive URL', 'Region'
         ];
 
         const rows = sortedData.map(c => {
@@ -278,6 +279,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                 c.status === 'sent' ? ((c.click_rate || 0) * 100).toFixed(1) : '',
                 c.status === 'sent' ? bounceRate.toFixed(1) : '',
                 c.status === 'sent' ? (c.unsubscribed || 0) : '',
+                c.archive_url || '',
                 c.region || ''
             ];
         });
@@ -468,6 +470,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                     {isColVisible('clicks') && <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('bounce') && <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('unsubs') && <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('archive') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Archive</th>}
                                     {isColVisible('region') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Region</th>}
                                 </tr>
                             </thead>
@@ -701,6 +704,29 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs text-gray-400">—</span>
+                                                )}
+                                            </td>
+                                            )}
+
+                                            {/* Archive */}
+                                            {isColVisible('archive') && (
+                                            <td className="px-3 md:px-4 py-3">
+                                                {campaign.archive_url ? (
+                                                    <a
+                                                        href={campaign.archive_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                                                        title={campaign.archive_url}
+                                                    >
+                                                        <Archive className="w-3 h-3" />
+                                                        View
+                                                    </a>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-gray-400 bg-gray-50 border border-gray-200">
+                                                        <EyeOff className="w-3 h-3" />
+                                                        Off
+                                                    </span>
                                                 )}
                                             </td>
                                             )}
