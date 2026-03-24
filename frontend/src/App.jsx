@@ -811,7 +811,7 @@ function App() {
 
                 {/* Section 3: Chart */}
                 <div data-export-section="chart">
-                  <TimeSeriesMetricsChart regionsData={displayData} />
+                  <TimeSeriesMetricsChart regionsData={displayData} regions={availableRegions} />
                 </div>
 
                 {/* Section 4: Region Cards */}
