@@ -480,12 +480,54 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint for Zeabur and monitoring"""
+    """Health check endpoint"""
     return {
         "status": "healthy",
         "service": "mailchimp-dashboard-api",
         "regions": mailchimp_service.REGIONS
     }
+
+
+@app.get("/api/keep-alive")
+def keep_alive():
+    """Keep-alive endpoint for Supabase — called by Vercel Cron to prevent
+    Supabase free-tier auto-pause (7 days inactivity).
+    Performs a lightweight SELECT 1 via REST API."""
+    try:
+        response = database.supabase.table('users').select('id', count='exact').limit(1).execute()
+        return {
+            "status": "ok",
+            "supabase": "connected",
+            "user_count": response.count,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Keep-alive failed: {e}")
+        return {
+            "status": "error",
+            "supabase": "disconnected",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+@app.get("/api/debug/mailchimp-test")
+def debug_mailchimp_test(region: str = "US"):
+    """Debug: test raw Mailchimp API call"""
+    import requests as req
+    client = mailchimp_service.get_client(region)
+    if not client:
+        return {"error": f"No client for region {region}"}
+    url = f"{client.base_url}/campaigns?count=2&sort_field=send_time&sort_dir=DESC&status=sent"
+    try:
+        r = req.get(url, headers=client.headers, timeout=10)
+        return {
+            "status_code": r.status_code,
+            "url": url,
+            "headers_sent": {k: v[:20] + "..." for k, v in client.headers.items()},
+            "response_preview": r.text[:500] if r.status_code != 200 else f"{len(r.json().get('campaigns', []))} campaigns found",
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/api/dashboard")
 def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool = False):

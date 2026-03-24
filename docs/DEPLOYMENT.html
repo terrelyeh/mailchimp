@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mailchimp Dashboard — 部署文件</title>
+<style>
+  /* ===== Reset & Base ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #2563EB;
+    --primary-light: #3B82F6;
+    --primary-dark: #1D4ED8;
+    --sidebar-bg: #1E293B;
+    --sidebar-text: #CBD5E1;
+    --sidebar-heading: #F1F5F9;
+    --sidebar-active: #2563EB;
+    --sidebar-hover: #334155;
+    --body-bg: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --text: #1E293B;
+    --text-secondary: #64748B;
+    --text-muted: #94A3B8;
+    --border: #E2E8F0;
+    --code-bg: #F1F5F9;
+    --code-block-bg: #0F172A;
+    --code-text: #E2E8F0;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --info: #06B6D4;
+    --sidebar-w: 280px;
+  }
+
+  html { scroll-behavior: smooth; font-size: 16px; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+    background: var(--body-bg);
+    color: var(--text);
+    line-height: 1.7;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-w);
+    height: 100vh;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    overflow-y: auto;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .sidebar-header h1 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--sidebar-heading);
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .sidebar-header .subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-weight: 400;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 0;
+  }
+
+  .sidebar-nav .nav-section {
+    padding: 8px 20px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  .sidebar-nav a {
+    display: block;
+    padding: 8px 20px 8px 28px;
+    font-size: 14px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all 0.15s ease;
+  }
+
+  .sidebar-nav a:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-heading);
+  }
+
+  .sidebar-nav a.active {
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--primary-light);
+    border-left-color: var(--primary);
+    font-weight: 500;
+  }
+
+  .sidebar-nav .sub-link {
+    padding-left: 44px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .sidebar-nav .sub-link:hover { color: var(--sidebar-text); }
+
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ===== Mobile toggle ===== */
+  .menu-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 200;
+    background: var(--sidebar-bg);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  /* ===== Main Content ===== */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .content {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+  }
+
+  /* ===== Typography ===== */
+  h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 56px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    letter-spacing: -0.02em;
+  }
+
+  h2:first-child { margin-top: 0; }
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 36px;
+    margin-bottom: 12px;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+
+  p { margin-bottom: 16px; }
+
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  strong { font-weight: 600; }
+
+  /* ===== Badge ===== */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+  }
+  .badge-auto { background: #DCFCE7; color: #166534; }
+  .badge-manual { background: #FEF3C7; color: #92400E; }
+  .badge-rest { background: #DBEAFE; color: #1E40AF; }
+
+  /* ===== Architecture diagram ===== */
+  .arch-diagram {
+    background: var(--code-block-bg);
+    color: var(--code-text);
+    padding: 28px 32px;
+    border-radius: 12px;
+    overflow-x: auto;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 20px 0 28px;
+    white-space: pre;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .arch-diagram .hl-blue { color: #60A5FA; }
+  .arch-diagram .hl-green { color: #34D399; }
+  .arch-diagram .hl-yellow { color: #FBBF24; }
+  .arch-diagram .hl-purple { color: #A78BFA; }
+  .arch-diagram .hl-gray { color: #64748B; }
+
+  /* ===== Code blocks ===== */
+  code {
+    font-family: "SF Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.875em;
+    background: var(--code-bg);
+    color: #BE185D;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  pre {
+    background: var(--code-block-bg);
+    color: var(--code-text);
+    padding: 20px 24px;
+    border-radius: 10px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 13px;
+    line-height: 1.65;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  .code-comment { color: #64748B; }
+  .code-cmd { color: #34D399; }
+  .code-flag { color: #FBBF24; }
+  .code-url { color: #60A5FA; }
+  .code-arrow { color: #A78BFA; }
+
+  /* ===== Tables ===== */
+  .table-wrapper {
+    overflow-x: auto;
+    margin: 12px 0 24px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  thead {
+    background: var(--code-bg);
+  }
+
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--border);
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover { background: rgba(37, 99, 235, 0.03); }
+
+  td code {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* ===== Info / Warning / Danger boxes ===== */
+  .callout {
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 16px 0 24px;
+    font-size: 14px;
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+  }
+
+  .callout-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+
+  .callout-info {
+    background: #EFF6FF;
+    border-left: 4px solid var(--primary);
+    color: #1E40AF;
+  }
+
+  .callout-warning {
+    background: #FFFBEB;
+    border-left: 4px solid var(--warning);
+    color: #92400E;
+  }
+
+  .callout-danger {
+    background: #FEF2F2;
+    border-left: 4px solid var(--danger);
+    color: #991B1B;
+  }
+
+  .callout-success {
+    background: #F0FDF4;
+    border-left: 4px solid var(--success);
+    color: #166534;
+  }
+
+  /* ===== Cards ===== */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 16px 0 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .card h4 { margin-top: 0; }
+
+  /* ===== Service grid ===== */
+  .service-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .service-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .icon-github { background: #1F2937; color: #fff; }
+  .icon-vercel { background: #000; color: #fff; }
+  .icon-vercel-api { background: #2563EB; color: #fff; }
+  .icon-supabase { background: #3ECF8E; color: #fff; }
+
+  .service-header h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .service-header .service-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  /* ===== Steps ===== */
+  .step {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .step-content { flex: 1; }
+  .step-content p { margin-bottom: 8px; }
+
+  /* ===== Flow diagram ===== */
+  .flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0 24px;
+    font-size: 14px;
+  }
+
+  .flow-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .flow-arrow {
+    color: var(--primary);
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .flow-item.highlight {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+
+  /* ===== Links section ===== */
+  .link-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+
+  .link-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.15s;
+  }
+
+  .link-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+    text-decoration: none;
+  }
+
+  .link-card .link-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .link-card .link-label {
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .link-card .link-url {
+    font-size: 12px;
+    color: var(--text-muted);
+    word-break: break-all;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .menu-toggle { display: block; }
+    .main { margin-left: 0; }
+    .content { padding: 60px 20px 60px; }
+    h2 { font-size: 24px; }
+  }
+
+  /* ===== Print ===== */
+  @media print {
+    .sidebar, .menu-toggle { display: none !important; }
+    .main { margin-left: 0; }
+    .content { max-width: 100%; padding: 20px; }
+    body { background: #fff; }
+    .arch-diagram, pre { background: #f5f5f5 !important; color: #333 !important; border: 1px solid #ccc; }
+    .callout { break-inside: avoid; }
+    h2 { break-after: avoid; }
+    a { color: var(--text) !important; }
+    a[href]::after { content: " (" attr(href) ")"; font-size: 11px; color: #666; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Mobile menu toggle -->
+<button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Toggle menu">&#9776;</button>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>Mailchimp Dashboard</h1>
+    <div class="subtitle">部署文件 Deployment Guide</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">架構</div>
+    <a href="#architecture">1. 架構總覽</a>
+    <div class="nav-section">服務</div>
+    <a href="#services">2. 各服務角色說明</a>
+    <a href="#github" class="sub-link">GitHub</a>
+    <a href="#vercel-frontend" class="sub-link">Vercel Frontend</a>
+    <a href="#vercel-backend" class="sub-link">Vercel Backend</a>
+    <a href="#supabase" class="sub-link">Supabase</a>
+    <div class="nav-section">部署</div>
+    <a href="#deployment">3. 部署流程</a>
+    <a href="#env-vars">4. 環境變數清單</a>
+    <div class="nav-section">維運</div>
+    <a href="#faq">5. 常見問題</a>
+    <a href="#maintenance">6. 維護指南</a>
+    <div class="nav-section">附錄</div>
+    <a href="#links">專案連結</a>
+  </nav>
+  <div class="sidebar-footer">
+    最後更新：2026-03-24
+  </div>
+</aside>
+
+<!-- Main content -->
+<div class="main">
+<div class="content">
+
+<!-- ============ Section 1: Architecture ============ -->
+<h2 id="architecture">1. 架構總覽</h2>
+
+<p>Mailchimp Multi-Region Dashboard 管理 6 個區域（US / EU / APAC / JP / TW / INDIA）的電子報行銷數據。系統由同一個 GitHub repository 部署為兩個獨立的 Vercel projects，搭配 Supabase 作為資料庫。</p>
+
+<div class="arch-diagram"><span class="hl-gray">  ┌──────────┐</span>     HTTPS      <span class="hl-gray">┌──────────────────────────────────┐</span>
+<span class="hl-gray">  │</span>          <span class="hl-gray">│</span> <span class="hl-purple">──────────────▶</span> <span class="hl-gray">│</span>  <span class="hl-blue">Vercel Frontend</span>                  <span class="hl-gray">│</span>
+<span class="hl-gray">  │</span>  使用者   <span class="hl-gray">│</span>                <span class="hl-gray">│</span>  edm-dashboard-eg.vercel.app     <span class="hl-gray">│</span>
+<span class="hl-gray">  │</span> (Browser) <span class="hl-gray">│</span>                <span class="hl-gray">│</span>  React 19 + Vite + Tailwind      <span class="hl-gray">│</span>
+<span class="hl-gray">  │</span>          <span class="hl-gray">│</span>                <span class="hl-gray">│</span>  Root Dir: <span class="hl-yellow">frontend/</span>              <span class="hl-gray">│</span>
+<span class="hl-gray">  └──────────┘</span>                <span class="hl-gray">└────────────────┬─────────────────┘</span>
+                                                <span class="hl-gray">│</span>
+                                                <span class="hl-gray">│</span> API Requests <span class="hl-yellow">/api/*</span>
+                                                <span class="hl-gray">│</span>
+                                                <span class="hl-purple">▼</span>
+                              <span class="hl-gray">┌──────────────────────────────────┐</span>
+                              <span class="hl-gray">│</span>  <span class="hl-blue">Vercel Backend</span> (Serverless)     <span class="hl-gray">│</span>
+                              <span class="hl-gray">│</span>  edm-dashboard-api.vercel.app    <span class="hl-gray">│</span>
+                              <span class="hl-gray">│</span>  Python FastAPI                  <span class="hl-gray">│</span>
+                              <span class="hl-gray">│</span>  Root Dir: <span class="hl-yellow">backend/</span>              <span class="hl-gray">│</span>
+                              <span class="hl-gray">└───────────────┬──────────┬───────┘</span>
+                                              <span class="hl-gray">│</span>          <span class="hl-gray">│</span>
+                                     REST API <span class="hl-gray">│</span>          <span class="hl-gray">│</span> HTTP (API Key)
+                                              <span class="hl-purple">▼</span>          <span class="hl-purple">▼</span>
+                              <span class="hl-gray">┌────────────────┐</span>  <span class="hl-gray">┌────────────────┐</span>
+                              <span class="hl-gray">│</span>  <span class="hl-green">Supabase</span>       <span class="hl-gray">│</span>  <span class="hl-gray">│</span>  <span class="hl-yellow">Mailchimp</span>     <span class="hl-gray">│</span>
+                              <span class="hl-gray">│</span>  PostgreSQL     <span class="hl-gray">│</span>  <span class="hl-gray">│</span>  API v3.0      <span class="hl-gray">│</span>
+                              <span class="hl-gray">│</span>  ap-northeast-1 <span class="hl-gray">│</span>  <span class="hl-gray">│</span>  6 Regions     <span class="hl-gray">│</span>
+                              <span class="hl-gray">└────────────────┘</span>  <span class="hl-gray">└────────────────┘</span></div>
+
+<div class="callout callout-info">
+  <span class="callout-icon">&#8505;</span>
+  <div>
+    <strong>同一 GitHub Repo，兩個 Vercel Projects</strong><br>
+    Repository <code>terrelyeh/mailchimp</code> 同時包含前端與後端程式碼。兩個 Vercel projects 各自指向不同的 Root Directory（<code>frontend/</code> 與 <code>backend/</code>）。前端 push 自動部署，後端需手動執行 <code>vercel --prod</code>。
+  </div>
+</div>
+
+
+<!-- ============ Section 2: Services ============ -->
+<h2 id="services">2. 各服務角色說明</h2>
+
+<!-- GitHub -->
+<div class="card" id="github">
+  <div class="service-header">
+    <div class="service-icon icon-github">&#9733;</div>
+    <div>
+      <h3>GitHub <span class="service-sub">terrelyeh/mailchimp</span></h3>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <tbody>
+        <tr><td style="width:160px;font-weight:600;">用途</td><td>程式碼版本控制</td></tr>
+        <tr><td style="font-weight:600;">分支策略</td><td><code>main</code> 為生產分支</td></tr>
+        <tr><td style="font-weight:600;">自動部署</td><td>Push to <code>main</code> 觸發 Vercel 前端自動部署</td></tr>
+        <tr><td style="font-weight:600;">Commit 風格</td><td><code>feat:</code> / <code>fix:</code> / <code>chore:</code> / <code>docs:</code> 前綴</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Vercel Frontend -->
+<div class="card" id="vercel-frontend">
+  <div class="service-header">
+    <div class="service-icon icon-vercel">&#9650;</div>
+    <div>
+      <h3>Vercel Frontend <span class="service-sub">edm-dashboard-eg</span></h3>
+      <span class="badge badge-auto">AUTO DEPLOY</span>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <tbody>
+        <tr><td style="width:160px;font-weight:600;">框架</td><td>React 19 + Vite 5.4 + Tailwind CSS 3.4</td></tr>
+        <tr><td style="font-weight:600;">類型</td><td>靜態網站（SPA）</td></tr>
+        <tr><td style="font-weight:600;">Root Directory</td><td><code>frontend/</code></td></tr>
+        <tr><td style="font-weight:600;">Production URL</td><td><a href="https://edm-dashboard-eg.vercel.app" target="_blank">https://edm-dashboard-eg.vercel.app</a></td></tr>
+        <tr><td style="font-weight:600;">Build Command</td><td><code>npm run build</code></td></tr>
+        <tr><td style="font-weight:600;">Output Directory</td><td><code>dist</code></td></tr>
+        <tr><td style="font-weight:600;">Environment Var</td><td><code>VITE_API_URL</code> = <code>https://edm-dashboard-api.vercel.app/api</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>主要依賴</h4>
+  <p>Recharts 3.6（圖表）、Lucide React（圖標）、Axios（API 請求）、date-fns（日期處理）、html2canvas + jsPDF（PDF 匯出）</p>
+</div>
+
+<!-- Vercel Backend -->
+<div class="card" id="vercel-backend">
+  <div class="service-header">
+    <div class="service-icon icon-vercel-api">&#955;</div>
+    <div>
+      <h3>Vercel Backend <span class="service-sub">edm-backend</span></h3>
+      <span class="badge badge-manual">MANUAL DEPLOY</span>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <tbody>
+        <tr><td style="width:160px;font-weight:600;">框架</td><td>Python FastAPI（Serverless Functions）</td></tr>
+        <tr><td style="font-weight:600;">Root Directory</td><td><code>backend/</code></td></tr>
+        <tr><td style="font-weight:600;">Production URL</td><td><a href="https://edm-dashboard-api.vercel.app" target="_blank">https://edm-dashboard-api.vercel.app</a></td></tr>
+        <tr><td style="font-weight:600;">Entry Point</td><td><code>api/index.py</code></td></tr>
+        <tr><td style="font-weight:600;">Timeout</td><td>10 秒（Free Tier 限制）</td></tr>
+        <tr><td style="font-weight:600;">部署指令</td><td><code>cd backend && vercel --prod</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-danger">
+    <span class="callout-icon">&#9888;</span>
+    <div>
+      <strong>Deployment Protection 必須關閉</strong><br>
+      Backend Vercel project 的 Deployment Protection 必須設為 Off，否則所有 API 請求會被攔截並回傳 Vercel 登入頁面。
+      <br><em>設定路徑：Project Settings &rarr; General &rarr; Deployment Protection &rarr; Off</em>
+    </div>
+  </div>
+
+  <h4>API 功能</h4>
+  <p>JWT 認證（HS256, 24hr）、多區域 Mailchimp 資料同步、Campaign CRUD、比較群組、分享連結管理、使用者管理（admin / manager / viewer）、活動日誌、診斷工具。</p>
+</div>
+
+<!-- Supabase -->
+<div class="card" id="supabase">
+  <div class="service-header">
+    <div class="service-icon icon-supabase">&#9671;</div>
+    <div>
+      <h3>Supabase PostgreSQL</h3>
+      <span class="badge badge-rest">REST API</span>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <tbody>
+        <tr><td style="width:160px;font-weight:600;">Project ID</td><td><code>mxfwbewanezlyvyxuhyt</code></td></tr>
+        <tr><td style="font-weight:600;">Region</td><td><code>ap-northeast-1</code>（Tokyo）</td></tr>
+        <tr><td style="font-weight:600;">連線方式</td><td>REST API（<code>supabase-py</code>），不使用 pooler</td></tr>
+        <tr><td style="font-weight:600;">Dashboard</td><td><a href="https://supabase.com/dashboard/project/mxfwbewanezlyvyxuhyt" target="_blank">Supabase Dashboard</a></td></tr>
+        <tr><td style="font-weight:600;">Free Tier 限制</td><td>500MB storage、7 天無活動自動暫停</td></tr>
+        <tr><td style="font-weight:600;">RLS</td><td>目前未啟用</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>資料表（8 個）</h4>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Table</th><th>說明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>campaigns</code></td><td>Campaign 資料快取（含 region 欄位）</td></tr>
+        <tr><td><code>users</code></td><td>使用者帳號（email、password_hash、role）</td></tr>
+        <tr><td><code>shared_links</code></td><td>分享連結（token、filter_state、密碼、過期時間）</td></tr>
+        <tr><td><code>excluded_audiences</code></td><td>排除的 Audience（不計入 KPI）</td></tr>
+        <tr><td><code>activity_logs</code></td><td>使用者活動日誌</td></tr>
+        <tr><td><code>settings</code></td><td>系統設定</td></tr>
+        <tr><td><code>comparison_groups</code></td><td>Campaign 比較群組</td></tr>
+        <tr><td><code>comparison_items</code></td><td>比較群組內的 Campaign 項目</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>RPC Functions（5 個）</h4>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Function</th><th>說明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>get_cache_stats</code></td><td>快取統計（各區域 campaign 數量）</td></tr>
+        <tr><td><code>get_regions_last_activity</code></td><td>各區域最近活動時間</td></tr>
+        <tr><td><code>get_activity_summary</code></td><td>活動日誌摘要（指定天數）</td></tr>
+        <tr><td><code>list_comparison_groups_with_counts</code></td><td>比較群組列表（含項目數量）</td></tr>
+        <tr><td><code>get_comparison_group_full</code></td><td>比較群組完整資料</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ============ Section 3: Deployment ============ -->
+<h2 id="deployment">3. 部署流程</h2>
+
+<h3>3.1 Frontend（自動部署）</h3>
+
+<div class="flow">
+  <span class="flow-item"><code>git push origin main</code></span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-item">Vercel 偵測變更</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-item"><code>npm install && build</code></span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-item">部署至 CDN</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-item highlight">~1 min 上線</span>
+</div>
+
+<pre><code><span class="code-comment"># 1. 修改前端程式碼後 commit & push</span>
+<span class="code-cmd">git add</span> .
+<span class="code-cmd">git commit</span> <span class="code-flag">-m</span> "feat: your changes"
+<span class="code-cmd">git push</span> origin main
+
+<span class="code-comment"># 2. Vercel 自動觸發部署，約 1 分鐘後完成</span>
+<span class="code-comment"># 3. 前往 https://edm-dashboard-eg.vercel.app 確認</span></code></pre>
+
+<h3>3.2 Backend（手動部署）</h3>
+
+<pre><code><span class="code-comment"># 1. 進入 backend 目錄</span>
+<span class="code-cmd">cd</span> backend
+
+<span class="code-comment"># 2. 執行 Vercel 部署</span>
+<span class="code-cmd">vercel</span> <span class="code-flag">--prod</span>
+
+<span class="code-comment"># 3. 部署完成後會顯示 Production URL</span></code></pre>
+
+<div class="callout callout-warning">
+  <span class="callout-icon">&#9888;</span>
+  <div>
+    <strong>修改環境變數後必須重新部署</strong><br>
+    在 Vercel Dashboard 修改 Environment Variables 後，需要重新執行 <code>vercel --prod</code> 才會生效。
+  </div>
+</div>
+
+<h3>3.3 Database（無需部署）</h3>
+
+<p>Schema 變更直接在 Supabase Dashboard 的 SQL Editor 執行，不需要額外的部署步驟。</p>
+
+<pre><code><span class="code-comment"># Supabase SQL Editor</span>
+<span class="code-url">https://supabase.com/dashboard/project/mxfwbewanezlyvyxuhyt/sql</span></code></pre>
+
+
+<!-- ============ Section 4: Environment Variables ============ -->
+<h2 id="env-vars">4. 環境變數清單</h2>
+
+<h3>4.1 Vercel Frontend (<code>edm-dashboard-eg</code>)</h3>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr><th>變數名稱</th><th>說明</th><th>值</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>VITE_API_URL</code></td><td>後端 API 基礎 URL</td><td><code>https://edm-dashboard-api.vercel.app/api</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>4.2 Vercel Backend (<code>edm-backend</code>)</h3>
+
+<h4>必要變數</h4>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr><th>變數名稱</th><th>說明</th><th>範例值</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>SUPABASE_URL</code></td><td>Supabase Project URL</td><td><code>https://mxfwbewanezlyvyxuhyt.supabase.co</code></td></tr>
+      <tr><td><code>SUPABASE_ANON_KEY</code></td><td>Supabase Anonymous Key</td><td><code>eyJhbGciOiJI...</code></td></tr>
+      <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>Supabase Service Role Key（優先使用）</td><td><code>eyJhbGciOiJI...</code></td></tr>
+      <tr><td><code>JWT_SECRET</code></td><td>JWT 簽名密鑰（生產環境必須自訂）</td><td>隨機長字串</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h4>Mailchimp API Keys（每個區域一組）</h4>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr><th>變數名稱</th><th>說明</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>MAILCHIMP_API_KEY_US</code></td><td>US 區域 API Key</td></tr>
+      <tr><td><code>MAILCHIMP_SERVER_PREFIX_US</code></td><td>US 區域 Server Prefix（如 <code>us1</code>）</td></tr>
+      <tr><td><code>MAILCHIMP_API_KEY_EU</code></td><td>EU 區域 API Key</td></tr>
+      <tr><td><code>MAILCHIMP_SERVER_PREFIX_EU</code></td><td>EU 區域 Server Prefix</td></tr>
+      <tr><td><code>MAILCHIMP_API_KEY_APAC</code></td><td>APAC 區域 API Key</td></tr>
+      <tr><td><code>MAILCHIMP_SERVER_PREFIX_APAC</code></td><td>APAC 區域 Server Prefix</td></tr>
+      <tr><td><code>MAILCHIMP_API_KEY_JP</code></td><td>JP 區域 API Key</td></tr>
+      <tr><td><code>MAILCHIMP_SERVER_PREFIX_JP</code></td><td>JP 區域 Server Prefix</td></tr>
+      <tr><td><code>MAILCHIMP_API_KEY_TW</code></td><td>TW 區域 API Key</td></tr>
+      <tr><td><code>MAILCHIMP_SERVER_PREFIX_TW</code></td><td>TW 區域 Server Prefix</td></tr>
+      <tr><td><code>MAILCHIMP_API_KEY_INDIA</code></td><td>INDIA 區域 API Key</td></tr>
+      <tr><td><code>MAILCHIMP_SERVER_PREFIX_INDIA</code></td><td>INDIA 區域 Server Prefix</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout callout-info">
+  <span class="callout-icon">&#8505;</span>
+  <div>
+    <strong>Fallback 機制</strong><br>
+    若未設定區域專屬 key（如 <code>MAILCHIMP_API_KEY_US</code>），系統會嘗試使用 <code>MAILCHIMP_API_KEY</code>（無區域後綴）作為預設值。若完全未設定任何 key，系統自動使用 mock data，方便本地開發和測試。
+  </div>
+</div>
+
+<h4>選用變數</h4>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr><th>變數名稱</th><th>說明</th><th>預設值</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>ALLOWED_ORIGINS</code></td><td>CORS 允許的來源（逗號分隔）</td><td><code>*</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ============ Section 5: FAQ ============ -->
+<h2 id="faq">5. 常見問題 / 注意事項</h2>
+
+<div class="card">
+  <h4>Vercel Deployment Protection 需關閉</h4>
+  <p>後端 Vercel project 必須關閉 Deployment Protection。否則所有 API 請求會被導向 Vercel 認證頁面，前端無法呼叫 API。</p>
+  <p><strong>設定路徑：</strong>Vercel Dashboard &rarr; Project Settings &rarr; General &rarr; Deployment Protection &rarr; <strong>Off</strong></p>
+</div>
+
+<div class="card">
+  <h4>Supabase Pooler "Tenant not found" 問題</h4>
+  <p>Supabase connection pooler（Transaction / Session mode）目前有 "Tenant or user not found" 錯誤，無法使用 <code>psycopg2</code> 直接連線。已改用 <code>supabase-py</code> REST API 連線，不受此問題影響。</p>
+</div>
+
+<div class="card">
+  <h4>Vercel Serverless 10 秒 Timeout</h4>
+  <p>Free Tier 的 Serverless Functions 有 10 秒執行時間限制。首次同步大量 Mailchimp 資料或同時抓取所有區域時可能超時。</p>
+  <p><strong>因應策略：</strong></p>
+  <ul style="margin-left:20px;">
+    <li>使用 <code>ThreadPoolExecutor</code> 平行抓取多區域</li>
+    <li>分區域同步，避免一次全部抓取</li>
+    <li>考慮升級 Vercel Pro（60 秒 timeout）</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h4>bcrypt 版本相容性</h4>
+  <p><code>passlib</code> 不相容 <code>bcrypt</code> 5.x。<code>requirements.txt</code> 中已限制 <code>bcrypt&lt;5</code>，請勿升級。</p>
+</div>
+
+<div class="card">
+  <h4>Supabase Free Tier 自動暫停</h4>
+  <p>Free Tier 在 7 天無活動後會自動暫停資料庫。已設定 keep-alive cron job 定期 ping 防止暫停。若已暫停，可在 Supabase Dashboard 手動 "Restore project" 恢復。</p>
+</div>
+
+<div class="card">
+  <h4>CORS 設定</h4>
+  <p>後端 <code>main.py</code> 中的 <code>EXTRA_ORIGINS</code> 列表必須包含所有前端網域。目前已包含：</p>
+  <ul style="margin-left:20px;">
+    <li><code>https://edm-dashboard-eg.vercel.app</code></li>
+    <li><code>https://mailchimp-dashboard.vercel.app</code></li>
+    <li><code>http://localhost:5173</code></li>
+    <li><code>http://localhost:3000</code></li>
+  </ul>
+  <p>新增前端網域時需同步更新此列表並重新部署後端。</p>
+</div>
+
+<div class="card">
+  <h4>Mock Data 模式</h4>
+  <p>若未設定任何 Mailchimp API key，系統自動使用 mock data。不需要真實的 Mailchimp 帳號即可啟動完整系統，方便本地開發和測試。</p>
+</div>
+
+
+<!-- ============ Section 6: Maintenance ============ -->
+<h2 id="maintenance">6. 維護指南</h2>
+
+<h3>6.1 新增一個區域</h3>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <p><strong>設定 Mailchimp API Key</strong></p>
+    <p>在 Vercel Backend project（<code>edm-backend</code>）新增環境變數：</p>
+<pre><code>MAILCHIMP_API_KEY_NEWREGION=your-api-key-here
+MAILCHIMP_SERVER_PREFIX_NEWREGION=us1</code></pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <p><strong>重新部署後端</strong></p>
+<pre><code><span class="code-cmd">cd</span> backend
+<span class="code-cmd">vercel</span> <span class="code-flag">--prod</span></code></pre>
+    <p>系統會自動偵測以 <code>MAILCHIMP_API_KEY_</code> 為前綴的環境變數，將新區域加入可用區域列表。<strong>前端無需修改</strong>。</p>
+  </div>
+</div>
+
+<h3>6.2 檢查 Supabase 資料庫</h3>
+
+<p><strong>方法一：Supabase Dashboard</strong></p>
+<ol style="margin-left:20px;">
+  <li>前往 <a href="https://supabase.com/dashboard/project/mxfwbewanezlyvyxuhyt" target="_blank">Supabase Dashboard</a></li>
+  <li>左側選單 &rarr; Table Editor（瀏覽資料）或 SQL Editor（執行查詢）</li>
+</ol>
+
+<p><strong>方法二：透過 API</strong></p>
+<pre><code><span class="code-comment"># 檢查 cache 統計</span>
+<span class="code-cmd">curl</span> <span class="code-url">https://edm-dashboard-api.vercel.app/api/diagnostics</span>
+
+<span class="code-comment"># 檢查健康狀態</span>
+<span class="code-cmd">curl</span> <span class="code-url">https://edm-dashboard-api.vercel.app/api/health</span></code></pre>
+
+<h3>6.3 查看 Vercel Logs</h3>
+
+<p><strong>Dashboard 方式：</strong></p>
+<ol style="margin-left:20px;">
+  <li>前往 <a href="https://vercel.com" target="_blank">vercel.com</a> &rarr; 對應 project</li>
+  <li>Deployments &rarr; 點選最新部署 &rarr; Functions 或 Build Logs</li>
+  <li>即時 Logs：Logs tab（僅 Backend project 有 Runtime Logs）</li>
+</ol>
+
+<p><strong>CLI 方式：</strong></p>
+<pre><code><span class="code-comment"># 查看後端 runtime logs</span>
+<span class="code-cmd">cd</span> backend
+<span class="code-cmd">vercel logs</span> <span class="code-url">https://edm-dashboard-api.vercel.app</span></code></pre>
+
+<h3>6.4 更新環境變數</h3>
+
+<p><strong>Dashboard 方式：</strong></p>
+<ol style="margin-left:20px;">
+  <li>前往 Project Settings &rarr; Environment Variables</li>
+  <li>新增或修改變數</li>
+  <li><strong>重新部署</strong>才會生效</li>
+</ol>
+
+<p><strong>CLI 方式：</strong></p>
+<pre><code><span class="code-comment"># 新增環境變數</span>
+<span class="code-cmd">cd</span> backend
+<span class="code-cmd">vercel env add</span> VARIABLE_NAME
+
+<span class="code-comment"># 部署使變更生效</span>
+<span class="code-cmd">vercel</span> <span class="code-flag">--prod</span></code></pre>
+
+<h3>6.5 緊急恢復</h3>
+
+<div class="callout callout-warning">
+  <span class="callout-icon">&#9888;</span>
+  <div>
+    <strong>Supabase 資料庫被暫停</strong><br>
+    前往 Supabase Dashboard &rarr; 點選 "Restore project" &rarr; 等待 1-2 分鐘恢復 &rarr; 驗證：<code>curl https://edm-dashboard-api.vercel.app/api/health</code>
+  </div>
+</div>
+
+<div class="callout callout-success">
+  <span class="callout-icon">&#10003;</span>
+  <div>
+    <strong>Vercel 部署回滾</strong><br>
+    Vercel Dashboard &rarr; Deployments &rarr; 找到上一個正常部署 &rarr; "..." &rarr; "Promote to Production"
+  </div>
+</div>
+
+
+<!-- ============ Links ============ -->
+<h2 id="links">附錄：專案連結</h2>
+
+<div class="link-grid">
+  <a class="link-card" href="https://edm-dashboard-eg.vercel.app" target="_blank">
+    <span class="link-icon">&#127760;</span>
+    <div>
+      <div class="link-label">Frontend (Production)</div>
+      <div class="link-url">edm-dashboard-eg.vercel.app</div>
+    </div>
+  </a>
+  <a class="link-card" href="https://edm-dashboard-api.vercel.app" target="_blank">
+    <span class="link-icon">&#9889;</span>
+    <div>
+      <div class="link-label">Backend API</div>
+      <div class="link-url">edm-dashboard-api.vercel.app</div>
+    </div>
+  </a>
+  <a class="link-card" href="https://supabase.com/dashboard/project/mxfwbewanezlyvyxuhyt" target="_blank">
+    <span class="link-icon">&#128450;</span>
+    <div>
+      <div class="link-label">Supabase Dashboard</div>
+      <div class="link-url">supabase.com/dashboard/project/...</div>
+    </div>
+  </a>
+  <a class="link-card" href="https://github.com/terrelyeh/mailchimp" target="_blank">
+    <span class="link-icon">&#128187;</span>
+    <div>
+      <div class="link-label">GitHub Repository</div>
+      <div class="link-url">github.com/terrelyeh/mailchimp</div>
+    </div>
+  </a>
+</div>
+
+<br>
+<p style="text-align:center; color:var(--text-muted); font-size:13px; margin-top:48px; padding-top:24px; border-top:1px solid var(--border);">
+  Mailchimp Multi-Region Dashboard &mdash; 部署文件<br>
+  最後更新：2026-03-24
+</p>
+
+</div><!-- /.content -->
+</div><!-- /.main -->
+
+<script>
+// Sidebar active link highlighting on scroll
+(function() {
+  const links = document.querySelectorAll('.sidebar-nav a[href^="#"]');
+  const sections = [];
+  links.forEach(link => {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ el, link });
+  });
+
+  function onScroll() {
+    const scrollY = window.scrollY + 100;
+    let current = sections[0];
+    for (const s of sections) {
+      if (s.el.offsetTop <= scrollY) current = s;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (current) current.link.classList.add('active');
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Close sidebar on mobile when clicking a link
+  links.forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 900) {
+        document.querySelector('.sidebar').classList.remove('open');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
