@@ -4,11 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mailchimp Multi-Region Dashboard — 開發紀錄</title>
-  <meta name="description" content="從零建立多區域 Mailchimp 電子報分析儀表板的完整開發紀錄" />
+  <meta name="description" content="從零建立多區域 Mailchimp 電子報分析儀表板的完整開發紀錄，含 Vercel + Supabase 架構遷移" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style>
     /* ── Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -76,6 +74,15 @@
     /* ── Main ── */
     .main { flex: 1; padding: 64px 80px 120px 80px; min-width: 0; }
 
+    /* ── Back Link ── */
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--ink-4); text-decoration: none;
+      letter-spacing: .03em; margin-bottom: 24px; transition: color .15s;
+    }
+    .back-link:hover { color: var(--gold); }
+    .back-link svg { width: 14px; height: 14px; }
+
     /* ── Hero ── */
     .hero { margin-bottom: 72px; }
     .hero-eyebrow { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
@@ -83,7 +90,7 @@
     .eyebrow-text { font-size: 11px; font-weight: 500; letter-spacing: .15em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
     .hero h1 { font-family: var(--serif); font-size: 42px; font-weight: 400; line-height: 1.2; color: var(--ink); margin-bottom: 20px; letter-spacing: -.01em; }
     .hero-rule { width: 48px; height: 2px; background: var(--gold); margin-bottom: 20px; }
-    .hero-desc { font-size: 17px; color: var(--ink-2); line-height: 1.75; max-width: 560px; }
+    .hero-desc { font-size: 17px; color: var(--ink-2); line-height: 1.75; max-width: 620px; }
     .hero-meta { margin-top: 20px; font-size: 12px; color: var(--ink-4); letter-spacing: .05em; }
 
     /* ── Section ── */
@@ -98,7 +105,6 @@
     /* ── Prose ── */
     p { margin-bottom: 16px; color: var(--ink-2); font-size: 17px; line-height: 1.8; }
     strong { font-weight: 600; color: var(--ink); }
-    code { font-family: var(--mono); font-size: 13px; background: rgba(0,0,0,0.05); color: var(--ink-2); padding: 1px 6px; border-radius: 3px; border: 1px solid var(--border-strong); }
     ul, ol { padding-left: 20px; margin-bottom: 16px; }
     li { margin-bottom: 8px; font-size: 17px; line-height: 1.75; color: var(--ink-2); }
     li::marker { color: var(--gold); }
@@ -111,10 +117,6 @@
     tbody tr:nth-child(even) { background: var(--surface-warm); }
     tbody tr:hover { background: var(--gold-light); }
     td { padding: 12px 18px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 15px; line-height: 1.65; }
-
-    /* ── Code blocks ── */
-    pre { border-radius: 4px; overflow-x: auto; margin-bottom: 24px; font-size: 13.5px; line-height: 1.65; }
-    pre code { background: none; border: none; color: inherit; padding: 0; font-size: inherit; }
 
     /* ── Callout ── */
     .callout { display: flex; gap: 16px; padding: 18px 22px; border-radius: 4px; margin-bottom: 24px; font-size: 16px; line-height: 1.75; border-left: 3px solid; }
@@ -140,6 +142,13 @@
     .ta { color: #8fba8f; }
     .tc { color: #9ab0c9; }
 
+    /* ── Bug Block ── */
+    .bug-block { border: 1px solid var(--border-strong); border-radius: 4px; overflow: hidden; margin-bottom: 24px; }
+    .bug-header { background: #1e1b16; padding: 13px 22px; display: flex; align-items: center; gap: 12px; }
+    .bug-icon { font-size: 14px; color: #e8c97a; }
+    .bug-title { font-family: var(--mono); font-size: 13px; font-weight: 500; color: #e8c97a; letter-spacing: .04em; }
+    .bug-body { background: var(--surface); padding: 22px 24px; }
+
     /* ── Takeaway ── */
     .takeaway { background: var(--surface); border: 1px solid var(--border-strong); border-top: 3px solid var(--gold); border-radius: 4px; padding: 28px 32px; margin-bottom: 24px; }
     .takeaway-label { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 16px; }
@@ -162,7 +171,7 @@
 <body>
 <div class="layout">
 
-  <!-- ══ SIDEBAR ══ -->
+  <!-- SIDEBAR -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-top">
       <div class="sidebar-eyebrow">Dev Log</div>
@@ -176,39 +185,46 @@
         <a class="nav-link" href="#s3"><span class="nav-num">03</span>建了什麼功能</a>
         <a class="nav-link" href="#s4"><span class="nav-num">04</span>解決了什麼問題</a>
         <a class="nav-link" href="#s5"><span class="nav-num">05</span>技術架構</a>
-        <a class="nav-link" href="#s6"><span class="nav-num">06</span>如果繼續往下</a>
-        <a class="nav-link" href="#s7"><span class="nav-num">07</span>Takeaway</a>
+        <a class="nav-link" href="#s6"><span class="nav-num">06</span>踩到的坑</a>
+        <a class="nav-link" href="#s7"><span class="nav-num">07</span>如果繼續往下</a>
+        <a class="nav-link" href="#s8"><span class="nav-num">08</span>Takeaway</a>
       </div>
     </div>
   </nav>
 
-  <!-- ══ MAIN CONTENT ══ -->
+  <!-- MAIN CONTENT -->
   <main class="main">
+
+    <!-- Back link -->
+    <a class="back-link" href="../">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      所有案例
+    </a>
 
     <!-- Hero -->
     <header class="hero">
       <div class="hero-eyebrow">
-        <span class="eyebrow-text">工具開發 · 行銷分析平台</span>
+        <span class="eyebrow-text">工具開發 &middot; 行銷分析平台</span>
       </div>
       <h1>Mailchimp Multi-Region Dashboard</h1>
       <div class="hero-rule"></div>
-      <p class="hero-desc">從零建立一個統一的多區域電子報分析儀表板，取代原本要切四個 Mailchimp 帳號看數據的低效方式。</p>
-      <div class="hero-meta">整理日期：2026-03-17 &nbsp;&middot;&nbsp; 類型：工具開發紀錄</div>
+      <p class="hero-desc">從零建立一個統一的多區域電子報分析儀表板，並完成從 Docker/SQLite 到 Vercel/Supabase 的完整架構遷移。一個畫面看全球六個區域，能比較、能排程總覽、能分享。</p>
+      <div class="hero-meta">整理日期：2026-03-24 &nbsp;&middot;&nbsp; 類型：工具開發紀錄</div>
     </header>
 
     <!-- Case Card -->
     <div class="case-card">
       <div class="case-card-row">
         <span class="case-card-label">我用 AI 做了什麼</span>
-        <span class="case-card-value">從零建立多區域 Mailchimp 電子報分析儀表板，涵蓋前後端、認證系統、AI 分析、Docker 部署</span>
+        <span class="case-card-value">從零建立多區域 Mailchimp 電子報分析儀表板，涵蓋前後端、認證系統、日曆檢視、跨區比較，並完成 Docker/Zeabur/SQLite 到 Vercel/Supabase 的完整架構遷移</span>
       </div>
       <div class="case-card-row">
         <span class="case-card-label">沒有 AI 的話</span>
-        <span class="case-card-value">以這個規模的功能，至少需要 2-3 人的小團隊花 2-3 個月開發</span>
+        <span class="case-card-value">以這個規模的功能與架構遷移，至少需要 2-3 人的小團隊花 3-4 個月開發</span>
       </div>
       <div class="case-card-row">
         <span class="case-card-label">最終成果</span>
-        <span class="case-card-value">完整的生產環境 Dashboard，已部署在 Zeabur，日常用於管理 4 個區域的 EDM 行銷數據</span>
+        <span class="case-card-value">完整的生產環境 Dashboard，前後端部署在 Vercel、資料庫在 Supabase，日常用於管理 6 個區域的 EDM 行銷數據</span>
       </div>
     </div>
 
@@ -218,16 +234,17 @@
         <span class="section-num">01</span>
         <h2 class="section-title">為什麼要做這件事</h2>
       </div>
-      <p>EnGenius 在全球有四個區域分公司（US / EU / APAC / JP），各自有獨立的 Mailchimp 帳號在發電子報。行銷團隊要看「全局表現」時，必須分別登入四個 Mailchimp 後台，手動比對數據。</p>
+      <p>EnGenius 在全球有六個區域分公司（US / EU / APAC / JP / TW / INDIA），各自有獨立的 Mailchimp 帳號在發電子報。行銷團隊要看「全局表現」時，必須分別登入多個 Mailchimp 後台，手動比對數據。</p>
       <ul>
-        <li><strong>效率低</strong>：每次要看報告就要切四個帳號，光登入就浪費時間</li>
+        <li><strong>效率低</strong>：每次要看報告就要切多個帳號，光登入就浪費時間</li>
         <li><strong>無法跨區比較</strong>：Mailchimp 原生不支援跨帳號的 Campaign 比較</li>
         <li><strong>缺乏統一視角</strong>：沒有一個地方可以一眼看到哪個區域表現最好、哪個需要關注</li>
         <li><strong>分享困難</strong>：想把數據分享給主管或其他部門，只能截圖貼 Slack</li>
+        <li><strong>排程盲區</strong>：各區域的 Campaign 排程散落各處，無法一覽全貌</li>
       </ul>
       <div class="callout callout-tip">
         <span class="callout-icon">&rarr;</span>
-        <div>目標很明確：<strong>建一個統一的儀表板，一個畫面看全球，能比較、能分析、能分享。</strong></div>
+        <div>目標很明確：<strong>建一個統一的儀表板，一個畫面看全球，能比較、能排程總覽、能分享。</strong></div>
       </div>
     </section>
 
@@ -244,9 +261,8 @@
         <span class="tech-pill"><span class="tech-dot" style="background:#06b6d4"></span>Tailwind CSS</span>
         <span class="tech-pill"><span class="tech-dot" style="background:#8884d8"></span>Recharts</span>
         <span class="tech-pill"><span class="tech-dot" style="background:#009688"></span>FastAPI</span>
-        <span class="tech-pill"><span class="tech-dot" style="background:#003b57"></span>SQLite</span>
-        <span class="tech-pill"><span class="tech-dot" style="background:#4285f4"></span>Gemini AI</span>
-        <span class="tech-pill"><span class="tech-dot" style="background:#2496ed"></span>Docker</span>
+        <span class="tech-pill"><span class="tech-dot" style="background:#3ecf8e"></span>Supabase</span>
+        <span class="tech-pill"><span class="tech-dot" style="background:#000000"></span>Vercel</span>
       </div>
 
       <div class="table-wrap">
@@ -257,17 +273,22 @@
             <tr><td>樣式</td><td>Tailwind CSS</td><td>快速迭代 UI，不用寫一堆 CSS 檔案</td></tr>
             <tr><td>圖表</td><td>Recharts</td><td>React 原生支援、API 直覺、客製化容易</td></tr>
             <tr><td>後端框架</td><td>Python FastAPI</td><td>效能好、自動生成 API 文件、async 原生支援</td></tr>
-            <tr><td>資料庫</td><td>SQLite</td><td>輕量、無需額外服務、適合這個規模的資料快取</td></tr>
-            <tr><td>AI 分析</td><td>Google Gemini 2.0 Flash</td><td>支援圖片輸入（截圖分析）、速度快、成本低</td></tr>
+            <tr><td>資料庫</td><td>Supabase PostgreSQL</td><td>雲端託管、REST API 直接呼叫、免費方案夠用、自帶管理介面</td></tr>
             <tr><td>認證</td><td>JWT + bcrypt</td><td>業界標準、無需第三方服務</td></tr>
-            <tr><td>部署</td><td>Docker + Zeabur</td><td>容器化確保一致性、Zeabur 支援 Persistent Volume</td></tr>
+            <tr><td>前端部署</td><td>Vercel</td><td>GitHub push 自動部署、全球 CDN、零設定</td></tr>
+            <tr><td>後端部署</td><td>Vercel Serverless</td><td>同一平台管理、免維護伺服器、自動擴縮</td></tr>
           </tbody>
         </table>
       </div>
 
+      <div class="callout callout-tip">
+        <span class="callout-icon">&rarr;</span>
+        <div><strong>選型原則</strong>：這次從 Docker + Zeabur + SQLite 遷移到 Vercel + Supabase，核心考量是「維護成本」。Docker 要顧容器、Zeabur 要顧 volume、SQLite 要顧備份——換成全託管服務之後，push 就部署，不用再管基礎設施。</div>
+      </div>
+
       <div class="callout callout-note">
         <span class="callout-icon">!</span>
-        <div><strong>選型原則</strong>：優先考慮「能快速迭代」和「維護成本低」。這不是高併發系統，而是內部分析工具，SQLite 完全夠用，不需要上 PostgreSQL。</div>
+        <div><strong>拿掉的東西</strong>：原本有 Google Gemini AI 分析功能（截圖送 AI 產出報告），但 Vercel Serverless 有 10 秒 timeout 限制，AI 分析往往超時，所以整組移除。這是一個「功能很酷但跟架構不相容」的典型取捨。</div>
       </div>
     </section>
 
@@ -280,8 +301,8 @@
 
       <div class="subsection">
         <div class="subsection-label">核心儀表板</div>
-        <p><strong>總覽頁面</strong> &mdash; KPI 卡片（發送量、開信率、點擊率、退訂數、訂閱人數）、AI Executive Summary、時間序列圖表、區域摘要卡片、MoM/QoQ 趨勢比較。</p>
-        <p><strong>區域詳細頁面</strong> &mdash; 單一區域完整 KPI、效能趨勢圖、Campaign 列表（搜尋、排序、分頁）、Audience 篩選、Segment Coverage。</p>
+        <p><strong>總覽頁面（All Regions）</strong> &mdash; KPI 卡片（發送量、開信率、點擊率、退訂數、訂閱人數）、Executive Summary、時間序列圖表、區域績效卡片/表格（Cards 和 Table 切換）、MoM/QoQ 趨勢比較。</p>
+        <p><strong>區域詳細頁面（Region Detail）</strong> &mdash; 單一區域完整 KPI、效能趨勢圖、Campaign 列表（Status 篩選、搜尋、CSV 匯出）、Campaign 日曆檢視、Audience 篩選、Segment Coverage。</p>
       </div>
 
       <div class="subsection">
@@ -290,13 +311,28 @@
       </div>
 
       <div class="subsection">
-        <div class="subsection-label">AI 分析（Google Gemini）</div>
-        <p>按下浮動按鈕 &rarr; 系統自動截圖 &rarr; 送 Gemini AI 分析 &rarr; 產出結構化報告：現況診斷、核心洞察、本週執行清單（5-7 項）、自動化建議。AI 模型、Prompt、輸出格式都可在後台自訂。</p>
+        <div class="subsection-label">Campaign 日曆檢視（新功能）</div>
+        <p>在單一區域頁面，Campaign 列表可以切換成月曆檢視。月曆上用不同顏色標示 Sent / Scheduled / Draft / Paused 四種狀態，點擊日期會彈出該日所有 Campaign 的詳情。這等於自帶了一個輕量的 Content Planning 視角——不用另外開工具，就能看到「這個月哪幾天有排程、有沒有空窗」。</p>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-label">區域績效表格檢視（新功能）</div>
+        <p>總覽頁面原本只有卡片式的區域摘要，現在多了一個 Table 檢視。把所有區域的核心指標排成表格，最佳表現的數字標上星號，一眼就能做跨區域的橫向比較。點擊任一行可以直接跳到該區域的詳細頁面。</p>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-label">Campaign 列表強化（新功能）</div>
+        <p>Campaign 列表從原本只能看「已寄出」的 Campaign，擴充到可以看所有狀態（Sent / Scheduled / Draft / Paused）。新增了關鍵字搜尋（搜 Campaign 名稱和 Subject Line）、CSV 匯出（正確處理中文編碼）、欄位可見度選擇器（設定記在瀏覽器裡，下次打開還在）。</p>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-label">A/B 測試 Archive 修復</div>
+        <p>Mailchimp 早期格式的 A/B 測試 Campaign（variate + template 類型）在 archive 頁面會是空白的。系統現在會自動偵測這種狀況，改用勝出變體的 archive URL，確保每個 Campaign 都能正確開啟。</p>
       </div>
 
       <div class="subsection">
         <div class="subsection-label">認證與使用者管理</div>
-        <p>JWT 認證（24hr token）、Admin / Viewer 兩種角色、首次登入強制改密碼、管理員可新增/刪除使用者與重設密碼。</p>
+        <p>JWT 認證（24hr token）、Admin / Manager / Viewer 三種角色、首次登入強制改密碼、管理員可新增/刪除使用者與重設密碼。</p>
       </div>
 
       <div class="subsection">
@@ -328,13 +364,16 @@
         <table>
           <thead><tr><th>原本的痛點</th><th>Dashboard 怎麼解決</th></tr></thead>
           <tbody>
-            <tr><td>要切 4 個 Mailchimp 帳號看數據</td><td>一個畫面看全球，KPI 自動彙總</td></tr>
+            <tr><td>要切多個 Mailchimp 帳號看數據</td><td>一個畫面看全球 6 個區域，KPI 自動彙總</td></tr>
             <tr><td>無法跨區域比較 Campaign 表現</td><td>Campaign 比較功能，跨區域放在同一張表</td></tr>
-            <tr><td>看完數據不知道要做什麼</td><td>AI 分析直接產出診斷報告和行動清單</td></tr>
             <tr><td>分享數據只能截圖</td><td>一鍵產生分享連結，可設密碼保護</td></tr>
             <tr><td>主管要報告要手動整理</td><td>PDF/PNG 匯出，含 KPI、圖表、Campaign 列表</td></tr>
             <tr><td>測試 Audience 干擾統計</td><td>排除功能，一鍵排除不影響正式數據</td></tr>
             <tr><td>沒有歷史趨勢可看</td><td>時間序列圖表 + MoM/QoQ 自動比較</td></tr>
+            <tr><td>各區域排程散落各處，看不到全貌</td><td>Campaign 日曆檢視，一覽 Draft &rarr; Scheduled &rarr; Sent 生命週期</td></tr>
+            <tr><td>跨區數字比較要手動對照</td><td>區域績效表格，最佳表現自動標記</td></tr>
+            <tr><td>只能看已寄出的 Campaign</td><td>Status 篩選器，Scheduled / Draft / Paused 都能看</td></tr>
+            <tr><td>舊格式 A/B 測試 archive 打開是空白</td><td>自動偵測並切換到勝出變體的 archive</td></tr>
           </tbody>
         </table>
       </div>
@@ -351,24 +390,26 @@
         <span class="tq">使用者瀏覽器</span><br>
         &nbsp;&nbsp;&nbsp;&nbsp;│<br>
         &nbsp;&nbsp;&nbsp;&nbsp;▼<br>
-        <span class="ta">Frontend (Nginx + React SPA)</span> &nbsp; Port 80<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; Vite build → 靜態檔案<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; Nginx reverse proxy → /api/*<br>
+        <span class="ta">Vercel CDN（前端）</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; React SPA 靜態檔案<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; GitHub push 自動部署<br>
         &nbsp;&nbsp;&nbsp;&nbsp;▼<br>
-        <span class="ta">Backend (FastAPI + Uvicorn)</span> &nbsp; Port 8000<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; 45 API endpoints<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; JWT 認證 middleware<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; BackgroundTasks 背景同步<br>
+        <span class="ta">Vercel Serverless Functions（後端）</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; FastAPI<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; JWT 認證<br>
         &nbsp;&nbsp;&nbsp;&nbsp;│ &nbsp; ThreadPoolExecutor 平行抓取<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;├──────────────┐<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;▼ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ▼<br>
-        <span class="tc">SQLite</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="tc">Mailchimp API (4 regions)</span><br>
-        /data volume &nbsp;&nbsp;&nbsp; <span class="tc">Gemini AI API (截圖分析)</span>
+        &nbsp;&nbsp;&nbsp;&nbsp;├──────────────────┐<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;▼ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ▼<br>
+        <span class="tc">Supabase PostgreSQL</span> &nbsp;&nbsp; <span class="tc">Mailchimp API（6 個區域）</span><br>
+        REST API 連線 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; US / EU / APAC / JP / TW / INDIA<br>
+        5 個 RPC functions<br>
+        <br>
+        <span class="tq">Vercel Cron</span> &rarr; 每日 08:00 UTC keep-alive
       </div>
 
       <div class="callout callout-tip">
         <span class="callout-icon">&rarr;</span>
-        <div><strong>部署在 Zeabur</strong>：Docker Compose 編排前後端兩個容器，SQLite 掛載在 Persistent Volume 確保重新部署不遺失資料。</div>
+        <div><strong>零伺服器維護</strong>：前端 push GitHub 自動部署到 Vercel；後端手動部署到 Vercel Serverless；資料庫在 Supabase 託管，透過 REST API 存取。整個架構沒有任何需要自己維護的伺服器。</div>
       </div>
     </section>
 
@@ -376,45 +417,144 @@
     <section class="section" id="s6">
       <div class="section-header">
         <span class="section-num">06</span>
+        <h2 class="section-title">踩到的坑，讓我更懂的事</h2>
+      </div>
+
+      <div class="bug-block">
+        <div class="bug-header">
+          <span class="bug-icon">&#9888;</span>
+          <span class="bug-title">Supabase Pooler 連不上</span>
+        </div>
+        <div class="bug-body">
+          <div class="callout callout-note">
+            <span class="callout-icon">!</span>
+            <div><strong>症狀：</strong>遷移到 Supabase 時，用 Connection Pooler 連線一直報「Tenant or user not found」。</div>
+          </div>
+          <p><strong>怎麼解的：</strong>Pooler 的已知問題，改用 REST API（supabase-py）繞過去，反而更簡單——不用管連線池，API 呼叫就搞定。</p>
+          <div class="callout callout-tip">
+            <span class="callout-icon">&rarr;</span>
+            <div><strong>學到的：</strong>Serverless 環境下，REST API 比傳統 DB 連線更省事，不用處理連線池的開關問題。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bug-block">
+        <div class="bug-header">
+          <span class="bug-icon">&#9888;</span>
+          <span class="bug-title">Vercel 10 秒 Timeout</span>
+        </div>
+        <div class="bug-body">
+          <div class="callout callout-note">
+            <span class="callout-icon">!</span>
+            <div><strong>症狀：</strong>原本的 AI 分析功能（截圖送 Gemini）在 Zeabur 跑得好好的，搬到 Vercel 就一直 timeout。</div>
+          </div>
+          <p><strong>怎麼解的：</strong>Free tier 的 Serverless Function 有 10 秒 timeout，AI 分析動輒 15-30 秒，壓不進去。最後決定整組移除。</p>
+          <div class="callout callout-tip">
+            <span class="callout-icon">&rarr;</span>
+            <div><strong>學到的：</strong>選架構之前要先確認每個功能的執行時間限制。「功能很酷但跟架構不相容」是一個需要果斷取捨的常見情境。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bug-block">
+        <div class="bug-header">
+          <span class="bug-icon">&#9888;</span>
+          <span class="bug-title">A/B 測試 Archive 空白頁</span>
+        </div>
+        <div class="bug-body">
+          <div class="callout callout-note">
+            <span class="callout-icon">!</span>
+            <div><strong>症狀：</strong>Mailchimp 早期的 A/B 測試 Campaign 點進 archive 連結，頁面是空白的。</div>
+          </div>
+          <p><strong>怎麼解的：</strong>這種格式的 archive 連結指向「母 Campaign」而不是實際的變體內容。偵測到這種情況時，自動去抓勝出變體的 archive URL 來替代。</p>
+          <div class="callout callout-tip">
+            <span class="callout-icon">&rarr;</span>
+            <div><strong>學到的：</strong>第三方 API 的歷史資料格式不一定一致，處理舊資料時要考慮格式演變。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bug-block">
+        <div class="bug-header">
+          <span class="bug-icon">&#9888;</span>
+          <span class="bug-title">bcrypt 版本衝突</span>
+        </div>
+        <div class="bug-body">
+          <div class="callout callout-note">
+            <span class="callout-icon">!</span>
+            <div><strong>症狀：</strong>密碼驗證在本地正常，部署到乾淨環境後報錯。</div>
+          </div>
+          <p><strong>怎麼解的：</strong>Python 的 passlib 套件跟 bcrypt 5.x 不相容，必須把 bcrypt 鎖定在 4.x 版本。</p>
+          <div class="callout callout-tip">
+            <span class="callout-icon">&rarr;</span>
+            <div><strong>學到的：</strong>依賴版本要鎖定，尤其是安全相關的套件。本地能跑不代表部署也能跑。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bug-block">
+        <div class="bug-header">
+          <span class="bug-icon">&#9888;</span>
+          <span class="bug-title">Supabase Free Tier 自動暫停</span>
+        </div>
+        <div class="bug-body">
+          <div class="callout callout-note">
+            <span class="callout-icon">!</span>
+            <div><strong>症狀：</strong>某天早上 Dashboard 突然連不上資料庫。</div>
+          </div>
+          <p><strong>怎麼解的：</strong>Supabase 免費方案一週沒活動會自動暫停。設了 Vercel Cron Job，每天早上 UTC 8 點自動 ping 一下。</p>
+          <div class="callout callout-tip">
+            <span class="callout-icon">&rarr;</span>
+            <div><strong>學到的：</strong>免費方案都有隱藏的限制條件，部署後要持續觀察，不是上線就結束。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 7 -->
+    <section class="section" id="s7">
+      <div class="section-header">
+        <span class="section-num">07</span>
         <h2 class="section-title">如果繼續往下</h2>
       </div>
       <ul>
-        <li><strong>自動定時報告</strong> &mdash; 每週自動產生 AI 分析報告，寄到信箱或推播到 Slack</li>
-        <li><strong>A/B Test 分析</strong> &mdash; 當 Mailchimp 有做 A/B 測試時，自動比較各變體的表現</li>
+        <li><strong>Google Social Login</strong> &mdash; 利用 Supabase Auth 加入 Google OAuth，白名單制，只允許公司網域登入</li>
+        <li><strong>啟用 Row Level Security</strong> &mdash; 目前 Supabase 沒有開 RLS，生產環境應該啟用搭配 service_role key</li>
+        <li><strong>Content Planning 進化</strong> &mdash; Calendar View 已經能看排程，下一步可加上 Topic Pool，直接在日曆上規劃 Campaign 主題</li>
         <li><strong>訂閱增長追蹤</strong> &mdash; 長期追蹤各區域的訂閱人數變化趨勢</li>
         <li><strong>與 CRM 整合</strong> &mdash; 把 Campaign 表現和實際轉換率（Salesforce / HubSpot）串起來</li>
       </ul>
     </section>
 
-    <!-- Section 7 — Takeaway -->
-    <section class="section" id="s7">
+    <!-- Section 8 — Takeaway -->
+    <section class="section" id="s8">
       <div class="section-header">
-        <span class="section-num">07</span>
+        <span class="section-num">08</span>
         <h2 class="section-title">Takeaway</h2>
       </div>
 
       <div class="takeaway">
         <div class="takeaway-label">核心思路</div>
-        <p>用 AI 協作的方式，一個人就能建出原本需要小團隊才能完成的內部工具。關鍵不在技術多複雜，而是清楚知道「要解決什麼問題」，然後讓 AI 處理實作細節。</p>
+        <p>用 AI 協作的方式，一個人就能建出原本需要小團隊才能完成的內部工具——而且不只是建出來，還能在一週內完成從 Docker/SQLite 到 Vercel/Supabase 的完整架構遷移。關鍵不在技術多複雜，而是清楚知道「要解決什麼問題」，然後讓 AI 處理實作細節。</p>
       </div>
 
       <div class="takeaway">
         <div class="takeaway-label">可移植的部分</div>
         <ul>
           <li>「多帳號聚合成統一儀表板」的模式適用於任何 SaaS 工具（Google Ads、Facebook Ads、GA4 等）</li>
-          <li>「截圖 → AI 分析 → 結構化報告」的流程可以套用到任何數據儀表板</li>
-          <li>Docker + Zeabur 的部署方式適合所有需要持久儲存的小型內部工具</li>
+          <li>「Vercel 前端 + Vercel Serverless 後端 + Supabase 資料庫」這套免費組合，適合所有中小型內部工具，零伺服器維護</li>
+          <li>日曆檢視 + 狀態篩選的 UI 模式，適合任何需要「排程總覽」的場景</li>
         </ul>
       </div>
 
       <div class="callout callout-note">
         <span class="callout-icon">!</span>
-        <div><strong>特殊條件</strong>：Mailchimp API 相對穩定且文件齊全；SQLite 適合十幾個使用者的規模；Gemini AI 分析品質取決於 Prompt 設計，需根據實際需求調整。</div>
+        <div><strong>特殊條件</strong>：Mailchimp API 相對穩定且文件齊全；Vercel Free Tier 的 10 秒 timeout 是硬限制，需要長時間運算的功能不適合這個架構；Supabase Free Tier 有自動暫停機制，需要 keep-alive 策略。</div>
       </div>
     </section>
 
     <footer>
-      <span>開發紀錄 &middot; <strong>2026-03-17</strong></span>
+      <span>開發紀錄 &middot; <strong>2026-03-24</strong></span>
       <span>工具開發型</span>
     </footer>
   </main>
@@ -442,8 +582,6 @@
     });
   }, { threshold: 0.25 });
   sections.forEach(s => io.observe(s));
-
-  hljs.highlightAll();
 </script>
 </body>
 </html>
