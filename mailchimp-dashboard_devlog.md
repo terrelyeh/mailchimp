@@ -46,12 +46,20 @@ EnGenius 在全球有六個區域分公司，各自有獨立的 Mailchimp 帳號
 - 區域績效卡片 / 表格：Cards 和 Table 兩種檢視模式切換
 - MoM/QoQ 趨勢比較：自動計算同期變化百分比
 
+![All Regions 總覽 — Executive Summary 自動標出表現最佳與需關注的區域](./screenshots/01_all_regions_overview.png)
+
+![KPI 卡片 — 一眼看到全球關鍵指標與同期比較](./screenshots/02_kpi_cards.png)
+
+![Campaign Metrics Over Time — 多區域指標趨勢圖表](./screenshots/03_metrics_chart.png)
+
 **區域詳細頁面（Region Detail）**
 - 該區域完整 KPI、效能趨勢圖
 - Campaign 列表：Status 篩選、關鍵字搜尋、欄位選擇器、CSV 匯出
 - Campaign 日曆：月曆格狀顯示所有 Campaign 的狀態與排程
 - Audience 篩選：可切換不同 Audience 查看數據
 - Segment Coverage：顯示每個 Campaign 的受眾涵蓋率
+
+![區域績效卡片 — 六大區域數據摘要](./screenshots/04_region_cards.png)
 
 ### 跨區域 Campaign 比較
 
@@ -61,13 +69,19 @@ Mailchimp 原生完全做不到的功能：選擇不同區域的 Campaign 放在
 
 在單一區域頁面，Campaign 列表可以切換成月曆檢視。月曆上用不同顏色標示 Sent / Scheduled / Draft / Paused 四種狀態，點擊日期會彈出該日所有 Campaign 的詳情。這等於自帶了一個輕量的 Content Planning 視角——不用另外開工具，就能看到「這個月哪幾天有排程、有沒有空窗」。
 
+![Campaign Calendar — 月曆格檢視所有 Campaign 狀態](./screenshots/07_calendar_view.png)
+
 ### 區域績效表格檢視（新功能）
 
 總覽頁面原本只有卡片式的區域摘要，現在多了一個 Table 檢視。把所有區域的核心指標（開信率、點擊率等）排成表格，最佳表現的數字標上星號，一眼就能做跨區域的橫向比較。點擊任一行可以直接跳到該區域的詳細頁面。
 
+![Region Table View — 跨區域數據比較表格，★ 標記最佳表現](./screenshots/05_region_table.png)
+
 ### Campaign 列表強化（新功能）
 
 Campaign 列表從原本只能看「已寄出」的 Campaign，擴充到可以看所有狀態（Sent / Scheduled / Draft / Paused）。新增了關鍵字搜尋（搜 Campaign 名稱和 Subject Line）、CSV 匯出（正確處理中文編碼）、欄位可見度選擇器（設定會記在瀏覽器裡，下次打開還在）。
+
+![Campaign List — Status 篩選、關鍵字搜尋、欄位選擇器](./screenshots/06_campaign_list.png)
 
 ### A/B 測試 Archive 修復
 
