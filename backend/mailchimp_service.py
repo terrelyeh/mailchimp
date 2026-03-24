@@ -255,6 +255,27 @@ class MailchimpClient:
                     segment_member_count = None
 
                 settings = c.get('settings') or {}
+
+                # Fix archive URL for A/B test (variate) campaigns with old template format.
+                # The parent campaign's archive is an empty shell; use the first variant's instead.
+                archive_url = c.get('archive_url', '')
+                if c.get('type') == 'variate' and c.get('content_type') == 'template':
+                    try:
+                        variate = c.get('variate_settings') or {}
+                        combos = variate.get('combinations', [])
+                        if combos:
+                            # Use winning variant if available, otherwise first variant
+                            winning_id = variate.get('winning_combination_id') or variate.get('winning_campaign_id')
+                            variant_id = winning_id if winning_id else combos[0].get('id', '')
+                            if variant_id:
+                                # Replace parent ID with variant ID in the long archive URL
+                                long_url = c.get('long_archive_url', '')
+                                if long_url and c.get('id'):
+                                    archive_url = long_url.replace(c['id'], variant_id)
+                                    logger.debug(f"A/B test archive fix: {c['id']} → variant {variant_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to fix variate archive URL for {c.get('id')}: {e}")
+
                 all_campaigns.append({
                     "id": c.get('id', ''),
                     "web_id": c.get('web_id', 0),
@@ -263,7 +284,7 @@ class MailchimpClient:
                     "subject_line": settings.get('subject_line', ''),
                     "send_time": c.get('send_time', '') or c.get('create_time', ''),
                     "emails_sent": c.get('emails_sent', 0),
-                    "archive_url": c.get('archive_url', ''),
+                    "archive_url": archive_url,
                     "report_url": f"{self.admin_url}/reports/summary?id={c.get('web_id', 0)}",
                     "audience_id": list_id,
                     "audience_name": list_name,
