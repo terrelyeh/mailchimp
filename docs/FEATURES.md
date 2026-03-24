@@ -467,31 +467,22 @@ Dashboard is configured to prevent search engine indexing:
 
 ## Deployment Notes
 
-### Zeabur Persistent Volume
+### Vercel + Supabase
 
-The system uses SQLite for storing settings (users, share links, excluded audiences, AI settings, activity logs). On Zeabur, persistent storage must be configured to prevent data loss on redeployment:
-
-1. In Zeabur backend service, click **Volumes**
-2. Add a Volume, set mount path to `/data`
-3. Confirm `DATA_DIR` environment variable is set to `/data` (Dockerfile default)
-
-> **Important**: Without persistent storage, all settings (including excluded audiences, user accounts, share links) will reset on every deployment.
+Database is hosted on Supabase PostgreSQL, connected via REST API (`supabase-py`). Backend runs as Vercel Serverless Functions. For full deployment details, see [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 ### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATA_DIR` | SQLite database storage directory | `/data` |
+| `SUPABASE_URL` | Supabase project URL | - |
+| `SUPABASE_ANON_KEY` | Supabase anon key (or service_role key) | - |
 | `JWT_SECRET` | JWT signing key (must change in production) | Auto-generated |
 | `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `*` |
-| `MAILCHIMP_API_KEY` | Single-account API key | - |
-| `MAILCHIMP_SERVER_PREFIX` | Server prefix (e.g., us1) | - |
-| `MAILCHIMP_API_KEY_{REGION}` | Per-region API key (US/EU/APAC/JP) | - |
+| `MAILCHIMP_API_KEY_{REGION}` | Per-region API key (US/EU/APAC/JP/TW/INDIA) | - |
 | `MAILCHIMP_SERVER_PREFIX_{REGION}` | Per-region server prefix | - |
-| `GEMINI_API_KEY` | Google Gemini AI API key | - |
-| `GEMINI_MODEL` | Gemini model override | `gemini-2.0-flash` |
 | `ADMIN_EMAIL` | Default admin email on first run | `engenius.ad@gmail.com` |
-| `ADMIN_INITIAL_PASSWORD` | Initial admin password | `admin123` |
+| `ADMIN_INITIAL_PASSWORD` | Initial admin password | `ChangeMe123!` |
 
 ---
 

@@ -67,7 +67,8 @@ EnGenius EDM Analytic Dashboard — 統一管理 4 個分公司（US / EU / APAC
 ### 部署
 - Docker + Docker Compose
 - Nginx（靜態檔案 + reverse proxy）
-- Zeabur 雲端平台（Persistent Volume 掛載 SQLite）
+- Vercel（Frontend 靜態網站 + Backend Serverless Functions）
+- Supabase PostgreSQL（雲端資料庫）
 
 ## API Endpoints
 
@@ -146,8 +147,7 @@ docker-compose up --build
 ## 詳細文件
 
 - [docs/FEATURES.md](./docs/FEATURES.md) — 完整功能規格與操作指南
-- [docs/AI_ANALYSIS_FEATURE.md](./docs/AI_ANALYSIS_FEATURE.md) — AI 分析功能規格
-- [docs/ZEABUR_DEPLOYMENT.md](./docs/ZEABUR_DEPLOYMENT.md) — Zeabur 部署指南
+- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) — Vercel + Supabase 部署指南
 - [SETUP_GUIDE.md](./SETUP_GUIDE.md) — 詳細設定教學
 - [QUICKSTART.md](./QUICKSTART.md) — 5 分鐘快速上手
 

@@ -117,7 +117,7 @@ Mailchimp Multi-Region Dashboard — 管理 4 個分公司（US / EU / APAC / JP
 - Vercel Serverless 有 10 秒 timeout（Free tier），Mailchimp sync 可能超時
 - Supabase pooler 連線（psycopg2）目前無法使用（"Tenant or user not found"），改用 REST API
 - Mailchimp API 限制：inline/advanced segments 無法取得條件細節，只有 saved segments 和 tags 能取到名稱
-- Zeabur 舊部署仍在運作中，待確認新架構穩定後可關閉
+- Supabase free tier 7 天沒活動會暫停（已設 Vercel Cron keep-alive，每天 08:00 UTC）
 
 ## Development
 
