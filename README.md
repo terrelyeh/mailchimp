@@ -1,12 +1,15 @@
 # MailChimp Multi-Region Dashboard
 
-EnGenius EDM Analytic Dashboard — 統一管理 4 個分公司（US / EU / APAC / JP）的 Mailchimp 電子報行銷數據，提供即時分析、AI 洞察與團隊協作功能。
+EnGenius EDM Analytic Dashboard — 統一管理 6 個分公司（US / EU / APAC / JP / TW / INDIA）的 Mailchimp 電子報行銷數據，提供 KPI 總覽、區域比較、Campaign 分析與團隊協作功能。
+
+- 前端：https://edm-dashboard-eg.vercel.app
+- 後端 API：https://edm-dashboard-api.vercel.app
 
 ## 功能特色
 
 ### 儀表板
-- **總覽頁面** — 全區域 KPI 彙總、Executive Summary、區域比較圖表、區域摘要卡片
-- **區域詳細頁面** — 單一區域 KPI、效能趨勢圖、Campaign 列表（可搜尋、排序、分頁）
+- **總覽頁面** — 全區域 KPI 彙總、Executive Summary、區域比較圖表、區域績效（Cards / Table 切換，Table 標記各指標最佳區域）
+- **區域詳細頁面** — 單一區域 KPI、效能趨勢圖、Campaign 列表（可搜尋、排序、分頁、Status 篩選、欄位選擇、CSV 匯出，含退訂率欄位；捲動時表頭與 Campaign 欄固定）、Calendar 月曆檢視
 - **時間序列圖表** — 多指標疊加、區域篩選、hover tooltip
 - **MoM/QoQ 比較** — 自動計算同期趨勢變化
 
@@ -17,18 +20,16 @@ EnGenius EDM Analytic Dashboard — 統一管理 4 個分公司（US / EU / APAC
 - **Segment Coverage** — 顯示 Campaign 的受眾涵蓋率
 - **資料同步** — 手動觸發從 Mailchimp API 抓取最新資料
 
-### AI 分析（Google Gemini）
-- 截圖 → base64 → Gemini AI 分析，產出行銷診斷報告
-- 結構化輸出：現況診斷、核心洞察、本週執行清單、自動化建議
-- 可設定 AI 模型、自訂 Prompt、輸出格式
-
 ### Campaign 比較
 - 跨區域 Campaign 比較，支援建立比較群組
 - 儲存比較結果，方便日後檢視
 
 ### 認證與使用者管理
 - JWT 認證（HS256，24hr）、bcrypt 密碼 hashing
-- 角色管理：Admin（完整權限）/ Viewer（唯讀）
+- 角色管理：
+  - **Admin** — 完整權限，含使用者管理
+  - **Manager** — 可管理分享連結、Audience 排除設定、活動日誌，不能管理使用者
+  - **Viewer** — 檢視儀表板為主
 - 首次登入強制變更密碼、管理員可新增/刪除/重設密碼
 
 ### 分享與匯出
@@ -37,8 +38,9 @@ EnGenius EDM Analytic Dashboard — 統一管理 4 個分公司（US / EU / APAC
 - **活動日誌** — 追蹤使用者操作紀錄
 
 ### 其他
-- 閾值警示（Open Rate / Click Rate / Bounce Rate）
-- API 診斷工具（endpoint 狀態、回應時間）
+- 閾值警示（Open Rate / Click Rate / Delivery Rate）
+- Segment / Tag 顯示（saved segment 與 tag 顯示名稱，其餘顯示為 Advanced Segment）
+- 資料診斷工具（Diagnostics Drawer）
 - 響應式設計（Desktop / Tablet / Mobile）
 - Mock 資料模式（無 API key 也可測試）
 
@@ -47,12 +49,10 @@ EnGenius EDM Analytic Dashboard — 統一管理 4 個分公司（US / EU / APAC
 ### Backend — Python FastAPI
 | 技術 | 用途 |
 |------|------|
-| FastAPI + Uvicorn | ASGI web server |
-| SQLite3 | 本地快取資料庫 |
-| python-jose + bcrypt | JWT 認證 + 密碼安全 |
-| google-generativeai | Gemini AI 整合 |
-| BackgroundTasks | 背景資料同步 |
-| ThreadPoolExecutor | 平行抓取多區域資料 |
+| FastAPI + Uvicorn | ASGI web server（部署為 Vercel Serverless Function） |
+| supabase-py | 透過 REST API 存取 Supabase PostgreSQL（Campaign 快取、使用者、分享連結等） |
+| python-jose + passlib / bcrypt 4.x | JWT 認證 + 密碼 hashing |
+| ThreadPoolExecutor | 平行抓取多區域 Mailchimp 資料 |
 
 ### Frontend — React + Vite
 | 技術 | 用途 |
@@ -65,14 +65,14 @@ EnGenius EDM Analytic Dashboard — 統一管理 4 個分公司（US / EU / APAC
 | Axios | HTTP 請求 |
 
 ### 部署
-- Docker + Docker Compose
-- Nginx（靜態檔案 + reverse proxy）
-- Vercel（Frontend 靜態網站 + Backend Serverless Functions）
-- Supabase PostgreSQL（雲端資料庫）
+- **Frontend** — Vercel（連結 GitHub，push 到 `main` 自動部署，Root Dir: `frontend`）
+- **Backend** — Vercel Serverless Functions（在 `backend/` 執行 `vercel --prod` 手動部署）
+- **Database** — Supabase PostgreSQL（Vercel Cron 每天 08:00 UTC 呼叫 `/api/keep-alive` 避免 free tier 暫停）
+- Docker Compose + Nginx 設定仍保留，可用於本機容器化執行
 
 ## API Endpoints
 
-共 45 個 endpoints，主要分類：
+共 44 個 endpoints，主要分類：
 
 | 分類 | 路徑 | 說明 |
 |------|------|------|
@@ -80,30 +80,30 @@ EnGenius EDM Analytic Dashboard — 統一管理 4 個分公司（US / EU / APAC
 | 使用者 | `/api/users/*` | CRUD、角色管理、重設密碼（Admin） |
 | 儀表板 | `/api/dashboard` | 依時間/區域取得儀表板資料 |
 | 區域 | `/api/regions/*` | 區域列表、活動狀態 |
-| 資料 | `/api/sync`, `/api/cache/*` | 同步、快取管理 |
+| 資料 | `/api/sync`, `/api/cache/*` | 從 Mailchimp 同步、快取管理 |
 | Audience | `/api/audiences`, `/api/settings/excluded-audiences` | 列表、排除設定 |
 | 分享 | `/api/share/*` | 建立/驗證/管理分享連結 |
-| AI 分析 | `/api/ai/*` | 分析、狀態、設定管理 |
 | 活動日誌 | `/api/activity/*` | 記錄、查詢、統計 |
 | 比較 | `/api/comparisons/*` | Campaign 比較群組 CRUD |
-| 搜尋 | `/api/campaigns/search` | Campaign 搜尋 |
-| 系統 | `/`, `/health`, `/api/diagnose` | 健康檢查、診斷 |
+| Campaign | `/api/campaigns/list`, `/api/campaigns/search` | 非 Sent 狀態列表（Scheduled / Draft / Paused）、搜尋 |
+| 系統 | `/`, `/health`, `/api/diagnose`, `/api/keep-alive` | 健康檢查、診斷、Supabase keep-alive |
 
 完整 API 文件：啟動後端後訪問 `http://localhost:8000/docs`
 
 ## 快速開始
 
 ### 環境需求
-- Python 3.9+
+- Python 3.9+（用 `uv` 管理）
 - Node.js 18+
-- Mailchimp API Key（可選，有 Mock 資料）
+- Supabase 專案（URL + service_role 或 anon key）
+- Mailchimp API Key
 
 ### 本機開發
 
 ```bash
 # Backend
 cd backend
-cp .env.example .env   # 填入 API keys
+cp .env.example .env   # 填入 Supabase 與 Mailchimp 憑證
 uv venv && uv pip install -r requirements.txt
 uv run uvicorn main:app --reload --port 8000
 
@@ -113,7 +113,7 @@ npm install
 npm run dev   # http://localhost:5173
 ```
 
-### Docker 部署
+### Docker（本機容器化，可選）
 
 ```bash
 docker-compose up --build
@@ -125,23 +125,25 @@ docker-compose up --build
 
 | 變數 | 說明 | 預設值 |
 |------|------|--------|
-| `MAILCHIMP_API_KEY` | 單一帳號 API key | - |
-| `MAILCHIMP_SERVER_PREFIX` | Server prefix (如 us1) | - |
-| `MAILCHIMP_API_KEY_{REGION}` | 各區域獨立 API key | - |
+| `SUPABASE_URL` | Supabase 專案 URL | -（必填） |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key（建議） | - |
+| `SUPABASE_ANON_KEY` | 沒有 service_role key 時的備用 key | - |
+| `MAILCHIMP_API_KEY` | 單一帳號 API key（所有區域共用） | - |
+| `MAILCHIMP_SERVER_PREFIX` | Server prefix（如 us1） | - |
+| `MAILCHIMP_API_KEY_{REGION}` | 各區域獨立 API key（US / EU / APAC / JP / TW / INDIA） | - |
 | `MAILCHIMP_SERVER_PREFIX_{REGION}` | 各區域 server prefix | - |
-| `GEMINI_API_KEY` | Google Gemini AI API key | - |
-| `GEMINI_MODEL` | Gemini 模型 | gemini-2.0-flash |
-| `JWT_SECRET` | JWT 簽名密鑰（生產必改） | 自動生成 |
+| `JWT_SECRET` | JWT 簽名密鑰 | 開發用預設值（生產必改） |
 | `ADMIN_EMAIL` | 預設管理員 email | engenius.ad@gmail.com |
-| `ADMIN_INITIAL_PASSWORD` | 初始管理員密碼 | admin123 |
-| `ALLOWED_ORIGINS` | CORS 允許來源 | * |
-| `DATA_DIR` | SQLite 儲存目錄 | /data |
+| `ADMIN_DISPLAY_NAME` | 預設管理員顯示名稱 | Admin |
+| `ADMIN_INITIAL_PASSWORD` | 初始管理員密碼（首次登入強制變更） | 有預設值（生產必改） |
+| `ALLOWED_ORIGINS` | CORS 允許來源，多個用逗號分隔 | * |
+
+前端只需要 `VITE_API_URL`（Vercel 上設為 `https://edm-dashboard-api.vercel.app/api`）。
 
 ## Mock 資料
 
-未設定 Mailchimp API key 時，自動使用 Mock 資料：
-- 4 個區域各 30 筆 Campaign
-- 模擬的訂閱人數趨勢
+後端 API 無法連線或回傳空資料時，前端會自動改用 Mock 資料並顯示提示：
+- 4 個區域（US / EU / APAC / JP）各 30 筆 Campaign
 - 適合 UI 開發與功能測試
 
 ## 詳細文件

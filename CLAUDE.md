@@ -1,6 +1,6 @@
 # CLAUDE.md — Project Context
 
-> Last updated: 2026-03-24
+> Last updated: 2026-10-12
 
 ## Project Overview
 
@@ -72,7 +72,7 @@ Mailchimp Multi-Region Dashboard — 管理 6 個分公司（US / EU / APAC / JP
 - 所有 API endpoints 定義在 `backend/main.py`，資料庫操作在 `database.py`
 - 認證：JWT HS256，token 有效期 24 小時，角色分 admin / viewer
 - 多區域支援：每個區域可配獨立 Mailchimp API key，也可共用單一帳號
-- Mock 資料：未設定 API key 時自動使用 mock data，方便開發測試
+- Mock 資料：後端 API 失敗或回傳空資料時，前端 fallback 到 `frontend/src/mockData.js`（4 區 × 30 筆），方便開發測試
 - 資料庫操作透過 Supabase REST API（`supabase-py`），複雜查詢用 RPC functions
 - Commit 風格：`fix:` / `feat:` / `chore:` 前綴
 
@@ -93,6 +93,8 @@ Mailchimp Multi-Region Dashboard — 管理 6 個分公司（US / EU / APAC / JP
   - 關鍵字搜尋（Campaign 名稱 + Subject Line）
   - CSV 匯出（UTF-8 BOM）
   - 欄位可見度選擇器（localStorage 持久化）
+  - Unsubscribe Rate 欄位（預設顯示，比率 + 人數，依比率排序）
+  - 表頭固定於視窗頂端、Campaign 欄固定於左側（表格內無垂直捲軸，跟頁面一起捲）
   - 非 Sent 狀態獨立 API 取得，不影響 Dashboard KPI
 - Campaign Calendar View（單一 Region 頁面，List/Calendar 切換）：
   - 月曆格狀顯示所有 Status（Sent/Scheduled/Draft/Paused）
@@ -153,3 +155,8 @@ cd backend && vercel --prod  # 後端手動部署到 Vercel
 - **Calendar 不適合 All Regions**：跨區載入太慢，Calendar 只放在單一 Region 頁面
 - **頁面架構**：All Regions = KPI → Chart → Region Cards → Compare；單一 Region = KPI → Chart → Campaign List/Calendar
 - **bcrypt 版本**：passlib 不相容 bcrypt 5.x，必須使用 bcrypt 4.x（requirements.txt 已限制）
+- **KPICards 前後半期切分**：趨勢比較把期間切成前後兩半（`current` / `previous`），`current` 只含後半段。空狀態判斷必須看**整個期間**（`fullMetrics`），不能看 `current`，否則短期間（7 天）內 campaign 都落在前半段時整排卡片會變 0
+- **Campaign List 固定表頭**：不能用 CSS `sticky top-0` 黏住視窗——外層 `overflow-x-auto`（橫向捲動 + 第一欄 `sticky left-0` 需要）會變成 sticky 的捲動容器。現行做法：window scroll listener 依表格捲出量對 `<thead>` 做 `translateY`（`thead` 需 `relative z-30` 才會蓋過 sticky 第一欄）。匯出模式（`isExporting`）不做位移。不要再加回 `max-h` 內層捲軸（團隊反映一次只看得到約 10 筆）
+- **新增預設欄位要做 localStorage 遷移**：已存過 `campaign_visible_columns` 的使用者不會自動拿到新的 default 欄位。參考 `unsubs` 的做法：用一次性 flag（`campaign_columns_unsubs_default`）把新欄位補進已存設定
+- **Browser pane 驗證限制**：預覽面板隱藏時 `requestAnimationFrame` 和 scroll 事件都不會觸發，測捲動相關行為要手動 `dispatchEvent(new Event('scroll'))` 並暫時替換 rAF
+- **iCloud 卸載 node_modules**：專案在 iCloud 同步的 `Documents` 下，`node_modules` 檔案可能變成 dataless（`ls -lO` 會顯示 `dataless`），vite/eslint 會出現 "Operation timed out"，且 `npm install` 不會重寫。解法：把 `node_modules` 改名移開後重新 `npm install`
