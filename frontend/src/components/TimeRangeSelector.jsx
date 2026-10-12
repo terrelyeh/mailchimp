@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, X } from 'lucide-react';
 
 const TIME_RANGES = [
+  { value: 7, label: '7 Days' },
   { value: 30, label: '30 Days' },
   { value: 60, label: '60 Days' },
   { value: 90, label: '90 Days' },

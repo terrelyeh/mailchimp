@@ -41,7 +41,13 @@ const COLUMN_DEFS = [
 const DEFAULT_VISIBLE = COLUMN_DEFS.filter(c => c.required || c.default).map(c => c.key);
 
 // Sortable column header component
-const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) => {
+// Sticky header cells need opaque backgrounds so scrolled rows don't show through
+const STICKY_TH = 'sticky top-0 z-20 bg-gray-50 shadow-[inset_0_-1px_0_#e5e7eb]';
+// First column: sticky on both axes in the header, left-only in body rows
+const STICKY_FIRST_TH = 'left-0 z-30 shadow-[inset_0_-1px_0_#e5e7eb,inset_-1px_0_0_#e5e7eb]';
+const STICKY_FIRST_TD = 'sticky left-0 z-10 bg-white group-hover:bg-[#f7fbff] shadow-[inset_-1px_0_0_#e5e7eb] transition-colors';
+
+const SortableHeader = ({ label, field, currentSort, onSort, align = 'left', className = '' }) => {
     const isActive = currentSort.field === field;
     const Icon = isActive
         ? (currentSort.direction === 'asc' ? ChevronUp : ChevronDown)
@@ -49,7 +55,7 @@ const SortableHeader = ({ label, field, currentSort, onSort, align = 'left' }) =
 
     return (
         <th
-            className={`px-3 md:px-4 py-3 cursor-pointer hover:bg-gray-100/80 transition-colors select-none whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider ${align === 'right' ? 'text-right' : ''}`}
+            className={`${STICKY_TH} px-3 md:px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors select-none whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider ${align === 'right' ? 'text-right' : ''} ${className}`}
             onClick={() => onSort(field)}
         >
             <div className={`flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : ''}`}>
@@ -463,14 +469,15 @@ export default function CampaignList({ data, isExporting = false, audiences = []
             {/* Table */}
             {!loadingExtra && totalItems > 0 && (
                 <>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm min-w-[1100px]">
-                            <thead className="bg-gray-50 border-b border-gray-200">
+                    {/* Scroll container: header row + Campaign column stay pinned (not when exporting) */}
+                    <div className={isExporting ? 'overflow-x-auto' : 'overflow-auto max-h-[70vh] overscroll-contain'}>
+                        <table className="w-full text-left text-sm min-w-[1100px] border-separate border-spacing-0">
+                            <thead>
                                 <tr>
-                                    <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} />
+                                    <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} className={STICKY_FIRST_TH} />
                                     {isColVisible('status') && <SortableHeader label="Status" field="status" currentSort={sort} onSort={handleSort} />}
-                                    {isColVisible('audience') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>}
-                                    {isColVisible('segment') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Segment / Tag</th>}
+                                    {isColVisible('audience') && <th className={`${STICKY_TH} px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider`}>Audience</th>}
+                                    {isColVisible('segment') && <th className={`${STICKY_TH} px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider`}>Segment / Tag</th>}
                                     {isColVisible('send_time') && <SortableHeader label={statusFilter === 'schedule' ? 'Scheduled' : 'Sent'} field="send_time" currentSort={sort} onSort={handleSort} />}
                                     {isColVisible('emails_sent') && <SortableHeader label="Emails" field="emails_sent" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('delivery') && <SortableHeader label="Delivery" field="delivery_rate" currentSort={sort} onSort={handleSort} align="right" />}
@@ -478,10 +485,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                     {isColVisible('clicks') && <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('bounce') && <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('unsubs') && <SortableHeader label="Unsubs" field="unsub_rate" currentSort={sort} onSort={handleSort} align="right" />}
-                                    {isColVisible('region') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Region</th>}
+                                    {isColVisible('region') && <th className={`${STICKY_TH} px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider`}>Region</th>}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="[&>tr:not(:last-child)>td]:border-b [&>tr>td]:border-gray-200">
                                 {currentData.map((campaign) => {
                                     const isSent = campaign.status === 'sent';
                                     const bounceRate = campaign.emails_sent > 0
@@ -511,10 +518,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                     return (
                                         <tr
                                             key={`${campaign.id}-${campaign.region || ''}`}
-                                            className="hover:bg-blue-50/50 transition-colors bg-white"
+                                            className="group hover:bg-blue-50/50 transition-colors bg-white"
                                         >
                                             {/* Campaign Title */}
-                                            <td className="px-3 md:px-4 py-3">
+                                            <td className={`${STICKY_FIRST_TD} px-3 md:px-4 py-3`}>
                                                 {(() => {
                                                     const displayTitle = (campaign.title && campaign.title.trim()) ? campaign.title : campaign.subject_line;
                                                     const showSubject = campaign.subject_line && campaign.title && campaign.title.trim() && campaign.subject_line !== campaign.title;
