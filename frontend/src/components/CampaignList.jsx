@@ -263,6 +263,41 @@ export default function CampaignList({ data, isExporting = false, audiences = []
     const endIndex = startIndex + itemsPerPage;
     const currentData = sortedData.slice(startIndex, endIndex);
 
+    // Pin the header row to the top of the viewport while the page scrolls.
+    // CSS sticky can't do this: the overflow-x wrapper (needed for horizontal
+    // scroll + sticky first column) becomes the sticky scroll container, so we
+    // translate <thead> by how far the table has scrolled past the viewport top.
+    const tableWrapRef = React.useRef(null);
+    const theadRef = React.useRef(null);
+    useEffect(() => {
+        const wrap = tableWrapRef.current;
+        const thead = theadRef.current;
+        if (!wrap || !thead) return;
+        if (isExporting) {
+            thead.style.transform = '';
+            return;
+        }
+        let frame = null;
+        const update = () => {
+            frame = null;
+            const rect = wrap.getBoundingClientRect();
+            const maxOffset = Math.max(0, rect.height - thead.offsetHeight);
+            const offset = Math.min(Math.max(0, -rect.top), maxOffset);
+            thead.style.transform = offset > 0 ? `translateY(${offset}px)` : '';
+        };
+        const onScroll = () => {
+            if (frame === null) frame = requestAnimationFrame(update);
+        };
+        update();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+        return () => {
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', onScroll);
+            if (frame !== null) cancelAnimationFrame(frame);
+        };
+    }, [isExporting, loadingExtra, totalItems, currentPage, visibleColumns]);
+
     const goToPage = (page) => {
         setCurrentPage(Math.max(1, Math.min(page, totalPages)));
     };
@@ -469,10 +504,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
             {/* Table */}
             {!loadingExtra && totalItems > 0 && (
                 <>
-                    {/* Scroll container: header row + Campaign column stay pinned (not when exporting) */}
-                    <div className={isExporting ? 'overflow-x-auto' : 'overflow-auto max-h-[70vh] overscroll-contain'}>
+                    {/* Horizontal scroll container: Campaign column pinned via sticky, header pinned via the effect above */}
+                    <div ref={tableWrapRef} className="overflow-x-auto">
                         <table className="w-full text-left text-sm min-w-[1100px] border-separate border-spacing-0">
-                            <thead>
+                            <thead ref={theadRef} className="relative z-30">
                                 <tr>
                                     <SortableHeader label="Campaign" field="title" currentSort={sort} onSort={handleSort} className={STICKY_FIRST_TH} />
                                     {isColVisible('status') && <SortableHeader label="Status" field="status" currentSort={sort} onSort={handleSort} />}
