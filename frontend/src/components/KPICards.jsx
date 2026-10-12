@@ -114,12 +114,20 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
         };
     }, [data, isMultiRegion, selectedDays]);
 
-    // 防護檢查：確保 data 存在
-    if (!data || !current) {
+    // Calculate all metrics from full dataset for display
+    let flatData = Array.isArray(data) ? data : [];
+    if (isMultiRegion && data && typeof data === 'object' && !Array.isArray(data)) {
+        flatData = Object.values(data).flat().filter(Boolean);
+    }
+    const fullMetrics = calculateMetrics(flatData);
+
+    // 整個期間都沒有 campaign 才顯示空卡片（不能只看後半段 current，
+    // 否則短期間內 campaign 都落在前半段時整排會變 0）
+    if (!fullMetrics) {
         return (
             <div className="space-y-6 mb-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <Card title="Total Campaigns" value="0" subValue="loading..." icon={FileText} />
+                    <Card title="Total Campaigns" value="0" subValue="no campaigns in this period" icon={FileText} />
                     <Card title="Total Emails Sent" value="0" icon={Mail} />
                     <Card title="Delivery Rate" value="0%" icon={CheckCircle} />
                 </div>
@@ -133,15 +141,8 @@ export default function KPICards({ data, isMultiRegion = false, totalSubscribers
         );
     }
 
-    // Calculate all metrics from full dataset for display
-    let flatData = Array.isArray(data) ? data : [];
-    if (isMultiRegion && typeof data === 'object' && !Array.isArray(data)) {
-        flatData = Object.values(data).flat().filter(Boolean);
-    }
-    const fullMetrics = calculateMetrics(flatData) || current;
-
     // Calculate trends (only if sufficient data)
-    const trends = hasSufficientData && previous ? {
+    const trends = hasSufficientData && current && previous ? {
         openRate: calcChange(current.avgOpenRate, previous.avgOpenRate),
         clickRate: calcChange(current.avgClickRate, previous.avgClickRate),
         deliveryRate: calcChange(current.deliveryRate, previous.deliveryRate),

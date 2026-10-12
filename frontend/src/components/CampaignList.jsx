@@ -34,7 +34,7 @@ const COLUMN_DEFS = [
     { key: 'opens', label: 'Open Rate', default: true },
     { key: 'clicks', label: 'Click Rate', default: true },
     { key: 'bounce', label: 'Bounce Rate', default: false },
-    { key: 'unsubs', label: 'Unsubscribes', default: false },
+    { key: 'unsubs', label: 'Unsubscribe Rate', default: true },
     { key: 'region', label: 'Region', default: false },
 ];
 
@@ -69,7 +69,16 @@ export default function CampaignList({ data, isExporting = false, audiences = []
     const [visibleColumns, setVisibleColumns] = useState(() => {
         try {
             const saved = localStorage.getItem('campaign_visible_columns');
-            if (saved) return JSON.parse(saved);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // One-time migration: Unsubscribe Rate became a default column
+                if (!localStorage.getItem('campaign_columns_unsubs_default') && !parsed.includes('unsubs')) {
+                    parsed.push('unsubs');
+                    localStorage.setItem('campaign_visible_columns', JSON.stringify(parsed));
+                }
+                localStorage.setItem('campaign_columns_unsubs_default', '1');
+                return parsed;
+            }
         } catch {}
         return DEFAULT_VISIBLE;
     });
@@ -222,9 +231,9 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                     aVal = a.emails_sent > 0 ? (a.emails_sent - (a.bounces || 0)) / a.emails_sent : 0;
                     bVal = b.emails_sent > 0 ? (b.emails_sent - (b.bounces || 0)) / b.emails_sent : 0;
                     break;
-                case 'unsubscribed':
-                    aVal = a.unsubscribed || 0;
-                    bVal = b.unsubscribed || 0;
+                case 'unsub_rate':
+                    aVal = a.emails_sent > 0 ? (a.unsubscribed || 0) / a.emails_sent : 0;
+                    bVal = b.emails_sent > 0 ? (b.unsubscribed || 0) / b.emails_sent : 0;
                     break;
                 case 'status':
                     aVal = a.status || '';
@@ -257,7 +266,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
         const headers = [
             'Campaign Title', 'Subject Line', 'Status', 'Audience', 'Segment/Tag',
             'Send Date', 'Emails Sent', 'Delivery Rate %', 'Open Rate %',
-            'Click Rate %', 'Bounce Rate %', 'Unsubscribes', 'Region'
+            'Click Rate %', 'Bounce Rate %', 'Unsubscribe Rate %', 'Unsubscribes', 'Region'
         ];
 
         const rows = sortedData.map(c => {
@@ -277,6 +286,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                 c.status === 'sent' ? ((c.open_rate || 0) * 100).toFixed(1) : '',
                 c.status === 'sent' ? ((c.click_rate || 0) * 100).toFixed(1) : '',
                 c.status === 'sent' ? bounceRate.toFixed(1) : '',
+                c.status === 'sent' && c.emails_sent > 0 ? ((c.unsubscribed || 0) / c.emails_sent * 100).toFixed(2) : '',
                 c.status === 'sent' ? (c.unsubscribed || 0) : '',
                 c.region || ''
             ];
@@ -467,7 +477,7 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                     {isColVisible('opens') && <SortableHeader label="Opens" field="open_rate" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('clicks') && <SortableHeader label="Clicks" field="click_rate" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('bounce') && <SortableHeader label="Bounce" field="bounce_rate" currentSort={sort} onSort={handleSort} align="right" />}
-                                    {isColVisible('unsubs') && <SortableHeader label="Unsubs" field="unsubscribed" currentSort={sort} onSort={handleSort} align="right" />}
+                                    {isColVisible('unsubs') && <SortableHeader label="Unsubs" field="unsub_rate" currentSort={sort} onSort={handleSort} align="right" />}
                                     {isColVisible('region') && <th className="px-3 md:px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider">Region</th>}
                                 </tr>
                             </thead>
@@ -478,6 +488,9 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                         ? ((campaign.bounces || 0) / campaign.emails_sent * 100)
                                         : 0;
                                     const delivered = campaign.emails_sent - (campaign.bounces || 0);
+                                    const unsubRate = campaign.emails_sent > 0
+                                        ? ((campaign.unsubscribed || 0) / campaign.emails_sent * 100)
+                                        : 0;
                                     const deliveryRate = campaign.emails_sent > 0
                                         ? (delivered / campaign.emails_sent * 100)
                                         : 0;
@@ -696,9 +709,10 @@ export default function CampaignList({ data, isExporting = false, audiences = []
                                             {isColVisible('unsubs') && (
                                             <td className="px-3 md:px-4 py-3 text-right">
                                                 {isSent ? (
-                                                    <span className={`font-semibold tabular-nums ${(campaign.unsubscribed || 0) > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
-                                                        {campaign.unsubscribed?.toLocaleString() || 0}
-                                                    </span>
+                                                    <>
+                                                        <div className="font-semibold text-gray-900 tabular-nums">{unsubRate.toFixed(2)}%</div>
+                                                        <div className="text-xs text-gray-400 tabular-nums">{(campaign.unsubscribed || 0).toLocaleString()}</div>
+                                                    </>
                                                 ) : (
                                                     <span className="text-xs text-gray-400">—</span>
                                                 )}
