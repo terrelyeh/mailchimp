@@ -4,6 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import os
+import secrets
 import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -14,7 +15,12 @@ import database
 load_dotenv()
 
 # JWT Configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    if os.getenv("VERCEL"):
+        # Fail closed in production: a known default secret would let anyone forge tokens
+        raise RuntimeError("JWT_SECRET must be set in production")
+    JWT_SECRET = "dev-only-insecure-secret"
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 24
 
@@ -125,7 +131,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         return None
 
     payload = verify_token(credentials.credentials)
-    if not payload:
+    if not payload or payload.get("type") == "share":
         return None
 
     user = database.get_user_by_id(payload.get("sub"))
@@ -140,12 +146,59 @@ async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(secur
     payload = verify_token(credentials.credentials)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if payload.get("type") == "share":
+        raise HTTPException(status_code=401, detail="Login required")
 
     user = database.get_user_by_id(payload.get("sub"))
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
     return user
+
+
+SHARE_TOKEN_EXPIRE_HOURS = 24
+
+
+def create_share_access_token(share_token: str, filter_state: Optional[Dict]) -> str:
+    """Short-lived JWT that lets a non-logged-in viewer read data scoped to one share link."""
+    fs = filter_state or {}
+    payload = {
+        "type": "share",
+        "share": share_token,
+        "region": fs.get("region") or None,
+        "exp": datetime.utcnow() + timedelta(hours=SHARE_TOKEN_EXPIRE_HOURS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+async def require_viewer(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+    """
+    Read-only access: a logged-in user OR a share-link viewer.
+    Returns the user dict, or {"is_share": True, "share_region": ...} for share viewers.
+    """
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = verify_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if payload.get("type") == "share":
+        return {"is_share": True, "share_region": payload.get("region")}
+    user = database.get_user_by_id(payload.get("sub"))
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+def enforce_share_scope(viewer: Dict, region: Optional[str]) -> Optional[str]:
+    """For share viewers, lock the region to the one in the shared filter state."""
+    if not viewer.get("is_share"):
+        return region
+    shared_region = viewer.get("share_region")
+    if shared_region:
+        if region and region != shared_region:
+            raise HTTPException(status_code=403, detail="Outside the scope of this share link")
+        return shared_region
+    return region
 
 
 async def require_admin(user: Dict = Depends(require_auth)) -> Dict:
@@ -212,10 +265,14 @@ def emergency_reset(request: EmergencyResetRequest):
     Emergency admin password reset using ADMIN_INITIAL_PASSWORD as secret.
     Resets the admin account password to the initial password from env vars.
     """
-    expected_secret = os.getenv("ADMIN_INITIAL_PASSWORD", "ChangeMe123!")
+    expected_secret = os.getenv("ADMIN_INITIAL_PASSWORD")
     admin_email = os.getenv("ADMIN_EMAIL", "engenius.ad@gmail.com")
 
-    if request.reset_secret != expected_secret:
+    # Fail closed: never fall back to a hard-coded default secret
+    if not expected_secret or expected_secret == "ChangeMe123!":
+        raise HTTPException(status_code=503, detail="Emergency reset is disabled")
+
+    if not secrets.compare_digest(request.reset_secret or "", expected_secret):
         raise HTTPException(status_code=403, detail="Invalid reset secret")
 
     # Reset admin password directly in database
@@ -410,7 +467,7 @@ def get_campaigns_list(
     days: int = 90,
     region: str = None,
     status: str = "sent",
-    user: Dict = Depends(require_auth)
+    viewer: Dict = Depends(require_viewer)
 ):
     """
     Get campaign list with support for multiple statuses.
@@ -421,6 +478,9 @@ def get_campaigns_list(
     - region: specific region or None for all
     - status: 'sent', 'schedule', 'save', 'paused', or 'all'
     """
+    region = enforce_share_scope(viewer, region)
+    if viewer.get("is_share") and status != "sent":
+        raise HTTPException(status_code=403, detail="Only sent campaigns are available via share link")
     logger.info(f"Campaign list API called: days={days}, region={region}, status={status}")
 
     if status == "sent":
@@ -498,7 +558,6 @@ def keep_alive():
         return {
             "status": "ok",
             "supabase": "connected",
-            "user_count": response.count,
             "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
@@ -511,7 +570,7 @@ def keep_alive():
         }
 
 @app.get("/api/debug/mailchimp-test")
-def debug_mailchimp_test(region: str = "US"):
+def debug_mailchimp_test(region: str = "US", user: Dict = Depends(require_user_admin)):
     """Debug: test raw Mailchimp API call"""
     import requests as req
     client = mailchimp_service.get_client(region)
@@ -530,7 +589,15 @@ def debug_mailchimp_test(region: str = "US"):
         return {"error": str(e)}
 
 @app.get("/api/dashboard")
-def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool = False):
+def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool = False,
+                       viewer: Dict = Depends(require_viewer)):
+    region = enforce_share_scope(viewer, region)
+    if viewer.get("is_share"):
+        force_refresh = False
+    return _get_dashboard_data(days=days, region=region, force_refresh=force_refresh)
+
+
+def _get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool = False):
     """
     Get dashboard stats for all regions or a specific region.
     Parameters:
@@ -576,7 +643,7 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
             if not data:
                 logger.info(f"Cache empty for region {region}, trying force refresh")
                 try:
-                    return get_dashboard_data(days=days, region=region, force_refresh=True)
+                    return _get_dashboard_data(days=days, region=region, force_refresh=True)
                 except Exception as e:
                     logger.warning(f"Force refresh failed for {region}: {e}")
                     return {"source": "database", "region": region, "data": []}
@@ -593,7 +660,7 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
             if total_campaigns < len(mailchimp_service.REGIONS):
                 logger.info(f"Cache has only {total_campaigns} campaigns, trying force refresh")
                 try:
-                    return get_dashboard_data(days=days, region=region, force_refresh=True)
+                    return _get_dashboard_data(days=days, region=region, force_refresh=True)
                 except Exception as e:
                     logger.warning(f"Force refresh failed: {e}")
                     return {"source": "database", "data": all_data}
@@ -601,7 +668,7 @@ def get_dashboard_data(days: int = 30, region: str = None, force_refresh: bool =
             return {"source": "database", "data": all_data}
 
 @app.get("/api/regions")
-def get_regions():
+def get_regions(viewer: Dict = Depends(require_viewer)):
     """Get list of available regions dynamically detected from environment variables"""
     return {
         "regions": mailchimp_service.REGIONS,
@@ -609,7 +676,7 @@ def get_regions():
     }
 
 @app.get("/api/regions/activity")
-def get_regions_activity():
+def get_regions_activity(viewer: Dict = Depends(require_viewer)):
     """
     Get the last campaign activity for each region.
     Used to detect inactive regions regardless of the selected date range.
@@ -621,7 +688,7 @@ def get_regions_activity():
     }
 
 @app.post("/api/sync")
-def trigger_sync(days: int = 30):
+def trigger_sync(days: int = 30, user: Dict = Depends(require_auth)):
     """Synchronously sync data for all regions (Vercel Serverless compatible)"""
     logger.info("Starting sync for all regions")
     all_data = mailchimp_service.get_dashboard_data(days=days)
@@ -633,7 +700,8 @@ def trigger_sync(days: int = 30):
     return {"status": "success", "campaigns_synced": total, "regions": list(all_data.keys())}
 
 @app.get("/api/audiences")
-def get_audiences(region: str = None):
+def get_audiences(region: str = None, viewer: Dict = Depends(require_viewer)):
+    region = enforce_share_scope(viewer, region)
     """Get all audiences (lists) for a region or all regions"""
     if region:
         # Single region
@@ -659,7 +727,7 @@ def get_audiences(region: str = None):
         }
 
 @app.get("/api/cache/stats")
-def get_cache_stats():
+def get_cache_stats(user: Dict = Depends(require_auth)):
     """Get statistics about cached campaigns"""
     stats = database.get_cache_stats()
     return {
@@ -669,7 +737,7 @@ def get_cache_stats():
 @app.post("/api/cache/clear")
 def clear_cache(
     region: str = None,
-    user: Optional[Dict] = Depends(get_current_user)
+    user: Dict = Depends(require_admin)
 ):
     """Clear cached campaigns for a region or all regions"""
     deleted_count = database.clear_cache(region=region)
@@ -690,7 +758,7 @@ def clear_cache(
     }
 
 @app.get("/api/test-credentials")
-def test_credentials():
+def test_credentials(user: Dict = Depends(require_admin)):
     """Test MailChimp API credentials for all configured regions"""
     results = {}
 
@@ -729,7 +797,7 @@ def test_credentials():
     }
 
 @app.get("/api/cache/health")
-def check_cache_health():
+def check_cache_health(user: Dict = Depends(require_auth)):
     """
     檢查快取健康狀況並提供診斷資訊
     """
@@ -783,7 +851,7 @@ def check_cache_health():
 @app.post("/api/cache/populate")
 def populate_cache(
     days: int = 30,
-    user: Optional[Dict] = Depends(get_current_user)
+    user: Dict = Depends(require_auth)
 ):
     """
     手動填充快取
@@ -857,7 +925,7 @@ def populate_cache(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/diagnose")
-def diagnose_api(days: int = 60, region: str = None):
+def diagnose_api(days: int = 60, region: str = None, user: Dict = Depends(require_auth)):
     """
     診斷 MailChimp API 連線狀況
     測試是否能正常抓取資料、是否有 rate limit 等問題
@@ -1085,6 +1153,7 @@ def get_share_link(token: str):
     return {
         "status": "success",
         "filter_state": result["filter_state"],
+        "access_token": create_share_access_token(token, result["filter_state"]),
         "expires_at": link_info.get("expires_at"),
         "access_count": link_info.get("access_count", 0) + 1
     }
@@ -1119,7 +1188,8 @@ def verify_share_link_password(token: str, request: VerifyPasswordRequest):
 
     return {
         "status": "success",
-        "filter_state": result["filter_state"]
+        "filter_state": result["filter_state"],
+        "access_token": create_share_access_token(token, result["filter_state"]),
     }
 
 
@@ -1171,7 +1241,7 @@ def delete_share_link(token: str, user: Dict = Depends(require_admin)):
 # ============================================
 
 @app.get("/api/settings/excluded-audiences")
-def get_excluded_audiences(user: Dict = Depends(require_auth)):
+def get_excluded_audiences(user: Dict = Depends(require_viewer)):
     """
     Get list of excluded audiences
 
