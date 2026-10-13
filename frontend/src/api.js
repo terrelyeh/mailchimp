@@ -17,6 +17,12 @@ export const setStoredAuth = (token, user) => {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
 };
+// Share-link viewer token (scoped, short-lived; issued by /share/{token} endpoints)
+const SHARE_ACCESS_KEY = 'share_access_token';
+export const getShareAccessToken = () => sessionStorage.getItem(SHARE_ACCESS_KEY);
+export const setShareAccessToken = (t) => t && sessionStorage.setItem(SHARE_ACCESS_KEY, t);
+export const clearShareAccessToken = () => sessionStorage.removeItem(SHARE_ACCESS_KEY);
+
 export const clearStoredAuth = () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
@@ -34,7 +40,8 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
     (config) => {
-        const token = getStoredToken();
+        // Logged-in user token takes precedence; otherwise use share-link viewer token
+        const token = getStoredToken() || getShareAccessToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -54,6 +61,7 @@ api.interceptors.response.use(
             // Handle 401 unauthorized - clear auth and redirect
             if (error.response.status === 401) {
                 clearStoredAuth();
+                clearShareAccessToken();
                 // Dispatch custom event for auth state change
                 window.dispatchEvent(new CustomEvent('auth-expired'));
             }
@@ -201,6 +209,7 @@ export const createShareLink = async (filterState, password = null, expiresDays 
 export const getShareLink = async (token) => {
     try {
         const response = await api.get(`/share/${token}`);
+        if (response.data?.access_token) setShareAccessToken(response.data.access_token);
         return response.data;
     } catch (error) {
         if (error.response?.status === 404) {
@@ -218,6 +227,7 @@ export const getShareLink = async (token) => {
 export const verifyShareLinkPassword = async (token, password) => {
     try {
         const response = await api.post(`/share/${token}/verify`, { password });
+        if (response.data?.access_token) setShareAccessToken(response.data.access_token);
         return response.data;
     } catch (error) {
         if (error.response?.status === 404) {
@@ -285,6 +295,7 @@ export const login = async (email, password) => {
  */
 export const logout = () => {
     clearStoredAuth();
+    clearShareAccessToken();
 };
 
 /**

@@ -408,6 +408,17 @@ function App() {
     }
   }, []);
 
+  // Share-link viewers only get a data token after the link is verified,
+  // so (re)load everything once access is granted.
+  useEffect(() => {
+    if (!shareAccessVerified) return;
+    loadRegions();
+    loadAudiences();
+    loadExcludedAudiences();
+    loadData();
+    loadRegionsActivity();
+  }, [shareAccessVerified]);
+
   useEffect(() => {
     loadData();
     // Refresh regionsActivity when time range changes to ensure consistency
